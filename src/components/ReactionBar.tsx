@@ -1,4 +1,5 @@
 // created: 2026-11-24T13:35:00-08:00 — compact emoji like bar
+// updated: 2026-11-24T14:25:00-08:00 — clear “Like” label when empty
 import { useMemo, useState } from 'react'
 import { REACTION_EMOJIS, type ReactionRow, type ReactionTarget, myReactionEmoji } from '../lib/reactions'
 
@@ -9,11 +10,22 @@ type Props = {
   userId: string
   rows: ReactionRow[]
   busy?: boolean
+  /** created: 2026-11-24T14:25:00-08:00 */
+  emptyLabel?: string
   onReact: (targetType: ReactionTarget, targetId: string, emoji: string) => void
 }
 
 /** created: 2026-11-24T13:35:00-08:00 */
-export function ReactionBar({ targetType, targetId, userId, rows, busy, onReact }: Props) {
+/** updated: 2026-11-24T14:25:00-08:00 */
+export function ReactionBar({
+  targetType,
+  targetId,
+  userId,
+  rows,
+  busy,
+  emptyLabel = 'Like 😊',
+  onReact,
+}: Props) {
   const [open, setOpen] = useState(false)
   const mine = myReactionEmoji(rows, targetType, targetId, userId)
 
@@ -25,6 +37,8 @@ export function ReactionBar({ targetType, targetId, userId, rows, busy, onReact 
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1])
   }, [rows, targetType, targetId])
+
+  const total = tallies.reduce((n, [, c]) => n + c, 0)
 
   return (
     <div className="reaction-bar">
@@ -45,8 +59,9 @@ export function ReactionBar({ targetType, targetId, userId, rows, busy, onReact 
           className="ghost btn-compact reaction-add"
           disabled={busy}
           onClick={() => setOpen((v) => !v)}
+          aria-label="Add emoji like"
         >
-          {open ? 'Close' : mine || '😊'}
+          {open ? 'Close' : mine || (total > 0 ? '😊' : emptyLabel)}
         </button>
       </div>
       {open ? (

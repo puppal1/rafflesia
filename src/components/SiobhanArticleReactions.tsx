@@ -62,12 +62,14 @@ export function SiobhanArticleReactions({ articleKey, userId }: Props) {
 
   return (
     <div className="siobhan-article-reactions">
+      {/* updated: 2026-11-24T14:25:00-08:00 — sits in action row; label is Like 😊 */}
       <ReactionBar
         targetType="news"
         targetId={articleKey}
         userId={userId}
         rows={newsRowsAsReactions(rows)}
         busy={busy}
+        emptyLabel="Like 😊"
         onReact={react}
       />
       {err ? <p className="error" style={{ margin: '4px 0 0', fontSize: '0.78rem' }}>{err}</p> : null}

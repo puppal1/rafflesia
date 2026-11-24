@@ -2231,7 +2231,19 @@ select {
 }
 .siobhan-article-reactions {
   /* created: 2026-11-24T14:20:00-08:00 */
-  margin-top: 2px;
+  /* updated: 2026-11-24T14:25:00-08:00 — inline with Open / Comments */
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.siobhan-article-reactions .reaction-bar {
+  gap: 4px;
+}
+.siobhan-article-reactions .reaction-pills {
+  flex-wrap: nowrap;
+}
+.siobhan-card-actions .reaction-add {
+  min-height: 32px;
 }
 .siobhan-news-comments {
   margin-top: 6px;

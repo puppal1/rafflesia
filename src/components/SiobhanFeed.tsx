@@ -4,7 +4,9 @@
 // updated: 2026-11-24T13:25:00-08:00 — comments on news cards
 // updated: 2026-11-24T14:15:00-08:00 — side/bottom comment dock; feed stays readable
 // updated: 2026-11-24T14:20:00-08:00 — emoji likes on news cards
+// updated: 2026-11-24T14:25:00-08:00 — like in action row; Comments shows count
 import { useCallback, useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
 import { SiobhanArticleReactions } from './SiobhanArticleReactions'
@@ -30,8 +32,29 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   const [err, setErr] = useState('')
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
   const [activeKey, setActiveKey] = useState<string | null>(null)
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
 
   const activeStory = items.find((a) => a.id.slice(0, 500) === activeKey) || null
+
+  // created: 2026-11-24T14:25:00-08:00 — batch comment counts for Comments (n)
+  const loadCommentCounts = useCallback(async (keys: string[]) => {
+    if (!keys.length) {
+      setCommentCounts({})
+      return
+    }
+    const { data, error } = await supabase
+      .from('news_comments')
+      .select('article_key')
+      .in('article_key', keys)
+      .is('deleted_at', null)
+    if (error) return
+    const next: Record<string, number> = {}
+    for (const row of data || []) {
+      const k = (row as { article_key: string }).article_key
+      next[k] = (next[k] || 0) + 1
+    }
+    setCommentCounts(next)
+  }, [])
 
   const refresh = useCallback(async () => {
     setBusy(true)
@@ -41,6 +64,8 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       setItems(result.items)
       setFromLive(result.fromLive)
       setFetchedAt(result.fetchedAt)
+      const keys = result.items.map((a) => a.id.slice(0, 500))
+      await loadCommentCounts(keys)
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh to try again.')
       }
@@ -49,11 +74,18 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [loadCommentCounts])
 
   useEffect(() => {
     refresh().catch(() => undefined)
   }, [refresh])
+
+  // created: 2026-11-24T14:25:00-08:00 — refresh count when dock closes after commenting
+  useEffect(() => {
+    if (activeKey) return
+    if (!items.length) return
+    loadCommentCounts(items.map((a) => a.id.slice(0, 500))).catch(() => undefined)
+  }, [activeKey, items, loadCommentCounts])
 
   return (
     <div className={`siobhan-panel ${activeKey ? 'has-comment-dock' : ''}`}>
@@ -152,12 +184,16 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                         Open story
                       </a>
                     ) : null}
+                    {/* updated: 2026-11-24T14:25:00-08:00 — Like lives here, left of Comments */}
+                    <SiobhanArticleReactions articleKey={key} userId={userId} />
                     <button
                       className={open ? 'primary btn-compact' : 'ghost btn-compact'}
                       type="button"
                       onClick={() => setActiveKey(open ? null : key)}
                     >
-                      {open ? 'Comments open' : 'Comments'}
+                      {open
+                        ? 'Comments open'
+                        : `Comments (${commentCounts[key] || 0})`}
                     </button>
                     {a.publishedAt ? (
                       <span className="muted siobhan-when">
@@ -167,8 +203,6 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                       <span className="muted siobhan-when">{a.source}</span>
                     )}
                   </div>
-                  {/* created: 2026-11-24T14:20:00-08:00 */}
-                  <SiobhanArticleReactions articleKey={key} userId={userId} />
                 </article>
               )
             })
