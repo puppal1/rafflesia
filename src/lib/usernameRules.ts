@@ -1,44 +1,18 @@
 // created: 2026-11-23T19:55:00-08:00
-// updated: 2026-11-23T19:59:00-08:00 — drop ≥85% similarity; keep max/vulgar/exact duplicate
+// updated: 2026-11-23T21:35:00-08:00 — shared larger blocklist for username/display
 // Username rules: max length, vulgar filter, exact duplicate
+
+import { BUILTIN_BAD_PHRASES, phraseMatchesText } from './badWords'
 
 /** created: 2026-11-23T19:55:00-08:00 */
 export const USERNAME_MAX = 20
 /** created: 2026-11-23T19:55:00-08:00 */
 export const DISPLAY_NAME_MAX = 24
 
-/** created: 2026-11-23T19:55:00-08:00 — school-safe blocklist (expand via teacher list later) */
-const BAD_WORDS = [
-  'fuck',
-  'shit',
-  'bitch',
-  'asshole',
-  'bastard',
-  'dick',
-  'cock',
-  'pussy',
-  'cunt',
-  'nigger',
-  'nigga',
-  'faggot',
-  'retard',
-  'slut',
-  'whore',
-  'rape',
-  'killme',
-  'killyou',
-  'suicide',
-]
-
 /** created: 2026-11-23T19:55:00-08:00 */
-function normalize(s: string) {
-  return s.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
-}
-
-/** created: 2026-11-23T19:55:00-08:00 */
+/** updated: 2026-11-23T21:35:00-08:00 */
 export function containsBadWord(text: string): boolean {
-  const n = normalize(text)
-  return BAD_WORDS.some((w) => n.includes(w))
+  return BUILTIN_BAD_PHRASES.some((w) => phraseMatchesText(text, w))
 }
 
 export type UsernameCheckOk = { ok: true; username: string }

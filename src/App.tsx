@@ -14,6 +14,7 @@ import {
   validateDisplayName,
   validateUsernameShape,
 } from './lib/usernameRules'
+import { checkKidText, reportBlockedText } from './lib/textChecker'
 import './App.css'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
@@ -68,6 +69,19 @@ function App() {
       const cleanDisplay = displayName.trim() || cleanUser
       const displayErr = validateDisplayName(cleanDisplay)
       if (displayErr) throw new Error(displayErr.message)
+      // created: 2026-11-23T21:35:00-08:00 — teacher DB phrases on signup text
+      if (mode === 'signup') {
+        const uCheck = await checkKidText(cleanUser)
+        if (!uCheck.ok) {
+          await reportBlockedText('username', cleanUser, uCheck.matched)
+          throw new Error(uCheck.message)
+        }
+        const dCheck = await checkKidText(cleanDisplay)
+        if (!dCheck.ok) {
+          await reportBlockedText('display_name', cleanDisplay, dCheck.matched)
+          throw new Error(dCheck.message)
+        }
+      }
 
       const email = toAuthEmail(cleanUser)
 

@@ -29,7 +29,22 @@ export function IconPicker({ title = 'Pick your icon', onPick, busy }: Props) {
                 onClick={() => setSelected(icon)}
                 disabled={busy}
               >
-                <span className="icon-emoji">{icon.emoji}</span>
+                {icon.src ? (
+                  <img
+                    className="icon-img"
+                    src={icon.src}
+                    alt={icon.label}
+                    onError={(e) => {
+                      // created: 2026-11-23T21:40:00-08:00 — fall back to emoji if PNG missing
+                      e.currentTarget.style.display = 'none'
+                      const sib = e.currentTarget.nextElementSibling as HTMLElement | null
+                      if (sib) sib.style.display = 'inline'
+                    }}
+                  />
+                ) : null}
+                <span className="icon-emoji" style={icon.src ? { display: 'none' } : undefined}>
+                  {icon.emoji}
+                </span>
                 <span className="icon-label">{icon.label}</span>
               </button>
             ))}

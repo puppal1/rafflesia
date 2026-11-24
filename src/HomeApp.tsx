@@ -706,13 +706,19 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function createGroup(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:45:00-08:00 — pass selected friend ids (WF-G1)
+    // updated: 2026-11-23T21:40:00-08:00 — text check on group title
     e.preventDefault()
     const title = groupTitle.trim()
     if (!title) return
     setBusy(true)
     setError('')
     try {
+      const check = await checkKidText(title)
+      if (!check.ok) {
+        await reportBlockedText('group_title', title, check.matched)
+        setTextBlockMsg(check.message)
+        return
+      }
       const memberIds = [...createPickIds]
       const { data: chat, error: chatErr } = await supabase.rpc('create_group_chat', {
         p_title: title,

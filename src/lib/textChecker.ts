@@ -1,15 +1,11 @@
 // created: 2026-11-23T21:00:00-08:00
-// Calm text checker for messages, bios, posts (client + optional DB phrases)
-
-import { containsBadWord } from './usernameRules'
+// updated: 2026-11-23T21:35:00-08:00 — larger builtin list + teacher DB phrases for all text
+import { BUILTIN_BAD_PHRASES, phraseMatchesText } from './badWords'
 import { supabase } from './supabase'
 
 export type TextCheckResult =
   | { ok: true }
   | { ok: false; matched: string; message: string }
-
-/** created: 2026-11-23T21:00:00-08:00 */
-const EXTRA_PHRASES = ['kill you', 'kys', 'hate you', 'go die']
 
 let cachedPhrases: string[] | null = null
 
@@ -17,11 +13,13 @@ let cachedPhrases: string[] | null = null
 export async function loadBlockedPhrases(): Promise<string[]> {
   if (cachedPhrases) return cachedPhrases
   const { data, error } = await supabase.rpc('list_blocked_phrases')
-  if (!error && Array.isArray(data)) {
-    cachedPhrases = (data as string[]).map((p) => String(p).toLowerCase())
+  if (!error && Array.isArray(data) && data.length) {
+    cachedPhrases = [
+      ...new Set([...BUILTIN_BAD_PHRASES, ...(data as string[]).map((p) => String(p).toLowerCase())]),
+    ]
     return cachedPhrases
   }
-  cachedPhrases = [...EXTRA_PHRASES]
+  cachedPhrases = [...BUILTIN_BAD_PHRASES]
   return cachedPhrases
 }
 
@@ -31,26 +29,18 @@ export function clearBlockedPhraseCache() {
 }
 
 /** created: 2026-11-23T21:00:00-08:00 */
+/** updated: 2026-11-23T21:35:00-08:00 — messages, bios, posts, names */
 export async function checkKidText(raw: string): Promise<TextCheckResult> {
   const text = (raw || '').trim()
   if (!text) return { ok: true }
 
-  if (containsBadWord(text)) {
-    return {
-      ok: false,
-      matched: 'blocked-word',
-      message: "Let's keep it kind. That message couldn't be sent. Edit your words and try again.",
-    }
-  }
-
-  const lower = text.toLowerCase()
   const phrases = await loadBlockedPhrases()
   for (const phrase of phrases) {
-    if (phrase && lower.includes(phrase)) {
+    if (phraseMatchesText(text, phrase)) {
       return {
         ok: false,
         matched: phrase,
-        message: "Let's keep it kind. That message couldn't be sent. Edit your words and try again.",
+        message: "Let's keep it kind. That text couldn't be saved. Edit your words and try again.",
       }
     }
   }

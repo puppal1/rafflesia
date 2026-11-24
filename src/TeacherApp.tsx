@@ -1,9 +1,10 @@
 // created: 2026-11-23T21:00:00-08:00
-// updated: 2026-11-23T21:05:00-08:00 — password-gated teacher RPCs (no kid login required)
-import { useCallback, useEffect, useState } from 'react'
+// updated: 2026-11-23T21:35:00-08:00 — username typeahead + profile preview
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { clearBlockedPhraseCache } from './lib/textChecker'
+import { iconEmoji } from './lib/iconPacks'
 
 type FlagRow = {
   // created: 2026-11-23T21:00:00-08:00
@@ -14,6 +15,20 @@ type FlagRow = {
   body: string
   matched: string | null
   created_at: string
+}
+
+type SearchHit = {
+  // created: 2026-11-23T21:35:00-08:00
+  id: string
+  username: string
+  display_name: string
+  bio: string
+  avatar_url: string | null
+  banner_url: string | null
+  icon_pack: string | null
+  icon_id: string | null
+  block_post: boolean
+  block_message: boolean
 }
 
 type Props = {
@@ -40,6 +55,11 @@ export function TeacherApp({ onExit }: Props) {
     chats: 0,
     flags: 0,
   })
+  // created: 2026-11-23T21:35:00-08:00
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const [picked, setPicked] = useState<SearchHit | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchTimer = useRef<number | null>(null)
 
   const loadAll = useCallback(async (pw: string) => {
     const [f, w, o] = await Promise.all([
@@ -61,6 +81,46 @@ export function TeacherApp({ onExit }: Props) {
     loadAll(sessionPw).catch((err) => setError(err instanceof Error ? err.message : 'Load failed'))
   }, [authed, sessionPw, loadAll])
 
+  function onRestrictQueryChange(value: string) {
+    // created: 2026-11-23T21:35:00-08:00 — debounce typeahead
+    setRestrictUser(value)
+    setPicked(null)
+    setSearchOpen(true)
+    if (searchTimer.current) window.clearTimeout(searchTimer.current)
+    const q = value.trim()
+    if (q.length < 1) {
+      setHits([])
+      return
+    }
+    searchTimer.current = window.setTimeout(async () => {
+      const { data, error: err } = await supabase.rpc('teacher_search_users', {
+        p_password: sessionPw,
+        p_query: q,
+      })
+      if (err) {
+        setError(
+          err.message.includes('teacher_search_users')
+            ? 'Search needs sql-phase5-patch-missing-rpcs.sql — run in Supabase.'
+            : err.message,
+        )
+        setHits([])
+        return
+      }
+      setHits((data || []) as SearchHit[])
+    }, 220)
+  }
+
+  function pickHit(hit: SearchHit) {
+    // created: 2026-11-23T21:35:00-08:00
+    setPicked(hit)
+    setRestrictUser(hit.username)
+    setHits([])
+    setSearchOpen(false)
+    setBlockPost(hit.block_post)
+    setBlockMsg(hit.block_message)
+    setStatus(`Selected @${hit.username}`)
+  }
+
   async function onLogin(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -68,7 +128,6 @@ export function TeacherApp({ onExit }: Props) {
       p_password: password,
     })
     if (err) {
-      // Fallback if phase5 SQL not applied yet
       if (password === 'teacher108') {
         setSessionPw(password)
         setAuthed(true)
@@ -121,14 +180,18 @@ export function TeacherApp({ onExit }: Props) {
   async function applyRestrict(e: FormEvent) {
     e.preventDefault()
     setError('')
-    const uname = restrictUser.trim().toLowerCase().replace(/^@/, '')
-    const { data: uid, error: findErr } = await supabase.rpc('teacher_find_user', {
-      p_password: sessionPw,
-      p_username: uname,
-    })
-    if (findErr || !uid) {
-      setError(findErr?.message || 'User not found.')
-      return
+    let uid = picked?.id
+    if (!uid) {
+      const uname = restrictUser.trim().toLowerCase().replace(/^@/, '')
+      const { data, error: findErr } = await supabase.rpc('teacher_find_user', {
+        p_password: sessionPw,
+        p_username: uname,
+      })
+      if (findErr || !data) {
+        setError(findErr?.message || 'User not found. Type a few letters and pick from the list.')
+        return
+      }
+      uid = data as string
     }
     const { error: err } = await supabase.rpc('teacher_set_restriction', {
       p_password: sessionPw,
@@ -140,19 +203,28 @@ export function TeacherApp({ onExit }: Props) {
       setError(err.message)
       return
     }
-    setStatus(`Updated restrictions for @${uname}.`)
+    setStatus(`Updated restrictions for @${restrictUser.trim().replace(/^@/, '')}.`)
+    if (picked) {
+      setPicked({ ...picked, block_post: blockPost, block_message: blockMsg })
+    }
   }
 
   async function unlockUser(e: FormEvent) {
     e.preventDefault()
-    const uname = restrictUser.trim().toLowerCase().replace(/^@/, '')
-    const { data: uid, error: findErr } = await supabase.rpc('teacher_find_user', {
-      p_password: sessionPw,
-      p_username: uname,
-    })
-    if (findErr || !uid) {
-      setError(findErr?.message || 'User not found.')
-      return
+    setBlockPost(false)
+    setBlockMsg(false)
+    let uid = picked?.id
+    if (!uid) {
+      const uname = restrictUser.trim().toLowerCase().replace(/^@/, '')
+      const { data, error: findErr } = await supabase.rpc('teacher_find_user', {
+        p_password: sessionPw,
+        p_username: uname,
+      })
+      if (findErr || !data) {
+        setError(findErr?.message || 'User not found.')
+        return
+      }
+      uid = data as string
     }
     await supabase.rpc('teacher_set_restriction', {
       p_password: sessionPw,
@@ -160,7 +232,8 @@ export function TeacherApp({ onExit }: Props) {
       p_block_post: false,
       p_block_message: false,
     })
-    setStatus(`Unlocked @${uname}.`)
+    setStatus(`Unlocked @${restrictUser.trim().replace(/^@/, '')}.`)
+    if (picked) setPicked({ ...picked, block_post: false, block_message: false })
   }
 
   if (!authed) {
@@ -250,16 +323,61 @@ export function TeacherApp({ onExit }: Props) {
       )}
 
       {tab === 'restrict' && (
-        <form className="form" onSubmit={applyRestrict}>
+        <form className="form" onSubmit={applyRestrict} autoComplete="off">
           <h2 className="panel-title">Restrict user</h2>
-          <label>
-            Username
+          <label className="typeahead-wrap">
+            Search username
             <input
               value={restrictUser}
-              onChange={(e) => setRestrictUser(e.target.value)}
-              placeholder="sam"
+              onChange={(e) => onRestrictQueryChange(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Start typing a name…"
             />
+            {searchOpen && hits.length > 0 ? (
+              <ul className="typeahead-list">
+                {hits.map((h) => (
+                  <li key={h.id}>
+                    <button type="button" className="typeahead-item" onClick={() => pickHit(h)}>
+                      <span>
+                        {iconEmoji(h.icon_pack, h.icon_id)} <strong>@{h.username}</strong>
+                      </span>
+                      <span className="muted">{h.display_name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </label>
+
+          {picked ? (
+            <div className="teacher-profile-card">
+              {/* created: 2026-11-23T21:35:00-08:00 */}
+              {picked.banner_url ? (
+                <img className="banner-preview" src={picked.banner_url} alt="" />
+              ) : (
+                <div className="banner-preview placeholder">No banner</div>
+              )}
+              {picked.avatar_url ? (
+                <img className="avatar-preview" src={picked.avatar_url} alt="" />
+              ) : (
+                <div className="avatar-preview placeholder">
+                  {iconEmoji(picked.icon_pack, picked.icon_id)}
+                </div>
+              )}
+              <p className="row-title">
+                {iconEmoji(picked.icon_pack, picked.icon_id)} {picked.display_name}
+              </p>
+              <p className="muted">@{picked.username}</p>
+              <p className="profile-bio">{(picked.bio || '').trim() || 'No bio.'}</p>
+              <p className="muted">
+                Posting: {picked.block_post ? 'blocked' : 'ok'} · Messaging:{' '}
+                {picked.block_message ? 'blocked' : 'ok'}
+              </p>
+            </div>
+          ) : (
+            <p className="muted">Pick a kid from the suggestions to see their profile.</p>
+          )}
+
           <label className="member-check">
             <input type="checkbox" checked={blockPost} onChange={(e) => setBlockPost(e.target.checked)} />
             Block posting
@@ -282,6 +400,7 @@ export function TeacherApp({ onExit }: Props) {
       {tab === 'words' && (
         <div>
           <h2 className="panel-title">Blocked words</h2>
+          <p className="muted">Applies to messages, bios, posts, display names, and usernames.</p>
           <div className="word-chips">
             {words.map((w) => (
               <button key={w} type="button" className="chip" onClick={() => removeWord(w)}>
@@ -308,6 +427,7 @@ export function TeacherApp({ onExit }: Props) {
           <p className="muted">Posts in club: {overview.posts}</p>
           <p className="muted">Chats in club: {overview.chats}</p>
           <p className="muted">Flags: {overview.flags}</p>
+          <p className="muted">Blocked phrases: {words.length}</p>
         </div>
       )}
     </div>
