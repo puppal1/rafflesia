@@ -69,6 +69,9 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [postKind, setPostKind] = useState<'text' | 'link' | 'picture' | 'video'>('text')
   const [postBody, setPostBody] = useState('')
   const [postMedia, setPostMedia] = useState('')
+  // created: 2026-11-23T21:50:00-08:00 — upload vs paste link for pic/video
+  const [postSource, setPostSource] = useState<'upload' | 'link'>('upload')
+  const [postFileName, setPostFileName] = useState('')
   const [pickIconMode, setPickIconMode] = useState(false)
 
   const loadMe = useCallback(async () => {
@@ -360,8 +363,41 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  async function uploadPostFile(file: File, kind: 'picture' | 'video') {
+    // created: 2026-11-23T21:50:00-08:00
+    if (kind === 'picture') {
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please choose an image (jpg/png/webp/gif).')
+      }
+      if (file.size > 4 * 1024 * 1024) {
+        throw new Error('Picture must be under 4 MB.')
+      }
+    } else {
+      if (!file.type.startsWith('video/')) {
+        throw new Error('Please choose a video file (mp4/webm).')
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        throw new Error('Video must be under 25 MB (free storage cap).')
+      }
+    }
+    const ext = (file.name.split('.').pop() || (kind === 'picture' ? 'jpg' : 'mp4')).toLowerCase()
+    const path = `${userId}/${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('posts').upload(path, file, {
+      upsert: false,
+      contentType: file.type,
+    })
+    if (upErr) {
+      throw new Error(
+        `${upErr.message}. If storage is missing, run sql/storage-posts.sql in Supabase.`,
+      )
+    }
+    const { data } = supabase.storage.from('posts').getPublicUrl(path)
+    return data.publicUrl
+  }
+
   async function submitPost(e: FormEvent) {
     // created: 2026-11-23T21:10:00-08:00
+    // updated: 2026-11-23T21:50:00-08:00 — icon modes + upload/link for pic & video
     e.preventDefault()
     setBusy(true)
     setError('')
@@ -373,19 +409,53 @@ export function HomeApp({ userId, onLogout }: Props) {
         setTextBlockMsg(check.message)
         return
       }
+      let mediaUrl = postMedia.trim() || null
+      if (postKind === 'text') {
+        if (!postBody.trim()) throw new Error('Write something to share.')
+        mediaUrl = null
+      } else if (postKind === 'link') {
+        if (!mediaUrl) throw new Error('Paste a link.')
+      } else if ((postKind === 'picture' || postKind === 'video') && postSource === 'link') {
+        if (!mediaUrl) throw new Error(`Paste a ${postKind} URL.`)
+      } else if ((postKind === 'picture' || postKind === 'video') && postSource === 'upload') {
+        if (!mediaUrl) throw new Error(`Choose a ${postKind} file to upload first.`)
+      }
+
       const { error: err } = await supabase.rpc('create_post', {
         p_kind: postKind,
         p_body: postBody.trim() || null,
-        p_media_url: postMedia.trim() || null,
+        p_media_url: mediaUrl,
       })
       if (err) throw err
       setPostBody('')
       setPostMedia('')
+      setPostFileName('')
+      setPostSource('upload')
       setStatus('Posted!')
       setTab('home')
       await loadPosts()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not post.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onPickPostFile(file: File | undefined) {
+    // created: 2026-11-23T21:50:00-08:00
+    if (!file || (postKind !== 'picture' && postKind !== 'video')) return
+    setBusy(true)
+    setError('')
+    setStatus('')
+    try {
+      const url = await uploadPostFile(file, postKind)
+      setPostMedia(url)
+      setPostFileName(file.name)
+      setStatus(`${postKind === 'picture' ? 'Picture' : 'Video'} ready to share.`)
+    } catch (err) {
+      setPostMedia('')
+      setPostFileName('')
+      setError(err instanceof Error ? err.message : 'Upload failed.')
     } finally {
       setBusy(false)
     }
@@ -1121,14 +1191,27 @@ export function HomeApp({ userId, onLogout }: Props) {
                 <div className="row post-row" key={p.id}>
                   <div className="row-main">
                     <p className="row-title">
-                      {authorName(p.author_id)} · {p.kind}
+                      {authorName(p.author_id)} ·{' '}
+                      {p.kind === 'picture'
+                        ? '🖼️ Picture'
+                        : p.kind === 'video'
+                          ? '🎬 Video'
+                          : p.kind === 'link'
+                            ? '🔗 Link'
+                            : '✏️ Text'}
                     </p>
                     <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
                     {p.body ? <p className="profile-bio">{p.body}</p> : null}
-                    {p.media_url ? (
+                    {p.kind === 'picture' && p.media_url ? (
+                      <img className="post-media" src={p.media_url} alt="" />
+                    ) : null}
+                    {p.kind === 'video' && p.media_url ? (
+                      <video className="post-media" src={p.media_url} controls playsInline />
+                    ) : null}
+                    {p.kind === 'link' && p.media_url ? (
                       <p className="row-sub">
                         <a href={p.media_url} target="_blank" rel="noreferrer">
-                          Open link / media
+                          Open link
                         </a>
                       </p>
                     ) : null}
@@ -1143,38 +1226,124 @@ export function HomeApp({ userId, onLogout }: Props) {
       {!viewProfile && !textBlockMsg && tab === 'post' && (
         <form className="form" onSubmit={submitPost}>
           {/* created: 2026-11-23T21:10:00-08:00 */}
+          {/* updated: 2026-11-23T21:50:00-08:00 — C3 icon mode picker; upload+link for pic/video */}
           <h2 className="panel-title">New post</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Pick what you want to share
+          </p>
+          <div className="post-mode-grid" role="listbox" aria-label="Post type">
+            {(
+              [
+                { id: 'text' as const, emoji: '✏️', label: 'Text' },
+                { id: 'picture' as const, emoji: '🖼️', label: 'Picture' },
+                { id: 'link' as const, emoji: '🔗', label: 'Link' },
+                { id: 'video' as const, emoji: '🎬', label: 'Video' },
+              ]
+            ).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                role="option"
+                aria-selected={postKind === mode.id}
+                className={postKind === mode.id ? 'post-mode-tile sel' : 'post-mode-tile'}
+                onClick={() => {
+                  setPostKind(mode.id)
+                  setPostMedia('')
+                  setPostFileName('')
+                  setPostSource(mode.id === 'link' ? 'link' : 'upload')
+                  setError('')
+                  setStatus('')
+                }}
+              >
+                <span className="post-mode-emoji">{mode.emoji}</span>
+                <span className="post-mode-label">{mode.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {(postKind === 'picture' || postKind === 'video') && (
+            <div className="post-source-row">
+              <button
+                type="button"
+                className={postSource === 'upload' ? 'post-source-chip sel' : 'post-source-chip'}
+                onClick={() => {
+                  setPostSource('upload')
+                  setPostMedia('')
+                  setPostFileName('')
+                }}
+              >
+                ⬆️ Upload
+              </button>
+              <button
+                type="button"
+                className={postSource === 'link' ? 'post-source-chip sel' : 'post-source-chip'}
+                onClick={() => {
+                  setPostSource('link')
+                  setPostMedia('')
+                  setPostFileName('')
+                }}
+              >
+                🔗 Link
+              </button>
+            </div>
+          )}
+
+          {postKind === 'link' ||
+          ((postKind === 'picture' || postKind === 'video') && postSource === 'link') ? (
+            <label>
+              {postKind === 'link' ? 'Website link' : `${postKind === 'picture' ? 'Picture' : 'Video'} URL`}
+              <input
+                value={postMedia}
+                onChange={(e) => setPostMedia(e.target.value)}
+                placeholder="https://…"
+                inputMode="url"
+              />
+            </label>
+          ) : null}
+
+          {(postKind === 'picture' || postKind === 'video') && postSource === 'upload' ? (
+            <label className="post-file-label">
+              {postKind === 'picture' ? 'Choose picture' : 'Choose video'}
+              <input
+                type="file"
+                accept={postKind === 'picture' ? 'image/jpeg,image/png,image/webp,image/gif' : 'video/mp4,video/webm'}
+                disabled={busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  onPickPostFile(file)
+                  e.target.value = ''
+                }}
+              />
+              <span className="muted">
+                {postFileName
+                  ? `Ready: ${postFileName}`
+                  : postKind === 'picture'
+                    ? 'Under 4 MB · jpg/png/webp/gif'
+                    : 'Under 25 MB · mp4/webm'}
+              </span>
+            </label>
+          ) : null}
+
           <label>
-            Type
-            <select
-              value={postKind}
-              onChange={(e) => setPostKind(e.target.value as typeof postKind)}
-            >
-              <option value="text">Text</option>
-              <option value="link">Link</option>
-              <option value="picture">Picture URL</option>
-              <option value="video">Video URL</option>
-            </select>
-          </label>
-          <label>
-            Caption / text
+            Caption
             <textarea
               value={postBody}
               onChange={(e) => setPostBody(e.target.value)}
               placeholder="Say something kind…"
             />
           </label>
-          {postKind !== 'text' ? (
-            <label>
-              URL
-              <input
-                value={postMedia}
-                onChange={(e) => setPostMedia(e.target.value)}
-                placeholder="https://…"
-              />
-            </label>
-          ) : null}
-          <button className="primary" type="submit" disabled={busy || (!postBody.trim() && !postMedia.trim())}>
+          <button
+            className="primary"
+            type="submit"
+            disabled={
+              busy ||
+              (postKind === 'text'
+                ? !postBody.trim()
+                : postKind === 'link'
+                  ? !postMedia.trim()
+                  : !postMedia.trim())
+            }
+          >
             Share
           </button>
         </form>
