@@ -1,11 +1,35 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:28:00-08:00 — public followers / following lists on Me + People profiles
-import { useCallback, useEffect, useMemo, useState } from 'react'
+// updated: 2026-11-23T20:30:00-08:00 — live chat poll + emoji bar
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, Profile, Tab } from './types'
+
+/** created: 2026-11-23T20:30:00-08:00 — school-safe emoji picker */
+const CHAT_EMOJIS = [
+  '😀',
+  '😂',
+  '🥰',
+  '😎',
+  '🤩',
+  '🙌',
+  '👍',
+  '👏',
+  '❤️',
+  '🔥',
+  '⭐',
+  '🎉',
+  '🌈',
+  '🌸',
+  '🍕',
+  '🎮',
+  '🏀',
+  '🐱',
+  '🐶',
+  '✨',
+]
 
 type Props = {
   userId: string
@@ -37,6 +61,9 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // created: 2026-11-23T20:30:00-08:00
+  const draftInputRef = useRef<HTMLInputElement | null>(null)
+  const [showEmojiBar, setShowEmojiBar] = useState(true)
 
   const loadMe = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -230,26 +257,54 @@ export function HomeApp({ userId, onLogout }: Props) {
   )
 
   useEffect(() => {
+    // created: 2026-11-23T12:14:00-08:00
+    // updated: 2026-11-23T20:30:00-08:00 — realtime + 2s poll so chats update without refresh
     if (!activeChat) return
-    loadMessages(activeChat.id).catch((err) =>
-      setError(err instanceof Error ? err.message : 'Could not load messages.'),
-    )
+    const chatId = activeChat.id
+    let cancelled = false
+
+    const refresh = () => {
+      if (cancelled) return
+      loadMessages(chatId).catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load messages.')
+      })
+    }
+
+    refresh()
+
     const channel = supabase
-      .channel(`messages-${activeChat.id}`)
+      .channel(`messages-${chatId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `chat_id=eq.${activeChat.id}`,
+          filter: `chat_id=eq.${chatId}`,
         },
-        () => {
-          loadMessages(activeChat.id)
+        () => refresh(),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_likes',
         },
+        () => refresh(),
       )
       .subscribe()
+
+    const pollMs = window.setInterval(refresh, 2000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
+      cancelled = true
+      window.clearInterval(pollMs)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [activeChat, loadMessages])
@@ -495,20 +550,47 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  function insertEmoji(emoji: string) {
+    // created: 2026-11-23T20:30:00-08:00
+    const el = draftInputRef.current
+    if (!el) {
+      setDraft((d) => d + emoji)
+      return
+    }
+    const start = el.selectionStart ?? draft.length
+    const end = el.selectionEnd ?? draft.length
+    const next = draft.slice(0, start) + emoji + draft.slice(end)
+    setDraft(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const pos = start + emoji.length
+      el.setSelectionRange(pos, pos)
+    })
+  }
+
   async function sendMessage(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T12:42:00-08:00 — use send_chat_message RPC
+    // updated: 2026-11-23T20:30:00-08:00 — show sent message immediately
     e.preventDefault()
     if (!activeChat || !draft.trim()) return
     setBusy(true)
     setError('')
+    const body = draft.trim()
     try {
-      const { error: err } = await supabase.rpc('send_chat_message', {
+      const { data, error: err } = await supabase.rpc('send_chat_message', {
         p_chat_id: activeChat.id,
-        p_body: draft.trim(),
+        p_body: body,
       })
       if (err) throw err
       setDraft('')
+      if (data && typeof data === 'object' && 'id' in data) {
+        const row = data as MessageRow
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
+        setProfilesById((prev) => ({
+          ...prev,
+          [userId]: prev[userId] || me || { id: userId, username: 'me', display_name: 'You', bio: '', avatar_url: null, banner_url: null },
+        }))
+      }
       await loadMessages(activeChat.id)
     } catch (err) {
       const msg =
@@ -824,7 +906,7 @@ export function HomeApp({ userId, onLogout }: Props) {
             <button className="ghost" type="button" onClick={() => setActiveChat(null)}>
               ← Back
             </button>
-            <strong style={{ color: '#f2f8ff' }}>{chatLabel}</strong>
+            <strong className="chat-title">{chatLabel}</strong>
           </div>
           <div className="messages">
             {messages.map((m) => {
@@ -848,8 +930,33 @@ export function HomeApp({ userId, onLogout }: Props) {
               )
             })}
           </div>
+          {/* created: 2026-11-23T20:30:00-08:00 — emoji bar */}
+          <div className="emoji-bar-wrap">
+            <button
+              className="ghost emoji-toggle"
+              type="button"
+              onClick={() => setShowEmojiBar((v) => !v)}
+            >
+              {showEmojiBar ? 'Hide emoji' : 'Emoji'}
+            </button>
+            {showEmojiBar ? (
+              <div className="emoji-bar" role="listbox" aria-label="Emoji">
+                {CHAT_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className="emoji-btn"
+                    onClick={() => insertEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <form className="composer" onSubmit={sendMessage}>
             <input
+              ref={draftInputRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Type a message"

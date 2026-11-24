@@ -371,3 +371,45 @@
 .follow-panel .toolbar strong {
   color: #2f3a55;
 }
+
+/* created: 2026-11-23T20:30:00-08:00 — live chat chrome + emoji bar */
+.chat-title {
+  color: #2f3a55;
+}
+
+.emoji-bar-wrap {
+  margin: 8px 0 6px;
+  text-align: left;
+}
+
+.emoji-toggle {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+}
+
+.emoji-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid #cfe4f8;
+  background: rgba(238, 246, 255, 0.95);
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.emoji-btn {
+  border: 0;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.emoji-btn:hover {
+  background: rgba(77, 159, 255, 0.2);
+}
