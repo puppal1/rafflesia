@@ -1125,11 +1125,61 @@
 
 .icon-picker {
   /* updated: 2026-11-24T12:55:00-08:00 — sticky Continue footer */
+  /* updated: 2026-11-24T13:45:00-08:00 — large preview frame */
   text-align: left;
   display: flex;
   flex-direction: column;
   min-height: min(70vh, 560px);
   max-height: min(78vh, 640px);
+}
+
+.icon-preview-frame {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 16px 14px;
+  border-radius: 20px;
+  border: 3px solid #1a3a5c;
+  background: linear-gradient(165deg, #fffdf8, #e8f4ff);
+  box-shadow: 3px 3px 0 #1a3a5c;
+  min-height: 168px;
+}
+.icon-preview-img {
+  width: 128px;
+  height: 128px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #1a3a5c;
+  background: #fff;
+}
+.icon-preview-emoji {
+  font-size: 5rem;
+  line-height: 1;
+  width: 128px;
+  height: 128px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 3px solid #1a3a5c;
+  background: #fff;
+}
+.icon-preview-name {
+  margin: 4px 0 0;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #1a2a40;
+  text-align: center;
+}
+.icon-preview-pack {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+.icon-preview-empty {
+  margin: 0;
+  text-align: center;
 }
 
 .icon-picker-scroll {

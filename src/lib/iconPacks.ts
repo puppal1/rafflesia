@@ -1,6 +1,7 @@
 // created: 2026-11-23T21:00:00-08:00
 // updated: 2026-11-23T23:55:00-08:00 — regular emojis only (no AI jpg icons)
 // updated: 2026-11-24T12:40:00-08:00 — manga sticker packs + imageUrl (PRD v2 C3)
+// updated: 2026-11-24T13:45:00-08:00 — +5 meme×manga icons per hero/villain/neutral
 
 export type IconDef = {
   // created: 2026-11-23T21:00:00-08:00
@@ -20,14 +21,18 @@ function manga(path: string): string {
 }
 
 /** created: 2026-11-23T21:00:00-08:00 */
-/** updated: 2026-11-23T23:55:00-08:00 — emoji-only packs */
-/** updated: 2026-11-24T12:40:00-08:00 — manga packs first */
+/** updated: 2026-11-24T13:45:00-08:00 — meme crossover names (fictional) */
 export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
   {
     id: 'manga-hero',
     title: 'Manga Hero',
     icons: [
       { id: 'manga-hero-1', pack: 'manga-hero', emoji: '🦸', label: 'hero', imageUrl: manga('hero.jpg') },
+      { id: 'manga-hero-lockin', pack: 'manga-hero', emoji: '🔒', label: 'Lock-In Lance', imageUrl: manga('hero-lockin.jpg') },
+      { id: 'manga-hero-aura', pack: 'manga-hero', emoji: '✨', label: 'Aura Mira', imageUrl: manga('hero-aura.jpg') },
+      { id: 'manga-hero-mainchar', pack: 'manga-hero', emoji: '🌟', label: 'Mainchar Nova', imageUrl: manga('hero-mainchar.jpg') },
+      { id: 'manga-hero-sigma', pack: 'manga-hero', emoji: '⚡', label: 'Sigma Zen', imageUrl: manga('hero-sigma.jpg') },
+      { id: 'manga-hero-glaze', pack: 'manga-hero', emoji: '🎧', label: 'Glaze Rio', imageUrl: manga('hero-glaze.jpg') },
     ],
   },
   {
@@ -35,6 +40,11 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
     title: 'Manga Villain',
     icons: [
       { id: 'manga-villain-1', pack: 'manga-villain', emoji: '😈', label: 'villain', imageUrl: manga('villain.jpg') },
+      { id: 'manga-villain-ragebait', pack: 'manga-villain', emoji: '🎣', label: 'Ragebait Kuro', imageUrl: manga('villain-ragebait.jpg') },
+      { id: 'manga-villain-doomscroll', pack: 'manga-villain', emoji: '📱', label: 'Doomscroll Vex', imageUrl: manga('villain-doomscroll.jpg') },
+      { id: 'manga-villain-caplord', pack: 'manga-villain', emoji: '🧢', label: 'Caplord Nyx', imageUrl: manga('villain-caplord.jpg') },
+      { id: 'manga-villain-mogger', pack: 'manga-villain', emoji: '🕶️', label: 'Mogger Drekk', imageUrl: manga('villain-mogger.jpg') },
+      { id: 'manga-villain-sidequest', pack: 'manga-villain', emoji: '🗺️', label: 'Sidequest Zara', imageUrl: manga('villain-sidequest.jpg') },
     ],
   },
   {
@@ -42,6 +52,11 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
     title: 'Manga Neutral',
     icons: [
       { id: 'manga-neutral-1', pack: 'manga-neutral', emoji: '😊', label: 'friend', imageUrl: manga('neutral.jpg') },
+      { id: 'manga-neutral-chillguy', pack: 'manga-neutral', emoji: '😌', label: 'Chillguy Hana', imageUrl: manga('neutral-chillguy.jpg') },
+      { id: 'manga-neutral-mewing', pack: 'manga-neutral', emoji: '🦊', label: 'Mewing Jun', imageUrl: manga('neutral-mewing.jpg') },
+      { id: 'manga-neutral-delulu', pack: 'manga-neutral', emoji: '💭', label: 'Delulu Yuki', imageUrl: manga('neutral-delulu.jpg') },
+      { id: 'manga-neutral-npc', pack: 'manga-neutral', emoji: '🎒', label: 'NPC Ken', imageUrl: manga('neutral-npc.jpg') },
+      { id: 'manga-neutral-lore', pack: 'manga-neutral', emoji: '📖', label: 'Lore Sora', imageUrl: manga('neutral-lore.jpg') },
     ],
   },
   {
