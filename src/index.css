@@ -1,10 +1,11 @@
 /* created: 2026-11-23T11:59:00-08:00 */
+/* updated: 2026-11-23T19:35:00-08:00 — pastel page shell (no navy glass) */
 :root {
   font-family: "Segoe UI", system-ui, sans-serif;
   line-height: 1.4;
   font-weight: 400;
-  color: #eaf4ff;
-  background: #061428;
+  color: #3d3550;
+  background: #f6f0fa;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,8 +24,10 @@ body,
 
 body {
   min-height: 100svh;
+  /* updated: 2026-11-23T19:35:00-08:00 — soft pastel wash */
   background:
-    radial-gradient(circle at 20% 10%, rgba(50, 140, 255, 0.35), transparent 40%),
-    radial-gradient(circle at 80% 0%, rgba(20, 90, 220, 0.4), transparent 45%),
-    linear-gradient(160deg, #041022 0%, #0a2a5c 55%, #071830 100%);
+    radial-gradient(circle at 15% 0%, #ffe8f2 0%, transparent 42%),
+    radial-gradient(circle at 90% 10%, #e0f4ff 0%, transparent 40%),
+    radial-gradient(circle at 50% 100%, #e8ffe8 0%, transparent 45%),
+    linear-gradient(165deg, #faf4ff 0%, #f0f7ff 50%, #fff5f0 100%);
 }
