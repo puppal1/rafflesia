@@ -1,5 +1,5 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:40:00-08:00 — re-engineer follow counts + toggle reliability
+// updated: 2026-11-23T20:45:00-08:00 — group create member picker + add friends (WF-G1/G3)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -53,6 +53,11 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [showBioEmoji, setShowBioEmoji] = useState(true)
   // created: 2026-11-23T20:40:00-08:00 — prevent stuck / double-tap Follow
   const [followBusyId, setFollowBusyId] = useState<string | null>(null)
+  // created: 2026-11-23T20:45:00-08:00 — group member pickers (create + add)
+  const [createPickIds, setCreatePickIds] = useState<Set<string>>(new Set())
+  const [showAddFriends, setShowAddFriends] = useState(false)
+  const [addPickIds, setAddPickIds] = useState<Set<string>>(new Set())
+  const [groupMemberIds, setGroupMemberIds] = useState<Set<string>>(new Set())
 
   const loadMe = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -221,6 +226,13 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
 
     refresh()
+    if (activeChat.is_group) {
+      loadGroupMembers(chatId).catch(() => setGroupMemberIds(new Set([userId])))
+    } else {
+      setGroupMemberIds(new Set())
+      setShowAddFriends(false)
+      setAddPickIds(new Set())
+    }
 
     const channel = supabase
       .channel(`messages-${chatId}-${Date.now()}`)
@@ -257,7 +269,9 @@ export function HomeApp({ userId, onLogout }: Props) {
       document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
-  }, [activeChat, loadMessages])
+    // loadGroupMembers / userId used inside; intentional deps on active chat only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat, loadMessages, userId])
 
   async function saveProfile(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
@@ -558,24 +572,71 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  function toggleCreatePick(id: string) {
+    // created: 2026-11-23T20:45:00-08:00
+    setCreatePickIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAddPick(id: string) {
+    // created: 2026-11-23T20:45:00-08:00
+    setAddPickIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function loadGroupMembers(chatId: string) {
+    // created: 2026-11-23T20:45:00-08:00
+    const rpc = await supabase.rpc('list_group_member_ids', { p_chat_id: chatId })
+    if (!rpc.error && Array.isArray(rpc.data)) {
+      setGroupMemberIds(new Set((rpc.data as string[]).map(String)))
+      return
+    }
+    const { data, error } = await supabase
+      .from('chat_members')
+      .select('user_id')
+      .eq('chat_id', chatId)
+    if (error) {
+      setGroupMemberIds(new Set([userId]))
+      return
+    }
+    setGroupMemberIds(new Set((data || []).map((r) => String(r.user_id))))
+  }
+
   async function createGroup(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T12:42:00-08:00 — use create_group_chat RPC
+    // updated: 2026-11-23T20:45:00-08:00 — pass selected friend ids (WF-G1)
     e.preventDefault()
     const title = groupTitle.trim()
     if (!title) return
     setBusy(true)
     setError('')
     try {
+      const memberIds = [...createPickIds]
       const { data: chat, error: chatErr } = await supabase.rpc('create_group_chat', {
         p_title: title,
+        p_member_ids: memberIds,
       })
       if (chatErr) throw chatErr
       if (!chat) throw new Error('Could not create group.')
       setGroupTitle('')
+      setCreatePickIds(new Set())
+      setShowAddFriends(false)
       setActiveChat(chat as ChatRow)
       await loadChats()
-      setStatus('Group created.')
+      await loadGroupMembers((chat as ChatRow).id)
+      setStatus(
+        memberIds.length
+          ? `Group created with ${memberIds.length} friend${memberIds.length === 1 ? '' : 's'}.`
+          : 'Group created. Add friends from inside the chat.',
+      )
     } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
@@ -583,7 +644,39 @@ export function HomeApp({ userId, onLogout }: Props) {
           : err instanceof Error
             ? err.message
             : 'Could not create group.'
-      setError(`Group failed: ${msg}`)
+      setError(
+        `Group failed: ${msg}. If this mentions create_group_chat, run sql/fix-group-members.sql in Supabase.`,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitAddFriends() {
+    // created: 2026-11-23T20:45:00-08:00 — WF-G3
+    if (!activeChat?.is_group || addPickIds.size === 0) return
+    setBusy(true)
+    setError('')
+    try {
+      const { error: err } = await supabase.rpc('add_group_members', {
+        p_chat_id: activeChat.id,
+        p_member_ids: [...addPickIds],
+      })
+      if (err) throw err
+      setAddPickIds(new Set())
+      setShowAddFriends(false)
+      await loadGroupMembers(activeChat.id)
+      setStatus('Friends added to the group.')
+    } catch (err) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err instanceof Error
+            ? err.message
+            : 'Could not add friends.'
+      setError(
+        `Add friends failed: ${msg}. Run sql/fix-group-members.sql in Supabase if needed.`,
+      )
     } finally {
       setBusy(false)
     }
@@ -1012,13 +1105,42 @@ export function HomeApp({ userId, onLogout }: Props) {
                 insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
               }
             />
+            {/* created: 2026-11-23T20:45:00-08:00 — WF-G1 member picker */}
+            <h3 className="panel-title" style={{ marginTop: 8, fontSize: '0.95rem' }}>
+              Add friends now
+            </h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Invite-only — they will see this group in Chats. You can add more later.
+            </p>
+            <div className="member-pick-list">
+              {people.length === 0 ? (
+                <p className="muted">No other people yet. Create the group alone, then add friends later.</p>
+              ) : (
+                people.map((p) => (
+                  <label className="member-check" key={p.id}>
+                    <input
+                      type="checkbox"
+                      checked={createPickIds.has(p.id)}
+                      onChange={() => toggleCreatePick(p.id)}
+                    />
+                    <span>
+                      <strong>{niceName(p)}</strong>
+                      <span className="muted"> @{p.username}</span>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
             <button className="primary" type="submit" disabled={busy || !groupTitle.trim()}>
               Create group
+              {createPickIds.size ? ` (${createPickIds.size})` : ''}
             </button>
           </form>
           <div className="list">
             {chats.length === 0 ? (
-              <p className="muted">No chats yet. Go to People and tap Message.</p>
+              <p className="muted">
+                No chats yet. Message someone in People for a DM, or create a group and add friends.
+              </p>
             ) : (
               chats.map((c) => (
                 <button
@@ -1042,11 +1164,73 @@ export function HomeApp({ userId, onLogout }: Props) {
       {!viewProfile && tab === 'chats' && activeChat && (
         <div>
           <div className="toolbar">
-            <button className="ghost" type="button" onClick={() => setActiveChat(null)}>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => {
+                setActiveChat(null)
+                setShowAddFriends(false)
+                setAddPickIds(new Set())
+              }}
+            >
               ← Back
             </button>
             <strong className="chat-title">{chatLabel}</strong>
+            {activeChat.is_group ? (
+              <button
+                className="ghost"
+                type="button"
+                onClick={() => {
+                  setShowAddFriends((v) => !v)
+                  setAddPickIds(new Set())
+                }}
+              >
+                {showAddFriends ? 'Hide add' : '+ Friends'}
+              </button>
+            ) : null}
           </div>
+          {activeChat.is_group ? (
+            <p className="muted" style={{ textAlign: 'left' }}>
+              {groupMemberIds.size || 1} member{(groupMemberIds.size || 1) === 1 ? '' : 's'}
+            </p>
+          ) : null}
+          {/* created: 2026-11-23T20:45:00-08:00 — WF-G3 Add friends */}
+          {activeChat.is_group && showAddFriends ? (
+            <div className="add-friends-panel">
+              <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
+                Add friends to group
+              </h3>
+              <div className="member-pick-list">
+                {people.filter((p) => !groupMemberIds.has(p.id)).length === 0 ? (
+                  <p className="muted">Everyone you know is already in this group.</p>
+                ) : (
+                  people
+                    .filter((p) => !groupMemberIds.has(p.id))
+                    .map((p) => (
+                      <label className="member-check" key={p.id}>
+                        <input
+                          type="checkbox"
+                          checked={addPickIds.has(p.id)}
+                          onChange={() => toggleAddPick(p.id)}
+                        />
+                        <span>
+                          <strong>{niceName(p)}</strong>
+                          <span className="muted"> @{p.username}</span>
+                        </span>
+                      </label>
+                    ))
+                )}
+              </div>
+              <button
+                className="primary"
+                type="button"
+                disabled={busy || addPickIds.size === 0}
+                onClick={submitAddFriends}
+              >
+                Add{addPickIds.size ? ` (${addPickIds.size})` : ''}
+              </button>
+            </div>
+          ) : null}
           <div className="messages">
             {messages.map((m) => {
               const sender = profilesById[m.sender_id]
