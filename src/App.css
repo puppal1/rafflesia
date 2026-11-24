@@ -2544,19 +2544,6 @@ select {
   word-break: break-all;
   white-space: pre-wrap;
 }
-.chat-msg-more {
-  display: inline-block;
-  margin-top: 6px;
-  margin-left: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent, #2aa897);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-}
 .siobhan-when {
   font-size: 0.75rem;
 }
@@ -2918,15 +2905,15 @@ select {
 }
 
 .msg-thread .bubble {
-  /* updated: 2026-11-24T13:55:00-08:00 — definite width + hard wrap; no fit-content bleed */
+  /* updated: 2026-11-24T14:00:00-08:00 — wrap sideways only; never clip message height */
   align-self: flex-start;
   width: auto;
   max-width: min(92%, 480px);
   min-width: 0;
-  overflow: hidden !important;
+  overflow-x: hidden;
+  overflow-y: visible;
   overflow-wrap: anywhere;
   word-break: break-all;
-  contain: inline-size;
 }
 
 .msg-thread .bubble.mine {
@@ -2944,9 +2931,13 @@ select {
 }
 
 .msg-thread .chat-msg-text {
+  /* updated: 2026-11-24T14:00:00-08:00 — full text; tall pastes scroll inside the bubble */
   display: block;
   white-space: pre-wrap;
-  overflow: hidden;
+  max-height: min(45vh, 360px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .msg-thread .chat-media-btn,
@@ -2957,7 +2948,7 @@ select {
 }
 
 .msg-thread .chat-media {
-  max-height: 220px;
+  max-height: min(45vh, 360px);
 }
 
 .msg-thread .share-card {

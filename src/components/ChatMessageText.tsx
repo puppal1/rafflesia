@@ -1,31 +1,12 @@
-// created: 2026-11-24T13:55:00-08:00 — wrap + collapse long chat pastes so they stay in the bubble
-import { useState } from 'react'
-
-const COLLAPSE_AT = 700
-
+// created: 2026-11-24T13:55:00-08:00 — wrap long chat pastes so they stay in the bubble
+// updated: 2026-11-24T14:00:00-08:00 — no hard truncate; scroll inside bubble instead
 type Props = {
   // created: 2026-11-24T13:55:00-08:00
   text: string
 }
 
 /** created: 2026-11-24T13:55:00-08:00 */
+/** updated: 2026-11-24T14:00:00-08:00 — always keep full message text */
 export function ChatMessageText({ text }: Props) {
-  const [open, setOpen] = useState(false)
-  const long = text.length > COLLAPSE_AT
-  const shown = !long || open ? text : `${text.slice(0, COLLAPSE_AT)}…`
-
-  return (
-    <div className="chat-msg-text">
-      {shown}
-      {long ? (
-        <button
-          type="button"
-          className="chat-msg-more"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? 'Show less' : 'Show more'}
-        </button>
-      ) : null}
-    </div>
-  )
+  return <div className="chat-msg-text">{text}</div>
 }

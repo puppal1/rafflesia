@@ -1052,6 +1052,9 @@ export function HomeApp({ userId, onLogout }: Props) {
         }))
       }
       await loadMessages(activeChat.id)
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      })
     } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
@@ -1117,10 +1120,14 @@ export function HomeApp({ userId, onLogout }: Props) {
   const showIconPicker = needsIcon || pickIconMode
 
   // created: 2026-11-24T13:40:00-08:00 — keep newest messages in view
+  // updated: 2026-11-24T14:00:00-08:00 — only jump to bottom when opening a chat (not every poll)
   useEffect(() => {
     if (!activeChat) return
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [activeChat, messages.length])
+    const id = window.setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+    }, 40)
+    return () => window.clearTimeout(id)
+  }, [activeChat?.id])
 
   // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = club room + groups
   // updated: 2026-11-23T22:40:00-08:00 — Everyone is the Lounge room, not a group chat
