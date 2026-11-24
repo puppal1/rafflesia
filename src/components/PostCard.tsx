@@ -73,6 +73,7 @@ export function PostCard({
   }, [openComments, loadComments])
 
   async function submitComment(e: FormEvent) {
+    // updated: 2026-11-24T13:30:00-08:00 — show real RPC errors; table insert fallback
     e.preventDefault()
     const body = draft.trim()
     if (!body) return
@@ -89,11 +90,35 @@ export function PostCard({
         p_post_id: post.id,
         p_body: body,
       })
-      if (error) throw error
+      if (error) {
+        const missing =
+          /could not find the function|schema cache|create_post_comment/i.test(error.message) ||
+          error.code === 'PGRST202'
+        if (missing) {
+          const { error: insErr } = await supabase.from('post_comments').insert({
+            post_id: post.id,
+            author_id: userId,
+            body,
+          })
+          if (insErr) {
+            throw new Error(
+              insErr.message.includes('post_comments')
+                ? 'Run docs/sql-post-comments.sql in Supabase, then hard refresh.'
+                : insErr.message,
+            )
+          }
+        } else {
+          throw new Error(error.message)
+        }
+      }
       setDraft('')
       await loadComments()
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Could not comment.')
+      const msg =
+        ex && typeof ex === 'object' && 'message' in ex && typeof (ex as { message: unknown }).message === 'string'
+          ? (ex as { message: string }).message
+          : 'Could not comment.'
+      setErr(msg)
     } finally {
       setLocalBusy(false)
     }

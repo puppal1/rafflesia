@@ -1,5 +1,7 @@
 -- created: 2026-11-24T12:35:00-08:00
+-- updated: 2026-11-24T13:30:00-08:00 — safer restrictions + posts without deleted_at
 -- PRD v2 B2 / B2b: post comments + own soft-delete
+-- RUN THIS in Supabase SQL Editor for For You comments to work
 
 create table if not exists public.post_comments (
   id uuid primary key default gen_random_uuid(),
@@ -31,19 +33,33 @@ as $$
 declare
   uid uuid := auth.uid();
   rec public.post_comments;
-  restr public.user_restrictions;
   post_ok boolean;
+  block_post boolean := false;
+  block_msg boolean := false;
 begin
   if uid is null then raise exception 'Not logged in'; end if;
   if length(trim(coalesce(p_body, ''))) = 0 then raise exception 'Write a comment.'; end if;
   if length(trim(p_body)) > 500 then raise exception 'Comment is too long.'; end if;
-  select * into restr from public.user_restrictions where user_id = uid;
-  if coalesce(restr.block_post, false) or coalesce(restr.block_message, false) then
+
+  if to_regclass('public.user_restrictions') is not null then
+    select coalesce(block_post, false), coalesce(block_message, false)
+      into block_post, block_msg
+    from public.user_restrictions
+    where user_id = uid;
+  end if;
+  if coalesce(block_post, false) or coalesce(block_msg, false) then
     raise exception 'Commenting is restricted by a teacher';
   end if;
-  select exists(
-    select 1 from public.posts p where p.id = p_post_id and p.deleted_at is null
-  ) into post_ok;
+
+  select exists(select 1 from public.posts p where p.id = p_post_id) into post_ok;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'posts' and column_name = 'deleted_at'
+  ) then
+    select exists(
+      select 1 from public.posts p where p.id = p_post_id and p.deleted_at is null
+    ) into post_ok;
+  end if;
   if not post_ok then raise exception 'Post not found.'; end if;
   insert into public.post_comments (post_id, author_id, body)
   values (p_post_id, uid, trim(p_body))
