@@ -2104,6 +2104,11 @@ select {
   align-items: center;
   margin-top: 2px;
 }
+.siobhan-news-comments {
+  margin-top: 6px;
+  display: grid;
+  gap: 8px;
+}
 .siobhan-when {
   font-size: 0.75rem;
 }

@@ -2047,7 +2047,20 @@ export function HomeApp({ userId, onLogout }: Props) {
       {!viewProfile && !textBlockMsg && tab === 'siobhan' && (
         // created: 2026-11-24T12:35:00-08:00 — PRD v2 B7
         // updated: 2026-11-24T13:10:00-08:00 — manga science scrolling feed
-        <SiobhanFeed />
+        <SiobhanFeed
+          userId={userId}
+          profilesById={{
+            ...profilesById,
+            ...(me ? { [userId]: me } : {}),
+          }}
+          onProfiles={(rows) => {
+            setProfilesById((prev) => {
+              const next = { ...prev }
+              for (const p of rows) next[p.id] = p
+              return next
+            })
+          }}
+        />
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'people' && (

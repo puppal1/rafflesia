@@ -1,14 +1,24 @@
 // created: 2026-11-24T13:10:00-08:00 — manga-style scrolling science feed for Siobhan Daily
 // updated: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news
 // updated: 2026-11-24T13:20:00-08:00 — music replaces kindness
+// updated: 2026-11-24T13:25:00-08:00 — comments on news cards
 import { useCallback, useEffect, useState } from 'react'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
+import { SiobhanNewsComments } from './SiobhanNewsComments'
+import type { Profile } from '../types'
 
 const SCHOOL_URL = 'https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily'
 
+type Props = {
+  // created: 2026-11-24T13:25:00-08:00
+  userId: string
+  profilesById: Record<string, Profile>
+  onProfiles?: (rows: Profile[]) => void
+}
+
 /** created: 2026-11-24T13:10:00-08:00 */
-/** updated: 2026-11-24T13:15:00-08:00 */
-export function SiobhanFeed() {
+/** updated: 2026-11-24T13:25:00-08:00 */
+export function SiobhanFeed({ userId, profilesById, onProfiles }: Props) {
   const [items, setItems] = useState<LiveNewsItem[]>([])
   const [fromLive, setFromLive] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -25,8 +35,6 @@ export function SiobhanFeed() {
       setFetchedAt(result.fetchedAt)
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh to try again.')
-      } else if (result.errors.length > 0) {
-        setErr('') // partial success is fine
       }
     } catch {
       setErr('Could not load live news. Try Refresh.')
@@ -79,7 +87,7 @@ export function SiobhanFeed() {
       </header>
 
       <p className="siobhan-scroll-hint muted">
-        Kid-safe filter on · scroll panels · tap Open for the full story
+        Kid-safe filter on · comment on stories · tap Open for the full article
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 
@@ -120,6 +128,12 @@ export function SiobhanFeed() {
                   <span className="muted siobhan-when">{a.source}</span>
                 )}
               </div>
+              <SiobhanNewsComments
+                articleKey={a.id.slice(0, 500)}
+                userId={userId}
+                profilesById={profilesById}
+                onProfiles={onProfiles}
+              />
             </article>
           ))
         )}
