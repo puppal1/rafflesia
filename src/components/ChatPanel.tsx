@@ -1,4 +1,5 @@
 // created: 2026-11-24T14:10:00-08:00 — clean chat UI from scratch (one scroll, no nested bars)
+// updated: 2026-11-24T14:05:00-08:00 — scroll the stream itself; don’t scrollIntoView the page
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { CHAT_EMOJIS, insertEmojiAtCursor } from '../lib/emojiBar'
@@ -81,14 +82,20 @@ export function ChatThread({
   const [lightbox, setLightbox] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const streamRef = useRef<HTMLDivElement | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = messagesEndRef || endRef
   const locked = busy || localBusy
+  const lastMsgId = messages.length ? messages[messages.length - 1]?.id : ''
 
+  // created: 2026-11-24T14:05:00-08:00 — pin to latest inside .chat2-stream only
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+    const stream = streamRef.current
+    if (!stream) return
+    stream.scrollTop = stream.scrollHeight
+    bottomRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length])
+  }, [messages.length, lastMsgId])
 
   async function pickPhoto(file: File) {
     setLocalBusy(true)
@@ -157,7 +164,7 @@ export function ChatThread({
         {headerExtra}
       </header>
 
-      <div className="chat2-stream" role="log" aria-live="polite">
+      <div className="chat2-stream" role="log" aria-live="polite" ref={streamRef}>
         {messages.length === 0 ? (
           <p className="chat2-empty">No messages yet. Say hi!</p>
         ) : (
