@@ -1,6 +1,7 @@
 // created: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news for Siobhan Daily
 // updated: 2026-11-24T13:20:00-08:00 — drop kindness; add music
 // updated: 2026-11-24T14:22:00-08:00 — live cards use match chips instead of static why-it-fits copy
+// updated: 2026-11-24T14:38:00-08:00 — never show Google query as source; nicer publisher label
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
@@ -303,7 +304,41 @@ function fitChipsFor(text: string, tag: string, place: string): string[] {
   return chips.slice(0, 5)
 }
 
+/** created: 2026-11-24T14:38:00-08:00 — Google RSS feed.title is the raw search query — never show it */
+function looksLikeSearchQuery(s: string): boolean {
+  const t = s.toLowerCase()
+  return (
+    t.includes(' or ') ||
+    t.includes('when:') ||
+    t.includes('google news') ||
+    t.includes('"') ||
+    t.length > 56
+  )
+}
+
+/** created: 2026-11-24T14:38:00-08:00 — publisher from author or "Title - Outlet" */
+function nicePublisher(item: Rss2JsonItem, title: string, feedTitle: string | undefined, fallback: string): string {
+  const author = stripHtml(item.author || '')
+  if (author && !looksLikeSearchQuery(author)) return author.slice(0, 48)
+  const dash = title.match(/\s[-–—]\s([^–—-]{2,48})$/)
+  if (dash?.[1] && !looksLikeSearchQuery(dash[1])) return dash[1].trim()
+  const ft = stripHtml(feedTitle || '')
+  if (ft && !looksLikeSearchQuery(ft)) return ft.slice(0, 48)
+  return fallback
+}
+
+/** created: 2026-11-24T14:38:00-08:00 — drop blurbs that just repeat the headline */
+function niceBlurb(title: string, rawDesc: string): string {
+  const blurb = rawDesc.slice(0, 180).trim()
+  if (!blurb) return ''
+  const t = title.toLowerCase().replace(/\s+/g, ' ')
+  const b = blurb.toLowerCase().replace(/\s+/g, ' ')
+  if (b === t || t.startsWith(b) || b.startsWith(t.slice(0, Math.min(40, t.length)))) return ''
+  return blurb
+}
+
 /** created: 2026-11-24T13:15:00-08:00 — rss2json free endpoint (browser-safe) */
+/** updated: 2026-11-24T14:38:00-08:00 — clean source + blurb */
 async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(spec.rssUrl)}`
   const res = await fetch(endpoint)
@@ -315,8 +350,8 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   for (const item of data.items.slice(0, 8)) {
     const title = stripHtml(item.title || '')
     const rawDesc = stripHtml(item.description || '')
-    const blurb = rawDesc.slice(0, 220) || 'Tap Open to read the full story on the publisher site.'
-    const hay = `${title} ${blurb}`
+    const blurb = niceBlurb(title, rawDesc)
+    const hay = `${title} ${rawDesc}`
     if (!title || isBlocked(hay)) continue
     // Music/NASA: allow more; local feeds need a boost hit or stay
     const score = boostScore(hay)
@@ -331,6 +366,7 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
     }
     const link = (item.link || '').trim()
     if (!link.startsWith('http')) continue
+    const chips = fitChipsFor(hay, spec.tag, spec.place).slice(0, 3)
     out.push({
       id: `${spec.id}-${link}`,
       tag: spec.tag,
@@ -339,10 +375,10 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
       blurb,
       place: spec.place,
       funFact: '',
-      fitChips: fitChipsFor(hay, spec.tag, spec.place),
+      fitChips: chips,
       url: link,
       publishedAt: item.pubDate || null,
-      source: data.feed?.title || spec.tag,
+      source: nicePublisher(item, title, data.feed?.title, spec.tag),
       live: true,
     })
   }

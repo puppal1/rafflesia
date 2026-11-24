@@ -5,6 +5,7 @@
 // updated: 2026-11-24T14:15:00-08:00 — side/bottom comment dock; feed stays readable
 // updated: 2026-11-24T14:20:00-08:00 — emoji likes on news cards
 // updated: 2026-11-24T14:25:00-08:00 — like in action row; Comments shows count
+// updated: 2026-11-24T14:38:00-08:00 — calmer cards; no Google query source
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
@@ -13,6 +14,20 @@ import { SiobhanArticleReactions } from './SiobhanArticleReactions'
 import type { Profile } from '../types'
 
 const SCHOOL_URL = 'https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily'
+
+/** created: 2026-11-24T14:38:00-08:00 — short relative-ish stamp */
+function formatSiobhanWhen(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const diffMs = Date.now() - d.getTime()
+  const mins = Math.round(diffMs / 60000)
+  if (mins < 60) return mins <= 1 ? 'Just now' : `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 36) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  if (days < 8) return `${days}d ago`
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 type Props = {
   // created: 2026-11-24T13:25:00-08:00
@@ -138,7 +153,8 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       </header>
 
       <p className="siobhan-scroll-hint muted">
-        Kid-safe filter on · open Comments to chat while you keep reading
+        {/* updated: 2026-11-24T14:38:00-08:00 — refresh cycle is manual; RSS looks back ~7 days */}
+        Kid-safe · loads when you open this tab · tap Refresh anytime · stories from the last ~7 days
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 
@@ -150,6 +166,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
             items.map((a, i) => {
               const key = a.id.slice(0, 500)
               const open = activeKey === key
+              const when = a.publishedAt ? formatSiobhanWhen(a.publishedAt) : ''
               return (
                 <article
                   key={a.id}
@@ -162,23 +179,21 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                       {a.emoji}
                     </span>
                     <span className="siobhan-chip">{a.tag}</span>
-                    <span className="siobhan-place">{a.place}</span>
                     {a.live ? <span className="siobhan-chip live">Live</span> : null}
+                    {a.source ? <span className="siobhan-outlet">{a.source}</span> : null}
                   </div>
                   <h3 className="siobhan-title">{a.title}</h3>
-                  <p className="siobhan-blurb">{a.blurb}</p>
-                  {/* updated: 2026-11-24T14:22:00-08:00 — live: match chips; offline: real fun fact */}
-                  {a.live ? (
+                  {a.blurb ? <p className="siobhan-blurb">{a.blurb}</p> : null}
+                  {/* updated: 2026-11-24T14:38:00-08:00 — chips only; no query-string source */}
+                  {a.live && a.fitChips?.length ? (
                     <div className="siobhan-fit-row" aria-label="Why this story is here">
-                      <span className="siobhan-fit-label">Why here</span>
-                      {(a.fitChips?.length ? a.fitChips : [a.tag]).map((chip) => (
+                      {a.fitChips.map((chip) => (
                         <span className="siobhan-fit-chip" key={chip}>
                           {chip}
                         </span>
                       ))}
-                      {a.source ? <span className="siobhan-fit-source">{a.source}</span> : null}
                     </div>
-                  ) : a.funFact ? (
+                  ) : !a.live && a.funFact ? (
                     <div className="siobhan-bubble">
                       <span className="siobhan-bubble-label">Fun fact</span>
                       <p>{a.funFact}</p>
@@ -192,26 +207,18 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Open story
+                        Open
                       </a>
                     ) : null}
-                    {/* updated: 2026-11-24T14:25:00-08:00 — Like lives here, left of Comments */}
                     <SiobhanArticleReactions articleKey={key} userId={userId} />
                     <button
                       className={open ? 'primary btn-compact' : 'ghost btn-compact'}
                       type="button"
                       onClick={() => setActiveKey(open ? null : key)}
                     >
-                      {/* updated: 2026-11-24T14:28:00-08:00 — count always visible */}
                       {`Comments (${commentCounts[key] ?? 0})${open ? ' · open' : ''}`}
                     </button>
-                    {a.publishedAt ? (
-                      <span className="muted siobhan-when">
-                        {new Date(a.publishedAt).toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="muted siobhan-when">{a.source}</span>
-                    )}
+                    {when ? <span className="muted siobhan-when">{when}</span> : null}
                   </div>
                 </article>
               )

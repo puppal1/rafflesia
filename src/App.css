@@ -2785,9 +2785,9 @@ select {
   font-size: 0.8rem;
 }
 .siobhan-feed {
-  /* updated: 2026-11-24T14:15:00-08:00 — tighter cards; scrolls beside comment dock */
+  /* updated: 2026-11-24T14:38:00-08:00 — calmer spacing */
   display: grid;
-  gap: 10px;
+  gap: 12px;
   max-height: min(62vh, 640px);
   overflow-y: auto;
   padding: 4px 6px 16px 2px;
@@ -2796,20 +2796,21 @@ select {
   min-width: 0;
 }
 .siobhan-panel-card {
+  /* updated: 2026-11-24T14:38:00-08:00 — softer aesthetic, less comic chrome */
   scroll-snap-align: start;
   position: relative;
-  padding: 10px 12px 12px;
-  border-radius: 14px;
-  border: 2px solid #1a3a5c;
-  background: #fffdf8;
-  box-shadow: 2px 2px 0 #1a3a5c;
+  padding: 12px 14px 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, #1a3a5c 28%, transparent);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(26, 58, 92, 0.06);
   display: grid;
-  gap: 6px;
+  gap: 8px;
   animation: siobhan-pop 0.45s ease both;
 }
 .siobhan-panel-card.commenting {
-  border-color: #2aa897;
-  box-shadow: 2px 2px 0 #2aa897;
+  border-color: color-mix(in srgb, #2aa897 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, #2aa897 22%, transparent);
 }
 .siobhan-panel-card.tone-1 {
   background: linear-gradient(165deg, #fffdf8, #e8f8ff);
@@ -2835,61 +2836,66 @@ select {
   filter: drop-shadow(1px 1px 0 rgba(26, 58, 92, 0.25));
 }
 .siobhan-chip {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  /* updated: 2026-11-24T14:38:00-08:00 */
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 2px solid #1a3a5c;
+  border: 0;
   background: #ffe566;
   color: #1a3a5c;
 }
+.siobhan-chip.live {
+  background: #7dffb0;
+}
 .siobhan-place {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #4a6080;
+  display: none;
 }
 .siobhan-title {
   margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.25;
+  font-size: 1.02rem;
+  line-height: 1.3;
   color: #1a2a40;
+  font-weight: 750;
 }
 .siobhan-blurb {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   line-height: 1.4;
-  color: #2a3a50;
+  color: #4a5a70;
+}
+.siobhan-outlet {
+  /* created: 2026-11-24T14:38:00-08:00 — short publisher name only */
+  font-size: 0.72rem;
+  color: #5a7088;
+  margin-left: auto;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .siobhan-fit-row {
   /* created: 2026-11-24T14:22:00-08:00 — compact why-here chips (no static prose) */
+  /* updated: 2026-11-24T14:38:00-08:00 — no “WHY HERE” label / no query string */
   display: flex;
   flex-wrap: wrap;
   gap: 4px 6px;
   align-items: center;
-  margin-top: 2px;
-}
-.siobhan-fit-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #c03070;
+  margin-top: 0;
 }
 .siobhan-fit-chip {
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 650;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid #1a3a5c;
-  background: #fff;
+  border: 0;
+  background: color-mix(in srgb, #8ec8f5 28%, #fff);
   color: #1a3a5c;
 }
 .siobhan-fit-source {
-  font-size: 0.72rem;
-  color: #4a6080;
-  margin-left: 2px;
+  display: none;
 }
 .siobhan-bubble {
   /* updated: 2026-11-24T14:15:00-08:00 — less empty padding */
