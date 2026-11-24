@@ -996,9 +996,9 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const chatLabel = useMemo(() => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T22:35:00-08:00 — Everyone lounge label
+    // updated: 2026-11-23T22:40:00-08:00 — Everyone = lounge room title
     if (!activeChat) return ''
-    if (activeChat.lounge_key === 'everyone') return 'Everyone'
+    if (activeChat.lounge_key === 'everyone') return 'Rafflesia Lounge'
     if (activeChat.is_group) return activeChat.title || 'Group chat'
     const peer = dmPeerByChatId[activeChat.id]
     return peer ? niceName(peer) : 'Private chat'
@@ -1007,16 +1007,20 @@ export function HomeApp({ userId, onLogout }: Props) {
   const needsIcon = Boolean(me && !me.icon_id)
   const showIconPicker = needsIcon || pickIconMode
 
-  // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = groups
+  // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = club room + groups
+  // updated: 2026-11-23T22:40:00-08:00 — Everyone is the Lounge room, not a group chat
   const dmChats = useMemo(() => chats.filter((c) => !c.is_group), [chats])
-  const loungeChats = useMemo(() => {
-    const groups = chats.filter((c) => c.is_group)
-    return [...groups].sort((a, b) => {
-      if (a.lounge_key === 'everyone') return -1
-      if (b.lounge_key === 'everyone') return 1
-      return (a.title || '').localeCompare(b.title || '')
-    })
-  }, [chats])
+  const everyoneRoom = useMemo(
+    () => chats.find((c) => c.lounge_key === 'everyone') || null,
+    [chats],
+  )
+  const loungeGroups = useMemo(
+    () =>
+      chats
+        .filter((c) => c.is_group && c.lounge_key !== 'everyone')
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '')),
+    [chats],
+  )
   const isEveryoneChat = activeChat?.lounge_key === 'everyone'
 
   const authorName = (authorId: string) => {
@@ -1201,8 +1205,8 @@ export function HomeApp({ userId, onLogout }: Props) {
                     </p>
                     <p className="row-sub">
                       {g.lounge_key === 'everyone'
-                        ? 'Club lounge · everyone who signed up'
-                        : 'Lounge group · tap to open'}
+                        ? 'Club lounge room · tap to open'
+                        : 'Group chat · tap to open'}
                     </p>
                   </div>
                 </button>
@@ -1431,14 +1435,15 @@ export function HomeApp({ userId, onLogout }: Props) {
 
       {!viewProfile && !textBlockMsg && tab === 'lounge' && !activeChat && (
         <div>
-          {/* created: 2026-11-23T22:35:00-08:00 — Rafflesia Lounge = all group chats */}
+          {/* created: 2026-11-23T22:35:00-08:00 */}
+          {/* updated: 2026-11-23T22:40:00-08:00 — Lounge room ≠ group chats */}
           <div className="messages-header-row">
             <div>
               <h2 className="panel-title" style={{ marginBottom: 2 }}>
                 Rafflesia Lounge
               </h2>
               <p className="muted" style={{ marginTop: 0 }}>
-                Club group chats. <strong>Everyone</strong> includes anybody who signs up.
+                Open the club room (everybody who signed up), or make smaller group chats.
               </p>
             </div>
             <button
@@ -1446,21 +1451,43 @@ export function HomeApp({ userId, onLogout }: Props) {
               type="button"
               onClick={() => setShowNewGroup((v) => !v)}
             >
-              {showNewGroup ? 'Cancel' : '+ Group'}
+              {showNewGroup ? 'Cancel' : '+ Group chat'}
             </button>
           </div>
+
+          {everyoneRoom ? (
+            <button
+              className="row chat-list-row lounge-main-room"
+              type="button"
+              onClick={() => setActiveChat(everyoneRoom)}
+              style={{ marginBottom: 14 }}
+            >
+              <span className="face-avatar face-emoji sm" aria-hidden>
+                🌸
+              </span>
+              <div className="row-main">
+                <p className="row-title">Everyone</p>
+                <p className="row-sub">Club lounge room · all signups · not a group chat</p>
+              </div>
+            </button>
+          ) : (
+            <p className="muted">
+              Run <strong>sql-lounge-everyone.sql</strong> in Supabase, then refresh to open the lounge
+              room.
+            </p>
+          )}
 
           {showNewGroup ? (
             <div className="group-create-card">
               <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
-                New Lounge group
+                New group chat
               </h3>
               <p className="muted" style={{ marginTop: 0 }}>
-                Name it, tap who to invite, then create. (Everyone is already there for the whole club.)
+                Smaller than the lounge — only the friends you invite.
               </p>
               <form className="form group-create-form" onSubmit={createGroup}>
                 <label>
-                  Name this group
+                  Name this group chat
                   <input
                     ref={groupTitleRef}
                     value={groupTitle}
@@ -1515,20 +1542,20 @@ export function HomeApp({ userId, onLogout }: Props) {
                 <button className="primary" type="submit" disabled={busy}>
                   {busy
                     ? 'Creating…'
-                    : `Create group${createPickIds.size ? ` · ${createPickIds.size} invited` : ''}`}
+                    : `Create group chat${createPickIds.size ? ` · ${createPickIds.size} invited` : ''}`}
                 </button>
               </form>
             </div>
           ) : null}
 
+          <h3 className="panel-title" style={{ fontSize: '1.05rem', textAlign: 'left', marginBottom: 6 }}>
+            Group chats
+          </h3>
           <div className="list">
-            {loungeChats.length === 0 ? (
-              <p className="muted">
-                Run <strong>sql-lounge-everyone.sql</strong> in Supabase, then refresh — Everyone will
-                appear here.
-              </p>
+            {loungeGroups.length === 0 ? (
+              <p className="muted">No group chats yet. Tap + Group chat to make one with friends.</p>
             ) : (
-              loungeChats.map((c) => (
+              loungeGroups.map((c) => (
                 <button
                   key={c.id}
                   className="row chat-list-row"
@@ -1536,17 +1563,11 @@ export function HomeApp({ userId, onLogout }: Props) {
                   onClick={() => setActiveChat(c)}
                 >
                   <span className="face-avatar face-emoji sm" aria-hidden>
-                    {c.lounge_key === 'everyone' ? '🌸' : '👥'}
+                    👥
                   </span>
                   <div className="row-main">
-                    <p className="row-title">
-                      {c.lounge_key === 'everyone' ? 'Everyone' : c.title || 'Group chat'}
-                    </p>
-                    <p className="row-sub">
-                      {c.lounge_key === 'everyone'
-                        ? 'Whole club · every signup is here'
-                        : 'Lounge group · several friends'}
-                    </p>
+                    <p className="row-title">{c.title || 'Group chat'}</p>
+                    <p className="row-sub">Group chat · invited friends only</p>
                   </div>
                 </button>
               ))
@@ -1800,7 +1821,7 @@ export function HomeApp({ userId, onLogout }: Props) {
           {activeChat.is_group ? (
             <p className="muted" style={{ textAlign: 'left' }}>
               {isEveryoneChat
-                ? 'Whole club · every signup is in this chat'
+                ? 'Club lounge room · anybody who signed up can talk here'
                 : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
             </p>
           ) : null}

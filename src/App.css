@@ -519,6 +519,13 @@
   gap: 12px;
 }
 
+/* created: 2026-11-23T22:40:00-08:00 — Everyone lounge room (not a group chat row) */
+.lounge-main-room {
+  border: 3px solid #0d4a9a !important;
+  background: linear-gradient(180deg, #dcecff 0%, #c5dcff 100%) !important;
+  box-shadow: 0 8px 20px rgba(10, 58, 122, 0.22);
+}
+
 .friend-pick-heading {
   margin: 8px 0 6px;
   font-weight: 700;
