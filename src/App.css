@@ -2505,11 +2505,25 @@ select {
   word-break: break-word;
 }
 .chat-msg-text {
+  /* updated: 2026-11-24T13:55:00-08:00 — hard-break minified pastes */
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: break-all;
   white-space: pre-wrap;
+}
+.chat-msg-more {
+  display: inline-block;
+  margin-top: 6px;
+  margin-left: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #2aa897);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
 }
 .siobhan-when {
   font-size: 0.75rem;
@@ -2855,6 +2869,11 @@ select {
 }
 
 .msg-thread-scroll.messages {
+  /* updated: 2026-11-24T13:55:00-08:00 — flex column so bubbles can shrink-wrap safely */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
   max-height: none !important;
@@ -2864,16 +2883,38 @@ select {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  align-content: start;
 }
 
 .msg-thread .bubble {
-  max-width: min(92%, 520px);
-  width: fit-content;
+  /* updated: 2026-11-24T13:55:00-08:00 — definite width + hard wrap; no fit-content bleed */
+  align-self: flex-start;
+  width: auto;
+  max-width: min(92%, 480px);
+  min-width: 0;
+  overflow: hidden !important;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  contain: inline-size;
 }
 
 .msg-thread .bubble.mine {
-  margin-left: auto;
+  align-self: flex-end;
+  margin-left: 0;
+}
+
+.msg-thread .chat-msg-body,
+.msg-thread .chat-msg-text,
+.msg-thread .bubble-meta {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-all !important;
+}
+
+.msg-thread .chat-msg-text {
+  display: block;
+  white-space: pre-wrap;
+  overflow: hidden;
 }
 
 .msg-thread .chat-media-btn,
@@ -2892,7 +2933,7 @@ select {
   max-width: 100%;
   overflow: hidden;
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: break-all;
 }
 
 .msg-empty,

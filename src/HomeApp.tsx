@@ -19,6 +19,7 @@ import { SiobhanFeed } from './components/SiobhanFeed'
 import { PhotoAttach } from './components/PhotoAttach'
 import { PeoplePickGrid } from './components/PeoplePickGrid'
 import { MediaLightbox } from './components/MediaLightbox'
+import { ChatMessageText } from './components/ChatMessageText'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -2319,7 +2320,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                           ) : (
                             <div className="chat-msg-body">
                               {m.body && m.body !== '📷' ? (
-                                <div className="chat-msg-text">{m.body}</div>
+                                <ChatMessageText text={m.body} />
                               ) : null}
                               {media ? (
                                 isImage ? (
@@ -2568,7 +2569,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                     ) : (
                       <div className="chat-msg-body">
                         {m.body && m.body !== '📷' ? (
-                          <div className="chat-msg-text">{m.body}</div>
+                          <ChatMessageText text={m.body} />
                         ) : null}
                         {media ? (
                           isImage ? (
