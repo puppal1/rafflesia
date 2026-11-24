@@ -1,5 +1,5 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T19:55:00-08:00 — username max/vulgar/duplicate/similarity checks
+// updated: 2026-11-23T19:59:00-08:00 — username max/vulgar/exact duplicate (similarity dropped)
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -65,7 +65,8 @@ function App() {
       const email = toAuthEmail(cleanUser)
 
       if (mode === 'signup') {
-        // created: 2026-11-23T19:55:00-08:00 — duplicate + ≥85% similarity vs existing usernames
+        // created: 2026-11-23T19:55:00-08:00 — exact duplicate vs existing usernames
+        // updated: 2026-11-23T19:59:00-08:00 — similarity check removed
         const { data: existingRows, error: listError } = await supabase
           .from('profiles')
           .select('username')

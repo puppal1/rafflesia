@@ -1,12 +1,11 @@
 // created: 2026-11-23T19:55:00-08:00
-// Username rules: max length, vulgar filter, duplicate, ≥85% similarity block
+// updated: 2026-11-23T19:59:00-08:00 — drop ≥85% similarity; keep max/vulgar/exact duplicate
+// Username rules: max length, vulgar filter, exact duplicate
 
 /** created: 2026-11-23T19:55:00-08:00 */
 export const USERNAME_MAX = 20
 /** created: 2026-11-23T19:55:00-08:00 */
 export const DISPLAY_NAME_MAX = 24
-/** created: 2026-11-23T19:55:00-08:00 */
-export const SIMILARITY_BLOCK = 0.85
 
 /** created: 2026-11-23T19:55:00-08:00 — school-safe blocklist (expand via teacher list later) */
 const BAD_WORDS = [
@@ -37,35 +36,6 @@ function normalize(s: string) {
 }
 
 /** created: 2026-11-23T19:55:00-08:00 */
-function levenshtein(a: string, b: string): number {
-  const m = a.length
-  const n = b.length
-  if (m === 0) return n
-  if (n === 0) return m
-  const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0))
-  for (let i = 0; i <= m; i++) dp[i][0] = i
-  for (let j = 0; j <= n; j++) dp[0][j] = j
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
-    }
-  }
-  return dp[m][n]
-}
-
-/** created: 2026-11-23T19:55:00-08:00 — 1 = identical, 0 = totally different */
-export function similarityRatio(a: string, b: string): number {
-  const x = normalize(a)
-  const y = normalize(b)
-  if (!x || !y) return 0
-  if (x === y) return 1
-  const dist = levenshtein(x, y)
-  const maxLen = Math.max(x.length, y.length)
-  return 1 - dist / maxLen
-}
-
-/** created: 2026-11-23T19:55:00-08:00 */
 export function containsBadWord(text: string): boolean {
   const n = normalize(text)
   return BAD_WORDS.some((w) => n.includes(w))
@@ -77,7 +47,8 @@ export type UsernameCheckResult = UsernameCheckOk | UsernameCheckErr
 
 /**
  * created: 2026-11-23T19:55:00-08:00
- * Shape + vulgar + length. Call before duplicate/similarity DB checks.
+ * updated: 2026-11-23T19:59:00-08:00
+ * Shape + vulgar + length. Call before exact-duplicate DB check.
  */
 export function validateUsernameShape(raw: string): UsernameCheckResult {
   const username = raw.trim().toLowerCase()
@@ -99,7 +70,7 @@ export function validateUsernameShape(raw: string): UsernameCheckResult {
 
 /**
  * created: 2026-11-23T19:55:00-08:00
- * Duplicate exact + ≥85% similar to any existing username → ask for a new one.
+ * updated: 2026-11-23T19:59:00-08:00 — exact duplicate only (similarity dropped)
  */
 export function findUsernameConflict(
   candidate: string,
@@ -110,13 +81,6 @@ export function findUsernameConflict(
     const o = other.trim().toLowerCase()
     if (o === c) {
       return { ok: false, message: 'That username is already taken. Please choose a new one.' }
-    }
-    const sim = similarityRatio(c, o)
-    if (sim >= SIMILARITY_BLOCK) {
-      return {
-        ok: false,
-        message: `That username is too similar to an existing one (${Math.round(sim * 100)}% match). Please choose a new one.`,
-      }
     }
   }
   return null
