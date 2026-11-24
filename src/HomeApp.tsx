@@ -13,6 +13,7 @@ import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
 import { PostCard } from './components/PostCard'
+import { SiobhanFeed } from './components/SiobhanFeed'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -2044,25 +2045,9 @@ export function HomeApp({ userId, onLogout }: Props) {
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'siobhan' && (
-        <div className="siobhan-panel">
-          {/* created: 2026-11-24T12:35:00-08:00 — PRD v2 B7 */}
-          <h2 className="panel-title">Siobhan Daily</h2>
-          <p className="muted">School news for Oak Park / Siobhán Daily.</p>
-          <div className="siobhan-articles">
-            <p className="friend-pick-heading">In-app reading</p>
-            <p className="muted">More articles can live here later. For now, open the school site:</p>
-          </div>
-          <div className="action-row">
-            <a
-              className="primary btn-compact"
-              href="https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Click here to go to Siobhan Daily!
-            </a>
-          </div>
-        </div>
+        // created: 2026-11-24T12:35:00-08:00 — PRD v2 B7
+        // updated: 2026-11-24T13:10:00-08:00 — manga science scrolling feed
+        <SiobhanFeed />
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'people' && (
