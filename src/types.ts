@@ -1,5 +1,7 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T22:35:00-08:00 — lounge tab replaces play
+// updated: 2026-11-23T23:35:00-08:00 — teacher verify tiers
+export type VerifyTier = 'pink' | 'gold' | 'blue' | null
+
 export type Profile = {
   id: string
   username: string
@@ -10,6 +12,8 @@ export type Profile = {
   // created: 2026-11-23T21:05:00-08:00
   icon_pack?: string | null
   icon_id?: string | null
+  /** created: 2026-11-23T23:35:00-08:00 — teacher-only: pink | gold | blue */
+  verify_tier?: VerifyTier | string | null
 }
 
 /** created: 2026-11-23T20:28:00-08:00 — which list is open on a profile */

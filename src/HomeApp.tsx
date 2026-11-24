@@ -1,5 +1,5 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T22:35:00-08:00 — Rafflesia Lounge (groups) replaces Play
+// updated: 2026-11-23T23:35:00-08:00 — show teacher verify badges
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -10,6 +10,7 @@ import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
+import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
@@ -1023,12 +1024,14 @@ export function HomeApp({ userId, onLogout }: Props) {
   )
   const isEveryoneChat = activeChat?.lounge_key === 'everyone'
 
-  const authorName = (authorId: string) => {
+  const authorProfile = (authorId: string) => {
     // created: 2026-11-23T21:10:00-08:00
-    if (authorId === userId) return niceName(me)
-    const p = people.find((x) => x.id === authorId) || profilesById[authorId]
-    return niceName(p)
+    // updated: 2026-11-23T23:35:00-08:00 — return profile for verify badge
+    if (authorId === userId) return me
+    return people.find((x) => x.id === authorId) || profilesById[authorId] || null
   }
+
+  const authorName = (authorId: string) => niceName(authorProfile(authorId))
 
   if (showIconPicker && me) {
     return (
@@ -1061,7 +1064,8 @@ export function HomeApp({ userId, onLogout }: Props) {
           <img className="logo-sm" src={logoSrc} alt="" />
           <h1 className="brand">Rafflesia Online</h1>
           <p className="tag" style={{ marginBottom: 0 }}>
-            {iconEmoji(me?.icon_pack, me?.icon_id)} Hi {niceName(me)}
+            {iconEmoji(me?.icon_pack, me?.icon_id)} Hi{' '}
+            <NameWithBadge name={niceName(me)} tier={me?.verify_tier} />
           </p>
         </div>
         <button className="ghost" type="button" onClick={onLogout}>
@@ -1133,10 +1137,10 @@ export function HomeApp({ userId, onLogout }: Props) {
             />
             <div>
               <h2 className="panel-title" style={{ marginTop: 0, marginBottom: 2 }}>
-                {niceName(viewProfile)}
+                <NameWithBadge name={niceName(viewProfile)} tier={viewProfile.verify_tier} />
               </h2>
               <p className="muted" style={{ margin: 0 }}>
-                @{viewProfile.username}
+                @{viewProfile.username} <VerifiedBadge tier={viewProfile.verify_tier} />
               </p>
             </div>
           </div>
@@ -1232,7 +1236,9 @@ export function HomeApp({ userId, onLogout }: Props) {
                         className="row-main linkish"
                         onClick={() => openProfile(p)}
                       >
-                        <p className="row-title">{niceName(p)}</p>
+                        <p className="row-title">
+                          <NameWithBadge name={niceName(p)} tier={p.verify_tier} />
+                        </p>
                         <p className="row-sub">@{p.username}</p>
                       </button>
                       {p.id !== userId ? (
@@ -1275,7 +1281,11 @@ export function HomeApp({ userId, onLogout }: Props) {
                 <div className="row post-row" key={p.id}>
                   <div className="row-main">
                     <p className="row-title">
-                      {authorName(p.author_id)} ·{' '}
+                      <NameWithBadge
+                        name={authorName(p.author_id)}
+                        tier={authorProfile(p.author_id)?.verify_tier}
+                      />{' '}
+                      ·{' '}
                       {p.kind === 'picture'
                         ? '🖼️ Picture'
                         : p.kind === 'video'
@@ -1580,7 +1590,8 @@ export function HomeApp({ userId, onLogout }: Props) {
         <form className="form" onSubmit={saveProfile}>
           <h2 className="panel-title">My profile</h2>
           <p className="muted">
-            {iconEmoji(me?.icon_pack, me?.icon_id)} @{me?.username}
+            {iconEmoji(me?.icon_pack, me?.icon_id)} @{me?.username}{' '}
+            <VerifiedBadge tier={me?.verify_tier} />
           </p>
           <button
             className="ghost"
@@ -1706,7 +1717,9 @@ export function HomeApp({ userId, onLogout }: Props) {
                       size="sm"
                     />
                     <span>
-                      <p className="row-title">{niceName(p)}</p>
+                      <p className="row-title">
+                        <NameWithBadge name={niceName(p)} tier={p.verify_tier} />
+                      </p>
                       <p className="row-sub">
                         @{p.username} · {followerCountById[p.id] || 0} followers ·{' '}
                         {followingCountById[p.id] || 0} following
@@ -1774,7 +1787,13 @@ export function HomeApp({ userId, onLogout }: Props) {
                       size="sm"
                     />
                     <div className="row-main">
-                      <p className="row-title">{peer ? niceName(peer) : 'Private chat'}</p>
+                      <p className="row-title">
+                        {peer ? (
+                          <NameWithBadge name={niceName(peer)} tier={peer.verify_tier} />
+                        ) : (
+                          'Private chat'
+                        )}
+                      </p>
                       <p className="row-sub">
                         {peer ? `Private chat with @${peer.username}` : 'Private 1:1 chat'}
                       </p>
@@ -1881,8 +1900,11 @@ export function HomeApp({ userId, onLogout }: Props) {
               return (
                 <div className={`bubble ${mine ? 'mine' : ''}`} key={m.id}>
                   <div className="bubble-meta">
-                    {niceName(sender)} ·{' '}
-                    {new Date(m.created_at).toLocaleTimeString()}
+                    <NameWithBadge
+                      name={niceName(mine ? me : sender)}
+                      tier={(mine ? me : sender)?.verify_tier}
+                    />{' '}
+                    · {new Date(m.created_at).toLocaleTimeString()}
                   </div>
                   <div>{m.body}</div>
                   <button

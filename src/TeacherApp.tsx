@@ -1,11 +1,12 @@
 // created: 2026-11-23T21:00:00-08:00
-// updated: 2026-11-23T22:25:00-08:00 — soft-delete posts moderation tab
+// updated: 2026-11-23T23:35:00-08:00 — Verify tab (pink / gold / blue)
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { clearBlockedPhraseCache } from './lib/textChecker'
 import { iconEmoji } from './lib/iconPacks'
-import type { PostRow } from './types'
+import { VerifiedBadge } from './components/VerifiedBadge'
+import type { PostRow, VerifyTier } from './types'
 
 type FlagRow = {
   // created: 2026-11-23T21:00:00-08:00
@@ -20,6 +21,7 @@ type FlagRow = {
 
 type SearchHit = {
   // created: 2026-11-23T21:35:00-08:00
+  // updated: 2026-11-23T23:35:00-08:00 — verify_tier
   id: string
   username: string
   display_name: string
@@ -30,6 +32,7 @@ type SearchHit = {
   icon_id: string | null
   block_post: boolean
   block_message: boolean
+  verify_tier?: string | null
 }
 
 type Props = {
@@ -50,7 +53,10 @@ export function TeacherApp({ onExit }: Props) {
   const [restrictUser, setRestrictUser] = useState('')
   const [blockPost, setBlockPost] = useState(true)
   const [blockMsg, setBlockMsg] = useState(true)
-  const [tab, setTab] = useState<'flags' | 'words' | 'restrict' | 'posts' | 'overview'>('flags')
+  const [tab, setTab] = useState<'flags' | 'words' | 'restrict' | 'posts' | 'verify' | 'overview'>(
+    'flags',
+  )
+  const [verifyBusy, setVerifyBusy] = useState(false)
   const [overview, setOverview] = useState<{ posts: number; chats: number; flags: number }>({
     posts: 0,
     chats: 0,
@@ -204,6 +210,52 @@ export function TeacherApp({ onExit }: Props) {
     } finally {
       setPostsBusy(false)
     }
+  }
+
+  async function setVerify(tier: VerifyTier) {
+    // created: 2026-11-23T23:35:00-08:00 — teacher-only badge assign
+    if (!picked) {
+      setError('Search and pick a person first.')
+      return
+    }
+    setVerifyBusy(true)
+    setError('')
+    try {
+      const { data, error: err } = await supabase.rpc('teacher_set_verify', {
+        p_password: sessionPw,
+        p_user_id: picked.id,
+        p_tier: tier || '',
+      })
+      if (err) {
+        throw new Error(
+          err.message.includes('teacher_set_verify')
+            ? 'Verification needs sql-teacher-verify.sql — run in Supabase.'
+            : err.message,
+        )
+      }
+      const row = data as SearchHit
+      setPicked({
+        ...picked,
+        verify_tier: row?.verify_tier ?? tier,
+      })
+      setStatus(
+        tier
+          ? `Set ${tier} verified on @${picked.username}.`
+          : `Removed verification from @${picked.username}.`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not set verification.')
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
+
+  function verifyLabel(tier?: string | null) {
+    // created: 2026-11-23T23:35:00-08:00
+    if (tier === 'pink') return 'Pink (creator / Rafflesia team)'
+    if (tier === 'gold') return 'Gold (honour / brand)'
+    if (tier === 'blue') return 'Blue (regular verified)'
+    return 'Not verified'
   }
 
   async function onLogin(e: FormEvent) {
@@ -371,6 +423,9 @@ export function TeacherApp({ onExit }: Props) {
         <button type="button" className={tab === 'posts' ? 'active' : ''} onClick={() => setTab('posts')}>
           Posts
         </button>
+        <button type="button" className={tab === 'verify' ? 'active' : ''} onClick={() => setTab('verify')}>
+          Verify
+        </button>
         <button type="button" className={tab === 'words' ? 'active' : ''} onClick={() => setTab('words')}>
           Words
         </button>
@@ -427,7 +482,8 @@ export function TeacherApp({ onExit }: Props) {
                   <li key={h.id}>
                     <button type="button" className="typeahead-item" onClick={() => pickHit(h)}>
                       <span>
-                        {iconEmoji(h.icon_pack, h.icon_id)} <strong>@{h.username}</strong>
+                        {iconEmoji(h.icon_pack, h.icon_id)} <strong>@{h.username}</strong>{' '}
+                        <VerifiedBadge tier={h.verify_tier} />
                       </span>
                       <span className="muted">{h.display_name}</span>
                     </button>
@@ -568,6 +624,88 @@ export function TeacherApp({ onExit }: Props) {
                 )}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {tab === 'verify' && (
+        <div>
+          {/* created: 2026-11-23T23:35:00-08:00 */}
+          <h2 className="panel-title">Verify people</h2>
+          <p className="muted">
+            Only teachers can grant checks. Pink = Rafflesia creators · Gold = honour / brand · Blue =
+            regular verified.
+          </p>
+          <label className="typeahead-wrap field">
+            Search username
+            <input
+              value={restrictUser}
+              onChange={(e) => onRestrictQueryChange(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Start typing a name…"
+            />
+            {searchOpen && hits.length > 0 ? (
+              <ul className="typeahead-list">
+                {hits.map((h) => (
+                  <li key={h.id}>
+                    <button type="button" className="typeahead-item" onClick={() => pickHit(h)}>
+                      <span>
+                        {iconEmoji(h.icon_pack, h.icon_id)} <strong>@{h.username}</strong>{' '}
+                        <VerifiedBadge tier={h.verify_tier} />
+                      </span>
+                      <span className="muted">{h.display_name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </label>
+
+          {picked ? (
+            <div className="teacher-profile-card">
+              <p className="row-title">
+                {iconEmoji(picked.icon_pack, picked.icon_id)} {picked.display_name}{' '}
+                <VerifiedBadge tier={picked.verify_tier} />
+              </p>
+              <p className="muted">@{picked.username}</p>
+              <p className="muted">Current: {verifyLabel(picked.verify_tier)}</p>
+              <div className="verify-tier-row">
+                <button
+                  className="primary pink"
+                  type="button"
+                  disabled={verifyBusy}
+                  onClick={() => setVerify('pink')}
+                >
+                  Pink check
+                </button>
+                <button
+                  className="primary gold"
+                  type="button"
+                  disabled={verifyBusy}
+                  onClick={() => setVerify('gold')}
+                >
+                  Gold check
+                </button>
+                <button
+                  className="primary blue"
+                  type="button"
+                  disabled={verifyBusy}
+                  onClick={() => setVerify('blue')}
+                >
+                  Blue check
+                </button>
+                <button
+                  className="ghost"
+                  type="button"
+                  disabled={verifyBusy || !picked.verify_tier}
+                  onClick={() => setVerify(null)}
+                >
+                  Remove check
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="muted">Pick a person from search to verify them.</p>
           )}
         </div>
       )}
