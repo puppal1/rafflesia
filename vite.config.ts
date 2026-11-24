@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // updated: 2026-11-23T19:08:00-08:00 — short Pages path /rafflesia/
-  base: process.env.GITHUB_ACTIONS ? '/rafflesia/' : '/',
+  // updated: 2026-11-23T19:14:00-08:00 — VITE_BASE from CI (repo name path)
+  base: process.env.VITE_BASE || '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',

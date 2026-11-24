@@ -34,7 +34,9 @@ jobs:
         run: npm ci
       - name: Build
         # created: 2026-11-23T19:02:00-08:00
-        # updated: 2026-11-23T19:03:00-08:00 — uses committed .env.production (publishable key)
+        # updated: 2026-11-23T19:14:00-08:00 — base path = /{repo}/ for project Pages
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
         run: npm run build
       - name: Upload Pages artifact
         # created: 2026-11-23T19:02:00-08:00
