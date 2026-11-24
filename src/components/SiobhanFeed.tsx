@@ -153,8 +153,8 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       </header>
 
       <p className="siobhan-scroll-hint muted">
-        {/* updated: 2026-11-24T14:38:00-08:00 — refresh cycle is manual; RSS looks back ~7 days */}
-        Kid-safe · loads when you open this tab · tap Refresh anytime · stories from the last ~7 days
+        {/* updated: 2026-11-24T14:40:00-08:00 — 10 stories; local weather/incidents first */}
+        10 stories · local weather & alerts first · then animals & environment · then nature & science · tap Refresh anytime
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 

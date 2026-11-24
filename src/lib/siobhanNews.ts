@@ -2,11 +2,13 @@
 // updated: 2026-11-24T13:20:00-08:00 — drop kindness; add music
 // updated: 2026-11-24T14:22:00-08:00 — live cards use match chips instead of static why-it-fits copy
 // updated: 2026-11-24T14:38:00-08:00 — never show Google query as source; nicer publisher label
+// updated: 2026-11-24T14:40:00-08:00 — top 10 only; local weather/incidents → animals/env → nature/science
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
   // created: 2026-11-24T13:15:00-08:00
   // updated: 2026-11-24T14:22:00-08:00 — fitChips for live “why here”
+  // updated: 2026-11-24T14:40:00-08:00 — priorityBand for ranking
   id: string
   tag: string
   emoji: string
@@ -19,6 +21,7 @@ export type LiveNewsItem = {
   publishedAt: string | null
   source: string
   live: boolean
+  priorityBand?: number
 }
 
 type Rss2JsonItem = {
@@ -34,6 +37,9 @@ type Rss2JsonResponse = {
   feed?: { title?: string }
   items?: Rss2JsonItem[]
 }
+
+/** created: 2026-11-24T14:40:00-08:00 — hard cap for the Siobhan feed */
+const FEED_LIMIT = 10
 
 /** created: 2026-11-24T13:15:00-08:00 — block adult / violent / heavy crime topics */
 const BLOCK = [
@@ -67,62 +73,148 @@ const BLOCK = [
   'domestic violence',
 ]
 
-/** created: 2026-11-24T13:15:00-08:00 — prefer these themes */
-const BOOST = [
-  'science',
-  'stem',
-  'space',
-  'nasa',
-  'student',
-  'students',
-  'school',
-  'classroom',
-  'teacher',
-  'music',
-  'musical',
-  'orchestra',
-  'choir',
-  'band',
-  'concert',
-  'song',
-  'piano',
-  'guitar',
-  'violin',
-  'community',
-  'wildlife',
-  'animal',
-  'nature',
-  'garden',
-  'planet',
-  'astronomy',
-  'ocean',
-  'climate',
-  'discovery',
-  'invention',
-  'robot',
-  'coding',
-  'library',
-  'museum',
-  'park',
-  'kids',
-  'children',
-  'youth',
-  'education',
+/** created: 2026-11-24T14:40:00-08:00 — local geography */
+const LOCAL = [
   'oak park',
+  'opusd',
+  'agoura',
+  'thousand oaks',
+  'westlake',
+  'calabasas',
   'ventura',
+  'camarillo',
+  'oxnard',
+  'simi valley',
   'san fernando',
+  'sf valley',
   'los angeles',
   'la county',
-  'california',
+  'southern california',
+  'socal',
 ]
+
+/** created: 2026-11-24T14:40:00-08:00 — band 0: weather + kid-safe local incidents */
+const WEATHER_INCIDENT = [
+  'weather',
+  'storm',
+  'rain',
+  'wind',
+  'heat',
+  'heatwave',
+  'flood',
+  'flooding',
+  'mudslide',
+  'wildfire',
+  'fire weather',
+  'red flag',
+  'air quality',
+  'smoke',
+  'outage',
+  'power outage',
+  'road closure',
+  'school closure',
+  'school closed',
+  'evacuation warning',
+  'advisory',
+  'alert',
+  'traffic',
+  'accident',
+  'incident',
+]
+
+/** created: 2026-11-24T14:40:00-08:00 — band 1: environment / animals */
+const ENV_ANIMALS = [
+  'wildlife',
+  'animal',
+  'animals',
+  'bird',
+  'birds',
+  'whale',
+  'dolphin',
+  'habitat',
+  'conservation',
+  'endangered',
+  'rescue',
+  'shelter',
+  'zoo',
+  'aquarium',
+  'ocean',
+  'beach',
+  'pollution',
+  'recycle',
+  'recycling',
+  'environment',
+  'climate',
+  'park',
+  'parks',
+  'forest',
+  'tree',
+  'trees',
+]
+
+/** created: 2026-11-24T14:40:00-08:00 — band 2: nature / science */
+const NATURE_SCIENCE = [
+  'science',
+  'stem',
+  'nasa',
+  'space',
+  'astronomy',
+  'planet',
+  'nature',
+  'discovery',
+  'museum',
+  'planetarium',
+  'lab',
+  'experiment',
+  'robot',
+  'coding',
+  'dinosaur',
+  'fossils',
+  'geology',
+  'biology',
+]
+
+/** created: 2026-11-24T14:22:00-08:00 — chip labels (kept for UI) */
+const CHIP_LABEL: Record<string, string> = {
+  weather: 'Weather',
+  storm: 'Storm',
+  rain: 'Rain',
+  heat: 'Heat',
+  flood: 'Flood',
+  wildfire: 'Fire weather',
+  'air quality': 'Air quality',
+  outage: 'Outage',
+  'road closure': 'Road closure',
+  'school closure': 'School',
+  wildlife: 'Wildlife',
+  animal: 'Animals',
+  animals: 'Animals',
+  ocean: 'Ocean',
+  conservation: 'Conservation',
+  environment: 'Environment',
+  climate: 'Climate',
+  park: 'Parks',
+  science: 'Science',
+  stem: 'STEM',
+  space: 'Space',
+  nasa: 'NASA',
+  nature: 'Nature',
+  discovery: 'Discovery',
+  museum: 'Museum',
+  'oak park': 'Oak Park',
+  ventura: 'Ventura',
+  'san fernando': 'SF Valley',
+  'los angeles': 'L.A.',
+}
 
 type FeedSpec = {
   // created: 2026-11-24T13:15:00-08:00
+  // updated: 2026-11-24T14:40:00-08:00 — band drives pick order
   id: string
   tag: string
   emoji: string
   place: string
-  /** Google News search query or direct RSS URL */
+  band: 0 | 1 | 2
   rssUrl: string
 }
 
@@ -132,70 +224,69 @@ function googleNewsRss(query: string): string {
   return `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
 }
 
-/** created: 2026-11-24T13:15:00-08:00 — curated local + science + music sources */
-/** updated: 2026-11-24T13:20:00-08:00 — music replaces kindness */
+/**
+ * created: 2026-11-24T14:40:00-08:00
+ * Priority feeds: local weather/incidents → env/animals → nature/science
+ */
 const FEEDS: FeedSpec[] = [
+  {
+    id: 'local-weather',
+    tag: 'Weather',
+    emoji: '🌦️',
+    place: 'SoCal · weather',
+    band: 0,
+    rssUrl: googleNewsRss(
+      '(weather OR storm OR rain OR wind OR heat OR flood OR "air quality" OR "red flag" OR wildfire) ("Oak Park" OR "Thousand Oaks" OR Ventura OR "San Fernando" OR "Los Angeles" OR SoCal OR "Southern California") when:5d',
+    ),
+  },
+  {
+    id: 'local-incident',
+    tag: 'Local',
+    emoji: '📢',
+    place: 'Local · alerts',
+    band: 0,
+    rssUrl: googleNewsRss(
+      '("road closure" OR outage OR "power outage" OR "school closure" OR "school closed" OR advisory OR alert OR traffic) ("Oak Park" OR OPUSD OR "Thousand Oaks" OR Ventura OR "San Fernando Valley" OR "Los Angeles") when:5d',
+    ),
+  },
   {
     id: 'oakpark',
     tag: 'Oak Park',
     emoji: '🌳',
-    place: 'Oak Park · local',
+    place: 'Oak Park',
+    band: 0,
     rssUrl: googleNewsRss(
-      '"Oak Park" (California OR CA OR OPUSD) (school OR student OR science OR STEM OR music OR band OR choir OR library OR park) when:7d',
+      '"Oak Park" (California OR CA OR OPUSD) (weather OR school OR park OR community OR student) when:7d',
     ),
   },
   {
-    id: 'la-science',
-    tag: 'L.A. Science',
-    emoji: '🔬',
-    place: 'Los Angeles · science',
+    id: 'env-animals',
+    tag: 'Animals',
+    emoji: '🐾',
+    place: 'Wildlife · SoCal',
+    band: 1,
     rssUrl: googleNewsRss(
-      '("Los Angeles" OR LA) (science OR STEM OR NASA OR museum OR planetarium OR aquarium) (student OR kids OR school OR education) when:7d',
+      '(wildlife OR animal OR whale OR dolphin OR bird OR habitat OR rescue OR zoo OR aquarium OR conservation) ("Los Angeles" OR Ventura OR California OR SoCal OR ocean OR beach) when:10d',
     ),
   },
   {
-    id: 'sfv',
-    tag: 'SF Valley',
-    emoji: '☀️',
-    place: 'San Fernando Valley',
+    id: 'environment',
+    tag: 'Environment',
+    emoji: '🌍',
+    place: 'Environment',
+    band: 1,
     rssUrl: googleNewsRss(
-      '("San Fernando Valley" OR "San Fernando" Valley) (school OR student OR science OR STEM OR music OR band OR choir OR library OR park) when:7d',
+      '(environment OR climate OR pollution OR recycling OR "air quality" OR park OR forest OR ocean) (kids OR students OR school OR California OR "Los Angeles" OR Ventura) when:10d',
     ),
   },
   {
-    id: 'ventura',
-    tag: 'Ventura',
-    emoji: '🌊',
-    place: 'Ventura County',
-    rssUrl: googleNewsRss(
-      '("Ventura" OR "Ventura County") (school OR student OR science OR STEM OR music OR band OR ocean OR wildlife OR education) when:7d',
-    ),
-  },
-  {
-    id: 'music-local',
-    tag: 'Music',
-    emoji: '🎵',
-    place: 'SoCal · music',
-    rssUrl: googleNewsRss(
-      '(music OR orchestra OR choir OR band OR concert OR "music education" OR "school band") (kids OR children OR students OR school OR youth) (California OR "Los Angeles" OR Ventura OR "San Fernando" OR "Oak Park") when:14d',
-    ),
-  },
-  {
-    id: 'music-kids',
-    tag: 'Music',
-    emoji: '🎹',
-    place: 'Kid music · learning',
-    rssUrl: googleNewsRss(
-      '(music OR song OR piano OR guitar OR violin OR orchestra OR choir) (kids OR children OR students OR classroom OR "music class" OR "music teacher") when:7d',
-    ),
-  },
-  {
-    id: 'kids-science',
+    id: 'nature-science',
     tag: 'Science',
-    emoji: '🚀',
-    place: 'Kid science · discovery',
+    emoji: '🔬',
+    place: 'Nature · science',
+    band: 2,
     rssUrl: googleNewsRss(
-      '(NASA OR space OR wildlife OR "science fair" OR STEM OR dinosaurs OR ocean) (kids OR children OR students OR classroom) when:7d',
+      '(science OR STEM OR nature OR discovery OR museum OR planetarium OR NASA OR space) (kids OR students OR school OR classroom OR California) when:10d',
     ),
   },
   {
@@ -203,6 +294,7 @@ const FEEDS: FeedSpec[] = [
     tag: 'Space',
     emoji: '🌙',
     place: 'NASA education',
+    band: 2,
     rssUrl: 'https://www.nasa.gov/rss/dyn/educationnews.rss',
   },
 ]
@@ -225,67 +317,39 @@ function isBlocked(text: string): boolean {
   return BLOCK.some((w) => t.includes(w))
 }
 
-/** created: 2026-11-24T13:15:00-08:00 */
-function boostScore(text: string): number {
+/** created: 2026-11-24T14:40:00-08:00 — 0 weather/incident, 1 env/animals, 2 nature/science */
+function classifyBand(text: string, feedBand: 0 | 1 | 2): number {
+  const t = text.toLowerCase()
+  const localHit = LOCAL.some((w) => t.includes(w))
+  const weatherHit = WEATHER_INCIDENT.some((w) => t.includes(w))
+  const envHit = ENV_ANIMALS.some((w) => t.includes(w))
+  const sciHit = NATURE_SCIENCE.some((w) => t.includes(w))
+
+  if (weatherHit && (localHit || feedBand === 0)) return 0
+  if (weatherHit) return 0
+  if (envHit) return 1
+  if (sciHit) return 2
+  return feedBand
+}
+
+/** created: 2026-11-24T14:40:00-08:00 — higher = more preferred within a band */
+function rankScore(text: string, band: number): number {
   const t = text.toLowerCase()
   let score = 0
-  for (const w of BOOST) {
-    if (t.includes(w)) score += 1
+  if (LOCAL.some((w) => t.includes(w))) score += 8
+  if (band === 0) {
+    for (const w of WEATHER_INCIDENT) if (t.includes(w)) score += 3
+  } else if (band === 1) {
+    for (const w of ENV_ANIMALS) if (t.includes(w)) score += 2
+  } else {
+    for (const w of NATURE_SCIENCE) if (t.includes(w)) score += 2
   }
   return score
 }
 
-/** created: 2026-11-24T14:22:00-08:00 — readable labels for matched themes */
-const CHIP_LABEL: Record<string, string> = {
-  science: 'Science',
-  stem: 'STEM',
-  space: 'Space',
-  nasa: 'NASA',
-  student: 'Students',
-  students: 'Students',
-  school: 'School',
-  classroom: 'Classroom',
-  teacher: 'Teachers',
-  music: 'Music',
-  musical: 'Music',
-  orchestra: 'Orchestra',
-  choir: 'Choir',
-  band: 'Band',
-  concert: 'Concert',
-  song: 'Songs',
-  piano: 'Piano',
-  guitar: 'Guitar',
-  violin: 'Violin',
-  community: 'Community',
-  wildlife: 'Wildlife',
-  animal: 'Animals',
-  nature: 'Nature',
-  garden: 'Garden',
-  planet: 'Planet',
-  astronomy: 'Astronomy',
-  ocean: 'Ocean',
-  climate: 'Climate',
-  discovery: 'Discovery',
-  invention: 'Invention',
-  robot: 'Robots',
-  coding: 'Coding',
-  library: 'Library',
-  museum: 'Museum',
-  park: 'Parks',
-  kids: 'Kids',
-  children: 'Kids',
-  youth: 'Youth',
-  education: 'Learning',
-  'oak park': 'Oak Park',
-  ventura: 'Ventura',
-  'san fernando': 'SF Valley',
-  'los angeles': 'L.A.',
-  'la county': 'L.A.',
-  california: 'California',
-}
-
-/** created: 2026-11-24T14:22:00-08:00 — per-article chips from real headline/blurb matches */
-function fitChipsFor(text: string, tag: string, place: string): string[] {
+/** created: 2026-11-24T14:22:00-08:00 */
+/** updated: 2026-11-24T14:40:00-08:00 — chips from priority vocab */
+function fitChipsFor(text: string, tag: string): string[] {
   const t = text.toLowerCase()
   const chips: string[] = []
   const seen = new Set<string>()
@@ -295,16 +359,15 @@ function fitChipsFor(text: string, tag: string, place: string): string[] {
     chips.push(label)
   }
   add(tag)
-  if (place && place !== tag) add(place)
-  for (const w of BOOST) {
+  for (const w of [...WEATHER_INCIDENT, ...ENV_ANIMALS, ...NATURE_SCIENCE, ...LOCAL]) {
     if (!t.includes(w)) continue
-    add(CHIP_LABEL[w] || w)
-    if (chips.length >= 5) break
+    add(CHIP_LABEL[w] || w.replace(/\b\w/g, (c) => c.toUpperCase()))
+    if (chips.length >= 3) break
   }
-  return chips.slice(0, 5)
+  return chips.slice(0, 3)
 }
 
-/** created: 2026-11-24T14:38:00-08:00 — Google RSS feed.title is the raw search query — never show it */
+/** created: 2026-11-24T14:38:00-08:00 */
 function looksLikeSearchQuery(s: string): boolean {
   const t = s.toLowerCase()
   return (
@@ -316,8 +379,13 @@ function looksLikeSearchQuery(s: string): boolean {
   )
 }
 
-/** created: 2026-11-24T14:38:00-08:00 — publisher from author or "Title - Outlet" */
-function nicePublisher(item: Rss2JsonItem, title: string, feedTitle: string | undefined, fallback: string): string {
+/** created: 2026-11-24T14:38:00-08:00 */
+function nicePublisher(
+  item: Rss2JsonItem,
+  title: string,
+  feedTitle: string | undefined,
+  fallback: string,
+): string {
   const author = stripHtml(item.author || '')
   if (author && !looksLikeSearchQuery(author)) return author.slice(0, 48)
   const dash = title.match(/\s[-–—]\s([^–—-]{2,48})$/)
@@ -327,7 +395,7 @@ function nicePublisher(item: Rss2JsonItem, title: string, feedTitle: string | un
   return fallback
 }
 
-/** created: 2026-11-24T14:38:00-08:00 — drop blurbs that just repeat the headline */
+/** created: 2026-11-24T14:38:00-08:00 */
 function niceBlurb(title: string, rawDesc: string): string {
   const blurb = rawDesc.slice(0, 180).trim()
   if (!blurb) return ''
@@ -337,8 +405,8 @@ function niceBlurb(title: string, rawDesc: string): string {
   return blurb
 }
 
-/** created: 2026-11-24T13:15:00-08:00 — rss2json free endpoint (browser-safe) */
-/** updated: 2026-11-24T14:38:00-08:00 — clean source + blurb */
+/** created: 2026-11-24T13:15:00-08:00 */
+/** updated: 2026-11-24T14:40:00-08:00 — band on each item */
 async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(spec.rssUrl)}`
   const res = await fetch(endpoint)
@@ -347,26 +415,15 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   if (data.status !== 'ok' || !Array.isArray(data.items)) return []
 
   const out: LiveNewsItem[] = []
-  for (const item of data.items.slice(0, 8)) {
+  for (const item of data.items.slice(0, 10)) {
     const title = stripHtml(item.title || '')
     const rawDesc = stripHtml(item.description || '')
     const blurb = niceBlurb(title, rawDesc)
     const hay = `${title} ${rawDesc}`
     if (!title || isBlocked(hay)) continue
-    // Music/NASA: allow more; local feeds need a boost hit or stay
-    const score = boostScore(hay)
-    if (
-      spec.id !== 'music-local' &&
-      spec.id !== 'music-kids' &&
-      spec.id !== 'nasa' &&
-      score < 1 &&
-      !hay.toLowerCase().includes('school')
-    ) {
-      continue
-    }
     const link = (item.link || '').trim()
     if (!link.startsWith('http')) continue
-    const chips = fitChipsFor(hay, spec.tag, spec.place).slice(0, 3)
+    const band = classifyBand(hay, spec.band)
     out.push({
       id: `${spec.id}-${link}`,
       tag: spec.tag,
@@ -375,30 +432,35 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
       blurb,
       place: spec.place,
       funFact: '',
-      fitChips: chips,
+      fitChips: fitChipsFor(hay, spec.tag),
       url: link,
       publishedAt: item.pubDate || null,
       source: nicePublisher(item, title, data.feed?.title, spec.tag),
       live: true,
+      priorityBand: band,
     })
   }
   return out
 }
 
 /** created: 2026-11-24T13:15:00-08:00 */
-/** updated: 2026-11-24T14:22:00-08:00 — offline club cards keep real fun facts */
+/** updated: 2026-11-24T14:40:00-08:00 — offline fallback also capped at 10 */
 function staticAsLive(): LiveNewsItem[] {
-  return SIOBHAN_FEED.map((a: SiobhanArticle) => ({
+  return SIOBHAN_FEED.slice(0, FEED_LIMIT).map((a: SiobhanArticle) => ({
     ...a,
-    fitChips: [a.tag, a.place].filter(Boolean),
+    fitChips: [a.tag, a.place].filter(Boolean).slice(0, 3),
     url: '',
     publishedAt: null,
     source: 'Siobhan club notes',
     live: false,
+    priorityBand: 2,
   }))
 }
 
-/** created: 2026-11-24T13:15:00-08:00 */
+/**
+ * created: 2026-11-24T13:15:00-08:00
+ * updated: 2026-11-24T14:40:00-08:00 — pick 10: local weather/incidents, then env/animals, then science
+ */
 export async function loadSiobhanLiveNews(): Promise<{
   items: LiveNewsItem[]
   fromLive: boolean
@@ -410,7 +472,7 @@ export async function loadSiobhanLiveNews(): Promise<{
     FEEDS.map(async (spec) => {
       try {
         return await fetchRss(spec)
-      } catch (e) {
+      } catch {
         errors.push(spec.id)
         return [] as LiveNewsItem[]
       }
@@ -429,14 +491,42 @@ export async function loadSiobhanLiveNews(): Promise<{
   }
 
   merged.sort((a, b) => {
+    const ba = a.priorityBand ?? 2
+    const bb = b.priorityBand ?? 2
+    if (ba !== bb) return ba - bb
+    const sa = rankScore(`${a.title} ${a.blurb}`, ba)
+    const sb = rankScore(`${b.title} ${b.blurb}`, bb)
+    if (sb !== sa) return sb - sa
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0
-    if (tb !== ta) return tb - ta
-    return boostScore(`${b.title} ${b.blurb}`) - boostScore(`${a.title} ${a.blurb}`)
+    return tb - ta
   })
 
-  const top = merged.slice(0, 24)
-  if (top.length === 0) {
+  // Fill quota by band so weather/local aren't crowded out: aim ~4 / ~3 / ~3
+  const quotas = [4, 3, 3]
+  const picked: LiveNewsItem[] = []
+  const used = new Set<string>()
+  for (let band = 0; band <= 2; band++) {
+    const want = quotas[band]
+    let got = 0
+    for (const item of merged) {
+      if (got >= want || picked.length >= FEED_LIMIT) break
+      if ((item.priorityBand ?? 2) !== band) continue
+      if (used.has(item.id)) continue
+      used.add(item.id)
+      picked.push(item)
+      got += 1
+    }
+  }
+  // Top up to 10 from remaining ranked list
+  for (const item of merged) {
+    if (picked.length >= FEED_LIMIT) break
+    if (used.has(item.id)) continue
+    used.add(item.id)
+    picked.push(item)
+  }
+
+  if (picked.length === 0) {
     return {
       items: staticAsLive(),
       fromLive: false,
@@ -445,7 +535,7 @@ export async function loadSiobhanLiveNews(): Promise<{
     }
   }
   return {
-    items: top,
+    items: picked.slice(0, FEED_LIMIT),
     fromLive: true,
     fetchedAt: new Date().toISOString(),
     errors,
