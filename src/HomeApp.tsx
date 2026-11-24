@@ -1,5 +1,7 @@
 // created: 2026-11-23T12:14:00-08:00
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+// updated: 2026-11-23T18:39:00-08:00 — type-only FormEvent for verbatimModuleSyntax
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import type { ChatRow, MessageRow, Profile, Tab } from './types'
 

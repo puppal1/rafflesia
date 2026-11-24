@@ -1,6 +1,7 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T12:14:00-08:00 — local features first (auth + home app)
-import { FormEvent, useEffect, useState } from 'react'
+// updated: 2026-11-23T18:39:00-08:00 — type-only FormEvent for verbatimModuleSyntax
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { supabase } from './lib/supabase'
