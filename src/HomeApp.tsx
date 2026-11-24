@@ -1,5 +1,5 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T19:33:00-08:00 — logo uses BASE_URL for GitHub Pages
+// updated: 2026-11-23T20:22:00-08:00 — fix Follow button via RPC result + list_my_following
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -61,19 +61,26 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const loadPeople = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T12:25:00-08:00 — surface query errors
+    // updated: 2026-11-23T20:22:00-08:00 — load following via RPC (follows SELECT RLS was empty)
     const peopleRes = await supabase
       .from('profiles')
       .select('*')
       .neq('id', userId)
       .order('username')
+    if (peopleRes.error) throw peopleRes.error
+    setPeople((peopleRes.data || []) as Profile[])
+
+    const rpcRes = await supabase.rpc('list_my_following')
+    if (!rpcRes.error && Array.isArray(rpcRes.data)) {
+      setFollowingIds(new Set((rpcRes.data as string[]).map(String)))
+      return
+    }
+
     const followsRes = await supabase
       .from('follows')
       .select('following_id')
       .eq('follower_id', userId)
-    if (peopleRes.error) throw peopleRes.error
     if (followsRes.error) throw followsRes.error
-    setPeople((peopleRes.data || []) as Profile[])
     setFollowingIds(new Set((followsRes.data || []).map((f) => f.following_id as string)))
   }, [userId])
 
@@ -274,14 +281,26 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function toggleFollow(targetId: string) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T12:42:00-08:00 — use toggle_follow RPC
+    // updated: 2026-11-23T20:22:00-08:00 — apply RPC result to button (don’t trust empty follows SELECT)
     setError('')
     try {
-      const { error: err } = await supabase.rpc('toggle_follow', {
+      const { data, error: err } = await supabase.rpc('toggle_follow', {
         p_other_user_id: targetId,
       })
       if (err) throw err
-      await loadPeople()
+      const result = String(data || '')
+      setFollowingIds((prev) => {
+        const next = new Set(prev)
+        if (result === 'unfollowed') next.delete(targetId)
+        else next.add(targetId)
+        return next
+      })
+      // Refresh list; ignore follow-load errors so button state stays correct
+      try {
+        await loadPeople()
+      } catch {
+        /* keep optimistic followingIds */
+      }
     } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
