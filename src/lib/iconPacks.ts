@@ -28,7 +28,6 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
     title: 'Manga Hero',
     icons: [
       { id: 'manga-hero-1', pack: 'manga-hero', emoji: '🦸', label: 'hero', imageUrl: manga('hero.jpg') },
-      { id: 'manga-hero-sky', pack: 'manga-hero', emoji: '☀️', label: 'sky', imageUrl: manga('hero.jpg') },
     ],
   },
   {
@@ -36,7 +35,6 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
     title: 'Manga Villain',
     icons: [
       { id: 'manga-villain-1', pack: 'manga-villain', emoji: '😈', label: 'villain', imageUrl: manga('villain.jpg') },
-      { id: 'manga-villain-night', pack: 'manga-villain', emoji: '🌑', label: 'night', imageUrl: manga('villain.jpg') },
     ],
   },
   {
@@ -44,7 +42,6 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
     title: 'Manga Neutral',
     icons: [
       { id: 'manga-neutral-1', pack: 'manga-neutral', emoji: '😊', label: 'friend', imageUrl: manga('neutral.jpg') },
-      { id: 'manga-neutral-garden', pack: 'manga-neutral', emoji: '🌿', label: 'garden', imageUrl: manga('neutral.jpg') },
     ],
   },
   {

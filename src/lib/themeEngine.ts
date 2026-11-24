@@ -1,7 +1,9 @@
 // created: 2026-11-24T11:45:00-08:00 — hourly no-repeat pastel rotation + user picks
 // updated: 2026-11-24T11:50:00-08:00 — user pick locks; no auto-rotate until Auto
 // updated: 2026-11-24T12:35:00-08:00 — manga full-screen BG images
+// updated: 2026-11-24T12:55:00-08:00 — independent manga BG pick (hero/villain/neutral)
 import { THEMES, themeById, type ThemeDef, type ThemeId } from './themes'
+import { mangaBgById, type MangaBgId } from './mangaBgs'
 
 const baseUrl = import.meta.env.BASE_URL || '/'
 
@@ -9,6 +11,7 @@ const KEY_CURRENT = 'rafflesia_theme_id'
 const KEY_USED = 'rafflesia_theme_used'
 const KEY_HOUR = 'rafflesia_theme_hour'
 const KEY_LOCKED = 'rafflesia_theme_locked' // '1' when user chose; skip hourly rotate
+const KEY_MANGA_BG = 'rafflesia_manga_bg'
 
 /** created: 2026-11-24T11:45:00-08:00 — bucket = calendar hour */
 export function currentHourKey(d = new Date()): string {
@@ -42,7 +45,13 @@ function writeUsed(used: ThemeId[]) {
   localStorage.setItem(KEY_USED, JSON.stringify(used))
 }
 
-/** created: 2026-11-24T11:45:00-08:00 */
+/** created: 2026-11-24T12:55:00-08:00 */
+export function getMangaBgId(): MangaBgId {
+  const raw = localStorage.getItem(KEY_MANGA_BG)
+  return mangaBgById(raw).id
+}
+
+/** created: 2026-11-24T12:55:00-08:00 — color palette + optional manga picture */
 export function applyTheme(theme: ThemeDef) {
   const root = document.documentElement
   root.dataset.theme = theme.id
@@ -63,11 +72,13 @@ export function applyTheme(theme: ThemeDef) {
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', theme.washMid)
   document.body.style.backgroundColor = theme.washMid
-  // created: 2026-11-24T12:35:00-08:00 — full-viewport manga BG when set
-  if (theme.bgImage) {
-    const url = `${baseUrl}theme-bgs/${theme.bgImage}`
+
+  const picked = mangaBgById(getMangaBgId())
+  const file = picked.file || theme.bgImage || ''
+  if (file) {
+    const url = `${baseUrl}theme-bgs/${file}`
     document.body.style.backgroundImage = [
-      `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} 78%, transparent), color-mix(in srgb, ${theme.washMid} 72%, transparent), color-mix(in srgb, ${theme.washEdge} 75%, transparent))`,
+      `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} 72%, transparent), color-mix(in srgb, ${theme.washMid} 68%, transparent), color-mix(in srgb, ${theme.washEdge} 70%, transparent))`,
       `url("${url}")`,
     ].join(', ')
     document.body.style.backgroundSize = 'cover, cover'
@@ -79,6 +90,12 @@ export function applyTheme(theme: ThemeDef) {
     document.body.style.backgroundPosition = ''
     document.body.style.backgroundAttachment = ''
   }
+}
+
+/** created: 2026-11-24T12:55:00-08:00 */
+export function setMangaBg(id: MangaBgId): void {
+  localStorage.setItem(KEY_MANGA_BG, id)
+  applyTheme(themeById(getCurrentThemeId()))
 }
 
 /** created: 2026-11-24T11:45:00-08:00 — rotate each hour unless user locked a pick */

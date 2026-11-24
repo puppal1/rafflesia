@@ -1,4 +1,5 @@
 // created: 2026-11-24T12:35:00-08:00 — post card: media, comments, delete, send/share
+// updated: 2026-11-24T12:55:00-08:00 — stacked layout (no action overlap)
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
@@ -31,6 +32,7 @@ type Props = {
 }
 
 /** created: 2026-11-24T12:35:00-08:00 */
+/** updated: 2026-11-24T12:55:00-08:00 */
 export function PostCard({
   post,
   userId,
@@ -125,110 +127,112 @@ export function PostCard({
     }
   }
 
+  const kindLabel =
+    post.kind === 'picture'
+      ? 'Picture'
+      : post.kind === 'video'
+        ? 'Video'
+        : post.kind === 'link'
+          ? 'Link'
+          : 'Text'
+
   return (
-    <div className="row post-row fyp-card">
-      <div className="row-main">
-        <p className="row-title">
-          <button
-            type="button"
-            className="linkish-inline"
-            onClick={() => onOpenAuthor?.(post.author_id)}
-          >
-            <NameWithBadge name={authorName} tier={authorTier} />
-          </button>{' '}
-          ·{' '}
-          {post.kind === 'picture'
-            ? 'Picture'
-            : post.kind === 'video'
-              ? 'Video'
-              : post.kind === 'link'
-                ? 'Link'
-                : 'Text'}
+    <article className="post-card">
+      <header className="post-card-head">
+        <button
+          type="button"
+          className="linkish-inline post-card-author"
+          onClick={() => onOpenAuthor?.(post.author_id)}
+        >
+          <NameWithBadge name={authorName} tier={authorTier} />
+        </button>
+        <span className="post-card-kind">· {kindLabel}</span>
+        <p className="post-card-time">{new Date(post.created_at).toLocaleString()}</p>
+      </header>
+
+      {post.body ? <p className="post-card-body">{post.body}</p> : null}
+
+      {post.kind === 'picture' && post.media_url ? (
+        <img className="post-media" src={post.media_url} alt="" />
+      ) : null}
+      {post.kind === 'video' && post.media_url ? (
+        <video className="post-media" src={post.media_url} controls playsInline />
+      ) : null}
+      {post.kind === 'link' && post.media_url ? (
+        <p className="post-card-link">
+          <a href={post.media_url} target="_blank" rel="noreferrer">
+            Open link
+          </a>
         </p>
-        <p className="row-sub">{new Date(post.created_at).toLocaleString()}</p>
-        {post.body ? <p className="profile-bio">{post.body}</p> : null}
-        {post.kind === 'picture' && post.media_url ? (
-          <img className="post-media" src={post.media_url} alt="" />
-        ) : null}
-        {post.kind === 'video' && post.media_url ? (
-          <video className="post-media" src={post.media_url} controls playsInline />
-        ) : null}
-        {post.kind === 'link' && post.media_url ? (
-          <p className="row-sub">
-            <a href={post.media_url} target="_blank" rel="noreferrer">
-              Open link
-            </a>
-          </p>
-        ) : null}
+      ) : null}
 
-        <div className="action-row post-card-actions">
-          <button className="ghost btn-compact" type="button" onClick={() => setOpenComments((v) => !v)}>
-            {openComments ? 'Hide comments' : 'Comments'}
+      <div className="post-card-actions">
+        <button className="ghost btn-compact" type="button" onClick={() => setOpenComments((v) => !v)}>
+          {openComments ? 'Hide comments' : 'Comments'}
+        </button>
+        <button className="ghost btn-compact" type="button" disabled={busy || localBusy} onClick={() => onSend(post)}>
+          Send
+        </button>
+        <button className="ghost btn-compact" type="button" disabled={busy || localBusy} onClick={() => onShare(post)}>
+          Share
+        </button>
+        {mine ? (
+          <button className="danger btn-compact" type="button" disabled={localBusy} onClick={deletePost}>
+            Delete
           </button>
-          <button className="ghost btn-compact" type="button" disabled={busy || localBusy} onClick={() => onSend(post)}>
-            Send
-          </button>
-          <button className="ghost btn-compact" type="button" disabled={busy || localBusy} onClick={() => onShare(post)}>
-            Share
-          </button>
-          {mine ? (
-            <button className="danger btn-compact" type="button" disabled={localBusy} onClick={deletePost}>
-              Delete
-            </button>
-          ) : null}
-        </div>
-
-        {err ? <p className="error">{err}</p> : null}
-
-        {openComments ? (
-          <div className="post-comments">
-            {comments.length === 0 ? (
-              <p className="muted">No comments yet — say something kind</p>
-            ) : (
-              comments.map((c) => {
-                const who = profilesById[c.author_id]
-                return (
-                  <div className="post-comment" key={c.id}>
-                    <p className="row-title">
-                      <NameWithBadge
-                        name={who?.display_name || who?.username || 'Friend'}
-                        tier={who?.verify_tier}
-                      />
-                    </p>
-                    <p className="profile-bio">{c.body}</p>
-                    {c.author_id === userId ? (
-                      <button
-                        className="ghost btn-compact"
-                        type="button"
-                        disabled={localBusy}
-                        onClick={() => deleteComment(c.id)}
-                      >
-                        Delete
-                      </button>
-                    ) : null}
-                  </div>
-                )
-              })
-            )}
-            <form className="form form-compact comment-form" onSubmit={submitComment}>
-              <label>
-                Add a comment
-                <input
-                  value={draft}
-                  maxLength={500}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Be kind…"
-                />
-              </label>
-              <div className="action-row">
-                <button className="primary btn-compact" type="submit" disabled={localBusy || !draft.trim()}>
-                  Comment
-                </button>
-              </div>
-            </form>
-          </div>
         ) : null}
       </div>
-    </div>
+
+      {err ? <p className="error">{err}</p> : null}
+
+      {openComments ? (
+        <div className="post-comments">
+          {comments.length === 0 ? (
+            <p className="muted">No comments yet — say something kind</p>
+          ) : (
+            comments.map((c) => {
+              const who = profilesById[c.author_id]
+              return (
+                <div className="post-comment" key={c.id}>
+                  <p className="row-title">
+                    <NameWithBadge
+                      name={who?.display_name || who?.username || 'Friend'}
+                      tier={who?.verify_tier}
+                    />
+                  </p>
+                  <p className="profile-bio">{c.body}</p>
+                  {c.author_id === userId ? (
+                    <button
+                      className="ghost btn-compact"
+                      type="button"
+                      disabled={localBusy}
+                      onClick={() => deleteComment(c.id)}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
+              )
+            })
+          )}
+          <form className="form form-compact comment-form" onSubmit={submitComment}>
+            <label>
+              Add a comment
+              <input
+                value={draft}
+                maxLength={500}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Be kind…"
+              />
+            </label>
+            <div className="action-row">
+              <button className="primary btn-compact" type="submit" disabled={localBusy || !draft.trim()}>
+                Comment
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </article>
   )
 }

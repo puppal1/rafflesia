@@ -1,11 +1,15 @@
 // created: 2026-11-24T11:45:00-08:00 — pastel theme swatch picker
 // updated: 2026-11-24T11:50:00-08:00 — lock note + Auto rotate unlock
+// updated: 2026-11-24T12:55:00-08:00 — color palettes + manga hero/villain BGs
 import { useEffect, useState } from 'react'
 import { THEMES, type ThemeId } from '../lib/themes'
+import { MANGA_BGS, type MangaBgId } from '../lib/mangaBgs'
 import {
   clearThemeLock,
   getCurrentThemeId,
+  getMangaBgId,
   isThemeLocked,
+  setMangaBg,
   setUserTheme,
 } from '../lib/themeEngine'
 
@@ -15,34 +19,39 @@ type Props = {
   onPicked?: (id: ThemeId) => void
 }
 
+const baseUrl = import.meta.env.BASE_URL || '/'
+
 /** created: 2026-11-24T11:45:00-08:00 */
-/** updated: 2026-11-24T11:50:00-08:00 */
+/** updated: 2026-11-24T12:55:00-08:00 */
 export function ThemePicker({ compact, onPicked }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState<ThemeId>(THEMES[0].id)
+  const [bgId, setBgId] = useState<MangaBgId>('none')
   const [locked, setLocked] = useState(false)
 
   useEffect(() => {
     setActive(getCurrentThemeId())
+    setBgId(getMangaBgId())
     setLocked(isThemeLocked())
   }, [open])
 
   function pick(id: ThemeId) {
-    // created: 2026-11-24T11:45:00-08:00 — locks so hourly rotate won't override
     setUserTheme(id)
     setActive(id)
     setLocked(true)
     onPicked?.(id)
-    setOpen(false)
+  }
+
+  function pickBg(id: MangaBgId) {
+    setMangaBg(id)
+    setBgId(id)
   }
 
   function useAuto() {
-    // created: 2026-11-24T11:50:00-08:00
     const theme = clearThemeLock()
     setActive(theme.id)
     setLocked(false)
     onPicked?.(theme.id)
-    setOpen(false)
   }
 
   return (
@@ -56,15 +65,17 @@ export function ThemePicker({ compact, onPicked }: Props) {
         Theme{locked ? ' · yours' : ''}
       </button>
       {open ? (
-        <div className="theme-picker-panel" role="listbox" aria-label="Pastel themes">
+        <div className="theme-picker-panel" role="listbox" aria-label="Theme colors and backgrounds">
           <p className="theme-picker-hint">
             {locked
-              ? 'Your pick stays — hourly rotate is off until Auto.'
-              : 'Auto changes every hour · no repeats until all 12 show.'}
+              ? 'Your color stays — hourly rotate is off until Auto.'
+              : 'Auto changes colors every hour. Pick a manga background any time.'}
           </p>
           <button className="theme-auto-btn" type="button" onClick={useAuto}>
             {locked ? 'Use Auto rotate' : 'Auto is on'}
           </button>
+
+          <h3 className="theme-section-title">Colors</h3>
           <div className="theme-swatch-grid">
             {THEMES.map((t) => (
               <button
@@ -83,6 +94,30 @@ export function ThemePicker({ compact, onPicked }: Props) {
                   }}
                 />
                 <span className="theme-swatch-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <h3 className="theme-section-title">Manga backgrounds</h3>
+          <p className="theme-picker-hint">Hero · Villain · Neutral — sits behind the app with your color wash.</p>
+          <div className="theme-bg-grid">
+            {MANGA_BGS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
+                onClick={() => pickBg(b.id)}
+              >
+                {b.file ? (
+                  <img
+                    className="theme-bg-thumb"
+                    src={`${baseUrl}theme-bgs/${b.file}`}
+                    alt=""
+                  />
+                ) : (
+                  <span className="theme-bg-none">None</span>
+                )}
+                <span className="theme-swatch-name">{b.name}</span>
               </button>
             ))}
           </div>

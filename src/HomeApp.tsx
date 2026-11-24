@@ -36,6 +36,7 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [tab, setTab] = useState<Tab>('fyp')
   // created: 2026-11-24T12:35:00-08:00 — FYP search + share pickers
   const [fypQuery, setFypQuery] = useState('')
+  const [fypSearchOpen, setFypSearchOpen] = useState(false)
   const [sharePost, setSharePost] = useState<PostRow | null>(null)
   const [shareMode, setShareMode] = useState<'send' | 'share' | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -1496,17 +1497,35 @@ export function HomeApp({ userId, onLogout }: Props) {
       {!viewProfile && !textBlockMsg && tab === 'fyp' && (
         <div className="fyp-panel">
           {/* created: 2026-11-24T12:35:00-08:00 — FYP + search */}
-          <h2 className="panel-title">For You</h2>
-          <p className="muted">Scroll posts · search people or media</p>
-          <label className="fyp-search">
-            Search
-            <input
-              value={fypQuery}
-              onChange={(e) => setFypQuery(e.target.value)}
-              placeholder="Find friends or posts…"
-            />
-          </label>
-          {peopleSearchHits.length > 0 ? (
+          {/* updated: 2026-11-24T12:55:00-08:00 — search behind toggle */}
+          <div className="fyp-header-row">
+            <h2 className="panel-title">For You</h2>
+            <button
+              className="ghost btn-compact"
+              type="button"
+              aria-expanded={fypSearchOpen}
+              onClick={() => {
+                setFypSearchOpen((v) => {
+                  if (v) setFypQuery('')
+                  return !v
+                })
+              }}
+            >
+              {fypSearchOpen ? 'Close search' : 'Search'}
+            </button>
+          </div>
+          {fypSearchOpen ? (
+            <label className="fyp-search">
+              Find friends or posts
+              <input
+                value={fypQuery}
+                onChange={(e) => setFypQuery(e.target.value)}
+                placeholder="Username, name, or caption…"
+                autoFocus
+              />
+            </label>
+          ) : null}
+          {fypSearchOpen && peopleSearchHits.length > 0 ? (
             <div className="list fyp-people-hits">
               <p className="friend-pick-heading">People</p>
               {peopleSearchHits.slice(0, 8).map((p) => (
