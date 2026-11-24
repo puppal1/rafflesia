@@ -262,11 +262,14 @@ export function ChatThread({
           ) : null}
           {mediaUrl ? (
             <div className="chat2-attach-preview">
+              {/* updated: 2026-11-24T14:10:00-08:00 — name truncates; Remove is its own pill */}
               <img src={mediaUrl} alt="" />
-              <span>{mediaName || 'Photo ready'}</span>
+              <span className="chat2-attach-name" title={mediaName || 'Photo ready'}>
+                {mediaName || 'Photo ready'}
+              </span>
               <button
                 type="button"
-                className="chat2-tool"
+                className="chat2-attach-remove"
                 disabled={locked}
                 onClick={() => {
                   setMediaUrl(null)

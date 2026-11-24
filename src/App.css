@@ -3452,9 +3452,17 @@ select {
 }
 
 .chat2-attach-preview {
+  /* updated: 2026-11-24T14:10:00-08:00 — no overlap: ellipsis name + separate Remove pill */
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #d7e6f5;
+  background: #fff;
   font-size: 0.8rem;
 }
 
@@ -3463,6 +3471,35 @@ select {
   height: 48px;
   object-fit: cover;
   border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.chat2-attach-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text, #1a3a5c);
+}
+
+.chat2-attach-remove {
+  flex-shrink: 0;
+  border: 1px solid #cfe4f8;
+  background: #f4f9ff;
+  color: var(--text, #1a3a5c);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat2-attach-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chat2-link {
