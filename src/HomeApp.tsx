@@ -65,6 +65,9 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [showAddFriends, setShowAddFriends] = useState(false)
   const [addPickIds, setAddPickIds] = useState<Set<string>>(new Set())
   const [groupMemberIds, setGroupMemberIds] = useState<Set<string>>(new Set())
+  // created: 2026-11-23T22:05:00-08:00 — DM list needs “who”; group create behind toggle
+  const [dmPeerByChatId, setDmPeerByChatId] = useState<Record<string, Profile>>({})
+  const [showNewGroup, setShowNewGroup] = useState(false)
   // created: 2026-11-23T21:10:00-08:00 — phase5 UI state
   const [textBlockMsg, setTextBlockMsg] = useState<string | null>(null)
   const [posts, setPosts] = useState<PostRow[]>([])
@@ -137,6 +140,7 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const loadChats = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
+    // updated: 2026-11-23T22:05:00-08:00 — resolve DM peer so list shows who
     const { data: memberships, error: memErr } = await supabase
       .from('chat_members')
       .select('chat_id')
@@ -145,6 +149,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     const ids = (memberships || []).map((m) => m.chat_id as string)
     if (!ids.length) {
       setChats([])
+      setDmPeerByChatId({})
       return
     }
     const { data, error: chatErr } = await supabase
@@ -153,7 +158,39 @@ export function HomeApp({ userId, onLogout }: Props) {
       .in('id', ids)
       .order('created_at', { ascending: false })
     if (chatErr) throw chatErr
-    setChats((data || []) as ChatRow[])
+    const list = (data || []) as ChatRow[]
+    setChats(list)
+
+    const dmIds = list.filter((c) => !c.is_group).map((c) => c.id)
+    if (!dmIds.length) {
+      setDmPeerByChatId({})
+      return
+    }
+    const { data: edges } = await supabase
+      .from('chat_members')
+      .select('chat_id, user_id')
+      .in('chat_id', dmIds)
+    const peerIdByChat: Record<string, string> = {}
+    ;(edges || []).forEach((e) => {
+      const cid = String(e.chat_id)
+      const uid = String(e.user_id)
+      if (uid !== userId) peerIdByChat[cid] = uid
+    })
+    const peerIds = [...new Set(Object.values(peerIdByChat))]
+    if (!peerIds.length) {
+      setDmPeerByChatId({})
+      return
+    }
+    const { data: peers } = await supabase.from('profiles').select('*').in('id', peerIds)
+    const byId: Record<string, Profile> = {}
+    ;(peers || []).forEach((p) => {
+      byId[p.id] = p as Profile
+    })
+    const map: Record<string, Profile> = {}
+    Object.entries(peerIdByChat).forEach(([cid, pid]) => {
+      if (byId[pid]) map[cid] = byId[pid]
+    })
+    setDmPeerByChatId(map)
   }, [userId])
 
   const loadPosts = useCallback(async () => {
@@ -803,14 +840,15 @@ export function HomeApp({ userId, onLogout }: Props) {
       if (!chat) throw new Error('Could not create group.')
       setGroupTitle('')
       setCreatePickIds(new Set())
+      setShowNewGroup(false)
       setShowAddFriends(false)
       setActiveChat(chat as ChatRow)
       await loadChats()
       await loadGroupMembers((chat as ChatRow).id)
       setStatus(
         memberIds.length
-          ? `Group created with ${memberIds.length} friend${memberIds.length === 1 ? '' : 's'}.`
-          : 'Group created. Add friends from inside the chat.',
+          ? `Group chat ready with ${memberIds.length} friend${memberIds.length === 1 ? '' : 's'}.`
+          : 'Group chat ready. Open + Friends inside to invite people.',
       )
     } catch (err) {
       const msg =
@@ -943,10 +981,12 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const chatLabel = useMemo(() => {
     // created: 2026-11-23T12:14:00-08:00
+    // updated: 2026-11-23T22:05:00-08:00 — show who for DMs
     if (!activeChat) return ''
-    if (activeChat.is_group) return activeChat.title || 'Group'
-    return 'Direct message'
-  }, [activeChat])
+    if (activeChat.is_group) return activeChat.title || 'Group chat'
+    const peer = dmPeerByChatId[activeChat.id]
+    return peer ? niceName(peer) : 'Private chat'
+  }, [activeChat, dmPeerByChatId])
 
   const needsIcon = Boolean(me && !me.icon_id)
   const showIconPicker = needsIcon || pickIconMode
@@ -1557,112 +1597,143 @@ export function HomeApp({ userId, onLogout }: Props) {
 
       {!viewProfile && !textBlockMsg && tab === 'chats' && !activeChat && (
         <div>
-          <h2 className="panel-title">Messages</h2>
-          <p className="muted">Your DMs and group chats</p>
-
-          {/* created: 2026-11-23T22:00:00-08:00 — clearer group-chat create UX */}
-          <div className="group-create-card">
-            <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
-              Start a group chat
-            </h3>
-            <p className="muted" style={{ marginTop: 0 }}>
-              1) Name the chat · 2) Tap friends to invite · 3) Create group chat
-            </p>
-            <form className="form group-create-form" onSubmit={createGroup}>
-              <label>
-                Group chat name
-                <input
-                  ref={groupTitleRef}
-                  value={groupTitle}
-                  onChange={(e) => {
-                    setGroupTitle(e.target.value)
-                    if (error) setError('')
-                  }}
-                  placeholder="e.g. Lunch table 🎉"
-                />
-              </label>
-              <EmojiBar
-                label="Emoji"
-                open={showGroupEmoji}
-                onToggle={() => setShowGroupEmoji((v) => !v)}
-                onPick={(emoji) =>
-                  insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
-                }
-              />
-              <p className="friend-pick-heading">
-                Invite friends <span className="muted">(optional — you can add more later)</span>
+          {/* created: 2026-11-23T22:05:00-08:00 — chats first; group create is a clear action */}
+          <div className="messages-header-row">
+            <div>
+              <h2 className="panel-title" style={{ marginBottom: 2 }}>
+                Messages
+              </h2>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Tap a chat to open it. DMs are 1:1 with one friend.
               </p>
-              <div className="member-pick-list soft-scroll">
-                {people.length === 0 ? (
-                  <p className="muted">No other people yet. Create the chat alone for now.</p>
-                ) : (
-                  people.map((p) => {
-                    const on = createPickIds.has(p.id)
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={on ? 'friend-pick-row on' : 'friend-pick-row'}
-                        onClick={() => toggleCreatePick(p.id)}
-                      >
-                        <FaceAvatar
-                          avatarUrl={p.avatar_url}
-                          iconPack={p.icon_pack}
-                          iconId={p.icon_id}
-                          size="sm"
-                        />
-                        <span className="friend-pick-text">
-                          <strong>{niceName(p)}</strong>
-                          <span className="muted">@{p.username}</span>
-                        </span>
-                        <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
-                          {on ? '✓' : ''}
-                        </span>
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-              <button className="primary" type="submit" disabled={busy}>
-                {busy
-                  ? 'Creating…'
-                  : createPickIds.size
-                    ? `Create group chat · ${createPickIds.size} friend${createPickIds.size === 1 ? '' : 's'}`
-                    : 'Create group chat'}
-              </button>
-              {!groupTitle.trim() ? (
-                <p className="muted" style={{ marginBottom: 0 }}>
-                  Tip: type a name above so friends know which chat it is.
-                </p>
-              ) : null}
-            </form>
+            </div>
+            <button
+              className={showNewGroup ? 'ghost' : 'primary'}
+              type="button"
+              onClick={() => setShowNewGroup((v) => !v)}
+            >
+              {showNewGroup ? 'Cancel' : '+ Group chat'}
+            </button>
           </div>
 
-          <h3 className="panel-title" style={{ fontSize: '1rem', marginTop: 16 }}>
-            Your chats
-          </h3>
+          {showNewGroup ? (
+            <div className="group-create-card">
+              <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
+                New group chat
+              </h3>
+              <p className="muted" style={{ marginTop: 0 }}>
+                A shared chat for several friends (not a DM). Name it, tap who to invite, then create.
+              </p>
+              <form className="form group-create-form" onSubmit={createGroup}>
+                <label>
+                  Name this group chat
+                  <input
+                    ref={groupTitleRef}
+                    value={groupTitle}
+                    onChange={(e) => {
+                      setGroupTitle(e.target.value)
+                      if (error) setError('')
+                    }}
+                    placeholder="e.g. Lunch table"
+                    autoFocus
+                  />
+                </label>
+                <EmojiBar
+                  label="Emoji"
+                  open={showGroupEmoji}
+                  onToggle={() => setShowGroupEmoji((v) => !v)}
+                  onPick={(emoji) =>
+                    insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
+                  }
+                />
+                <p className="friend-pick-heading">Who should be in it?</p>
+                <div className="member-pick-list soft-scroll">
+                  {people.length === 0 ? (
+                    <p className="muted">No other people yet — create alone, invite later from inside.</p>
+                  ) : (
+                    people.map((p) => {
+                      const on = createPickIds.has(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
+                          onClick={() => toggleCreatePick(p.id)}
+                        >
+                          <FaceAvatar
+                            avatarUrl={p.avatar_url}
+                            iconPack={p.icon_pack}
+                            iconId={p.icon_id}
+                            size="sm"
+                          />
+                          <span className="friend-pick-text">
+                            <strong>{niceName(p)}</strong>
+                            <span className="muted">@{p.username}</span>
+                          </span>
+                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
+                            {on ? '✓' : ''}
+                          </span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+                <button className="primary" type="submit" disabled={busy}>
+                  {busy
+                    ? 'Creating…'
+                    : `Create group chat${createPickIds.size ? ` · ${createPickIds.size} invited` : ''}`}
+                </button>
+              </form>
+            </div>
+          ) : null}
+
           <div className="list">
             {chats.length === 0 ? (
               <p className="muted">
-                No chats yet. Message someone in People for a DM, or start a group chat above.
+                No chats yet. Go to <strong>People</strong> → Message someone for a private DM, or tap{' '}
+                <strong>+ Group chat</strong>.
               </p>
             ) : (
-              chats.map((c) => (
-                <button
-                  key={c.id}
-                  className="row"
-                  type="button"
-                  style={{ width: '100%', cursor: 'pointer', textAlign: 'left' }}
-                  onClick={() => setActiveChat(c)}
-                >
-                  <div className="row-main">
-                    <p className="row-title">
-                      {c.is_group ? `👥 ${c.title || 'Group chat'}` : '💬 Direct message'}
-                    </p>
-                    <p className="row-sub">{c.is_group ? 'Group chat' : 'Private chat'}</p>
-                  </div>
-                </button>
-              ))
+              chats.map((c) => {
+                const peer = !c.is_group ? dmPeerByChatId[c.id] : null
+                return (
+                  <button
+                    key={c.id}
+                    className="row chat-list-row"
+                    type="button"
+                    onClick={() => setActiveChat(c)}
+                  >
+                    {c.is_group ? (
+                      <span className="face-avatar face-emoji sm" aria-hidden>
+                        👥
+                      </span>
+                    ) : (
+                      <FaceAvatar
+                        avatarUrl={peer?.avatar_url}
+                        iconPack={peer?.icon_pack}
+                        iconId={peer?.icon_id}
+                        size="sm"
+                      />
+                    )}
+                    <div className="row-main">
+                      <p className="row-title">
+                        {c.is_group
+                          ? c.title || 'Group chat'
+                          : peer
+                            ? niceName(peer)
+                            : 'Private chat'}
+                      </p>
+                      <p className="row-sub">
+                        {c.is_group
+                          ? 'Group chat · several friends'
+                          : peer
+                            ? `Private chat with @${peer.username}`
+                            : 'Private 1:1 chat'}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })
             )}
           </div>
         </div>

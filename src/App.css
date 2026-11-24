@@ -490,6 +490,31 @@
   text-align: left;
 }
 
+/* created: 2026-11-23T22:05:00-08:00 */
+.messages-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.messages-header-row .primary,
+.messages-header-row .ghost {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.chat-list-row {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+
 .friend-pick-heading {
   margin: 8px 0 6px;
   font-weight: 700;
