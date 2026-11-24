@@ -1075,9 +1075,6 @@ export function HomeApp({ userId, onLogout }: Props) {
             </div>
           </div>
 
-          <h2 className="panel-title" style={{ display: 'none' }}>
-            {iconEmoji(viewProfile.icon_pack, viewProfile.icon_id)} {niceName(viewProfile)}
-          </h2>
           <p className="profile-bio">
             {(viewProfile.bio || '').trim() ? viewProfile.bio : 'No bio yet.'}
           </p>
