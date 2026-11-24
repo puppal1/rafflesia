@@ -1,5 +1,5 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T22:35:00-08:00 — signup joins Everyone lounge
+// updated: 2026-11-23T23:05:00-08:00 — intro video before login
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -18,6 +18,7 @@ import { checkKidText, reportBlockedText } from './lib/textChecker'
 import './App.css'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
+const introSrc = `${import.meta.env.BASE_URL}intro.mp4`
 
 type Mode = 'login' | 'signup'
 
@@ -41,17 +42,57 @@ function App() {
   const displayNameRef = useRef<HTMLInputElement | null>(null)
   // updated: 2026-11-23T21:55:00-08:00 — emoji picker closed by default
   const [showSignupEmoji, setShowSignupEmoji] = useState(false)
+  // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
+  const [showIntro, setShowIntro] = useState(true)
+  const [introNeedsTap, setIntroNeedsTap] = useState(false)
+  const introVideoRef = useRef<HTMLVideoElement | null>(null)
 
   useEffect(() => {
     // created: 2026-11-23T11:59:00-08:00
     supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
+      const next = data.session?.user ?? null
+      setUser(next)
+      // already signed in → skip intro, go straight into the app
+      if (next) setShowIntro(false)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    // created: 2026-11-23T23:05:00-08:00 — Chromebook may block autoplay with sound
+    if (!showIntro || user) return
+    const el = introVideoRef.current
+    if (!el) return
+    el.muted = false
+    const play = el.play()
+    if (play && typeof play.then === 'function') {
+      play.catch(() => {
+        el.muted = true
+        el.play().catch(() => setIntroNeedsTap(true))
+      })
+    }
+  }, [showIntro, user])
+
+  function finishIntro() {
+    // created: 2026-11-23T23:05:00-08:00
+    setShowIntro(false)
+    setIntroNeedsTap(false)
+  }
+
+  function startIntroWithTap() {
+    // created: 2026-11-23T23:05:00-08:00
+    const el = introVideoRef.current
+    if (!el) {
+      finishIntro()
+      return
+    }
+    setIntroNeedsTap(false)
+    el.muted = false
+    el.play().catch(() => finishIntro())
+  }
 
   async function onSubmit(e: FormEvent) {
     // created: 2026-11-23T11:59:00-08:00
@@ -139,6 +180,32 @@ function App() {
   async function onLogout() {
     // created: 2026-11-23T11:59:00-08:00
     await supabase.auth.signOut()
+  }
+
+  // created: 2026-11-23T23:05:00-08:00 — full-screen intro before login
+  if (showIntro && !user && !teacherMode) {
+    return (
+      <div className="intro-shell">
+        <video
+          ref={introVideoRef}
+          className="intro-video"
+          src={introSrc}
+          playsInline
+          autoPlay
+          preload="auto"
+          onEnded={finishIntro}
+          onError={finishIntro}
+        />
+        {introNeedsTap ? (
+          <button className="primary intro-tap" type="button" onClick={startIntroWithTap}>
+            Tap to play
+          </button>
+        ) : null}
+        <button className="ghost intro-skip" type="button" onClick={finishIntro}>
+          Skip
+        </button>
+      </div>
+    )
   }
 
   return (

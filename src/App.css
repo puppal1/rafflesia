@@ -1,5 +1,40 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T23:00:00-08:00 — all light blue */
+/* updated: 2026-11-23T23:05:00-08:00 — intro video shell */
+
+/* created: 2026-11-23T23:05:00-08:00 */
+.intro-shell {
+  min-height: 100svh;
+  width: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.intro-video {
+  width: 100%;
+  height: 100svh;
+  object-fit: contain;
+  background: #000;
+}
+
+.intro-skip {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+}
+
+.intro-tap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  min-width: 160px;
+}
 
 .app-shell {
   min-height: 100svh;
