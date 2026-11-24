@@ -1,5 +1,6 @@
 // created: 2026-11-24T13:10:00-08:00 — manga-style scrolling science feed for Siobhan Daily
 // updated: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news
+// updated: 2026-11-24T13:20:00-08:00 — music replaces kindness
 import { useCallback, useEffect, useState } from 'react'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 
@@ -47,7 +48,7 @@ export function SiobhanFeed() {
         <div className="siobhan-hero-copy">
           <h2 className="panel-title">Siobhan Daily</h2>
           <p className="siobhan-tagline">
-            Live scroll · Oak Park · L.A. · Ventura · SF Valley · science · kindness
+            Live scroll · Oak Park · L.A. · Ventura · SF Valley · science · music
           </p>
           <p className="siobhan-live-meta">
             {busy ? (
@@ -82,7 +83,7 @@ export function SiobhanFeed() {
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 
-      <div className="siobhan-feed" role="feed" aria-label="Siobhan live science and kindness news">
+      <div className="siobhan-feed" role="feed" aria-label="Siobhan live science and music news">
         {items.length === 0 && busy ? (
           <p className="muted">Summoning friendly headlines…</p>
         ) : (

@@ -1,4 +1,5 @@
 // created: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news for Siobhan Daily
+// updated: 2026-11-24T13:20:00-08:00 — drop kindness; add music
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
@@ -73,10 +74,17 @@ const BOOST = [
   'school',
   'classroom',
   'teacher',
-  'kindness',
-  'kind',
+  'music',
+  'musical',
+  'orchestra',
+  'choir',
+  'band',
+  'concert',
+  'song',
+  'piano',
+  'guitar',
+  'violin',
   'community',
-  'volunteer',
   'wildlife',
   'animal',
   'nature',
@@ -120,7 +128,8 @@ function googleNewsRss(query: string): string {
   return `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
 }
 
-/** created: 2026-11-24T13:15:00-08:00 — curated local + science + kindness sources */
+/** created: 2026-11-24T13:15:00-08:00 — curated local + science + music sources */
+/** updated: 2026-11-24T13:20:00-08:00 — music replaces kindness */
 const FEEDS: FeedSpec[] = [
   {
     id: 'oakpark',
@@ -128,7 +137,7 @@ const FEEDS: FeedSpec[] = [
     emoji: '🌳',
     place: 'Oak Park · local',
     rssUrl: googleNewsRss(
-      '"Oak Park" (California OR CA OR OPUSD) (school OR student OR science OR STEM OR library OR park) when:7d',
+      '"Oak Park" (California OR CA OR OPUSD) (school OR student OR science OR STEM OR music OR band OR choir OR library OR park) when:7d',
     ),
   },
   {
@@ -146,7 +155,7 @@ const FEEDS: FeedSpec[] = [
     emoji: '☀️',
     place: 'San Fernando Valley',
     rssUrl: googleNewsRss(
-      '("San Fernando Valley" OR "San Fernando" Valley) (school OR student OR science OR STEM OR library OR park) when:7d',
+      '("San Fernando Valley" OR "San Fernando" Valley) (school OR student OR science OR STEM OR music OR band OR choir OR library OR park) when:7d',
     ),
   },
   {
@@ -155,16 +164,25 @@ const FEEDS: FeedSpec[] = [
     emoji: '🌊',
     place: 'Ventura County',
     rssUrl: googleNewsRss(
-      '("Ventura" OR "Ventura County") (school OR student OR science OR STEM OR ocean OR wildlife OR education) when:7d',
+      '("Ventura" OR "Ventura County") (school OR student OR science OR STEM OR music OR band OR ocean OR wildlife OR education) when:7d',
     ),
   },
   {
-    id: 'kindness',
-    tag: 'Kindness',
-    emoji: '💛',
-    place: 'Good news · kindness',
+    id: 'music-local',
+    tag: 'Music',
+    emoji: '🎵',
+    place: 'SoCal · music',
     rssUrl: googleNewsRss(
-      '(kindness OR "good deed" OR volunteer OR "helping others" OR "community service") (kids OR children OR students OR school) (California OR "Los Angeles" OR Ventura OR "San Fernando") when:14d',
+      '(music OR orchestra OR choir OR band OR concert OR "music education" OR "school band") (kids OR children OR students OR school OR youth) (California OR "Los Angeles" OR Ventura OR "San Fernando" OR "Oak Park") when:14d',
+    ),
+  },
+  {
+    id: 'music-kids',
+    tag: 'Music',
+    emoji: '🎹',
+    place: 'Kid music · learning',
+    rssUrl: googleNewsRss(
+      '(music OR song OR piano OR guitar OR violin OR orchestra OR choir) (kids OR children OR students OR classroom OR "music class" OR "music teacher") when:7d',
     ),
   },
   {
@@ -175,13 +193,6 @@ const FEEDS: FeedSpec[] = [
     rssUrl: googleNewsRss(
       '(NASA OR space OR wildlife OR "science fair" OR STEM OR dinosaurs OR ocean) (kids OR children OR students OR classroom) when:7d',
     ),
-  },
-  {
-    id: 'gnn',
-    tag: 'Kindness',
-    emoji: '✨',
-    place: 'Good News Network',
-    rssUrl: 'https://www.goodnewsnetwork.org/feed/',
   },
   {
     id: 'nasa',
@@ -222,10 +233,10 @@ function boostScore(text: string): number {
 
 /** created: 2026-11-24T13:15:00-08:00 */
 function funFactFor(tag: string): string {
-  if (tag === 'Kindness') return 'Small kind acts can travel farther than you think — share one today.'
+  if (tag === 'Music') return 'Rhythm and melody are science you can hear — clap a beat and invent a tune.'
   if (tag === 'Space' || tag === 'Science') return 'Scientists learn by asking questions — you can too.'
   if (tag === 'Oak Park') return 'Your town is part of a bigger science story every day.'
-  return 'Stay curious · stay kind · keep scrolling for more discoveries.'
+  return 'Stay curious · keep scrolling for more discoveries.'
 }
 
 /** created: 2026-11-24T13:15:00-08:00 — rss2json free endpoint (browser-safe) */
@@ -243,9 +254,15 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
     const blurb = rawDesc.slice(0, 220) || 'Tap Open to read the full story on the publisher site.'
     const hay = `${title} ${blurb}`
     if (!title || isBlocked(hay)) continue
-    // Kindness/GNN: allow more; local feeds need a boost hit or stay
+    // Music/NASA: allow more; local feeds need a boost hit or stay
     const score = boostScore(hay)
-    if (spec.id !== 'gnn' && spec.id !== 'nasa' && score < 1 && !hay.toLowerCase().includes('school')) {
+    if (
+      spec.id !== 'music-local' &&
+      spec.id !== 'music-kids' &&
+      spec.id !== 'nasa' &&
+      score < 1 &&
+      !hay.toLowerCase().includes('school')
+    ) {
       continue
     }
     const link = (item.link || '').trim()
