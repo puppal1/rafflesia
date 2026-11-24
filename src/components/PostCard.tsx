@@ -252,11 +252,13 @@ export function PostCard({
               const who = profilesById[c.author_id]
               return (
                 <div className="post-comment" key={c.id}>
-                  <p className="row-title">
+                  {/* updated: 2026-11-24T14:15:00-08:00 — timestamps on every comment */}
+                  <p className="comment-meta">
                     <NameWithBadge
                       name={who?.display_name || who?.username || 'Friend'}
                       tier={who?.verify_tier}
                     />
+                    <span>· {new Date(c.created_at).toLocaleString()}</span>
                   </p>
                   <p className="profile-bio">{c.body}</p>
                   {c.media_url ? (
@@ -303,6 +305,7 @@ export function PostCard({
           )}
           <CommentComposer
             busy={localBusy || busy}
+            variant="dock"
             uploadPicture={uploadPicture}
             onSubmit={async ({ body, mediaUrl }) => {
               const check = await checkKidText(body)

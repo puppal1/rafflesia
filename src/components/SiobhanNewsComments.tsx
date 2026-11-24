@@ -1,6 +1,7 @@
 // created: 2026-11-24T13:25:00-08:00 — comments on Siobhan news cards
 // updated: 2026-11-24T14:05:00-08:00 — standard CommentComposer (emoji / link / photo)
 // updated: 2026-11-24T13:58:00-08:00 — tap-to-enlarge comment photos
+// updated: 2026-11-24T14:15:00-08:00 — dock UX + timestamps; feed stays readable
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
@@ -21,23 +22,27 @@ export type NewsComment = {
 
 type Props = {
   // created: 2026-11-24T13:25:00-08:00
+  // updated: 2026-11-24T14:15:00-08:00 — dock mode + story title
   articleKey: string
+  storyTitle?: string
   userId: string
   profilesById: Record<string, Profile>
   onProfiles?: (rows: Profile[]) => void
   uploadPicture?: (file: File) => Promise<string>
+  onClose?: () => void
 }
 
 /** created: 2026-11-24T13:25:00-08:00 */
-/** updated: 2026-11-24T14:05:00-08:00 */
+/** updated: 2026-11-24T14:15:00-08:00 — compact dock: list + slim composer */
 export function SiobhanNewsComments({
   articleKey,
+  storyTitle,
   userId,
   profilesById,
   onProfiles,
   uploadPicture,
+  onClose,
 }: Props) {
-  const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<NewsComment[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -68,8 +73,8 @@ export function SiobhanNewsComments({
   }, [articleKey, onProfiles, profilesById])
 
   useEffect(() => {
-    if (open) loadComments().catch(() => undefined)
-  }, [open, loadComments])
+    loadComments().catch(() => undefined)
+  }, [loadComments])
 
   async function remove(id: string) {
     if (!window.confirm('Delete this comment?')) return
@@ -86,82 +91,99 @@ export function SiobhanNewsComments({
   }
 
   return (
-    <div className="siobhan-news-comments">
-      <button className="ghost btn-compact" type="button" onClick={() => setOpen((v) => !v)}>
-        {open ? 'Hide comments' : 'Comments'}
-      </button>
-      {open ? (
-        <div className="post-comments">
-          {comments.length === 0 ? (
-            <p className="muted">No comments yet — say hi about the story</p>
-          ) : (
-            comments.map((c) => {
-              const who = profilesById[c.author_id]
-              const links = c.body.match(/https?:\/\/\S+/gi) || []
-              return (
-                <div className="post-comment" key={c.id}>
-                  <p className="row-title">
-                    <NameWithBadge
-                      name={who?.display_name || who?.username || 'Friend'}
-                      tier={who?.verify_tier}
-                    />
-                  </p>
-                  <p className="profile-bio">{c.body}</p>
-                  {c.media_url ? (
-                    <button
-                      type="button"
-                      className="post-media-btn comment-media-btn"
-                      onClick={() => setLightboxUrl(c.media_url!)}
-                      aria-label="Enlarge comment picture"
-                    >
-                      <img className="comment-media" src={c.media_url} alt="" />
-                      <span className="chat-media-hint">Tap to enlarge</span>
-                    </button>
-                  ) : null}
-                  {links.length > 0 ? (
-                    <p className="chat-msg-links">
-                      {links.map((u) => (
-                        <a key={u} href={u} target="_blank" rel="noopener noreferrer">
-                          Open link
-                        </a>
-                      ))}
-                    </p>
-                  ) : null}
-                  {c.author_id === userId ? (
-                    <button className="ghost btn-compact" type="button" disabled={busy} onClick={() => remove(c.id)}>
-                      Delete
-                    </button>
-                  ) : null}
-                </div>
-              )
-            })
-          )}
-          <CommentComposer
-            busy={busy}
-            uploadPicture={uploadPicture}
-            onSubmit={async ({ body, mediaUrl }) => {
-              const check = await checkKidText(body)
-              if (!check.ok) {
-                await reportBlockedText('comment', body, check.matched)
-                throw new Error(check.message)
-              }
-              const { error } = await supabase.rpc('create_news_comment', {
-                p_article_key: articleKey,
-                p_body: body,
-                p_media_url: mediaUrl,
-              })
-              if (error) {
-                if (/could not find the function|schema cache|create_news_comment/i.test(error.message)) {
-                  throw new Error('Run docs/sql-news-comments.sql in Supabase, then hard refresh.')
-                }
-                throw new Error(error.message)
-              }
-              await loadComments()
-            }}
-          />
-          {err ? <p className="error">{err}</p> : null}
+    <div className="siobhan-comment-dock">
+      <header className="siobhan-comment-dock-head">
+        <div className="siobhan-comment-dock-titles">
+          <strong>Comments</strong>
+          {storyTitle ? <span className="siobhan-comment-dock-story">{storyTitle}</span> : null}
         </div>
-      ) : null}
+        {onClose ? (
+          <button className="ghost btn-compact" type="button" onClick={onClose}>
+            Close
+          </button>
+        ) : null}
+      </header>
+
+      <div className="siobhan-comment-dock-list">
+        {comments.length === 0 ? (
+          <p className="muted siobhan-comment-empty">No comments yet — say hi about the story</p>
+        ) : (
+          comments.map((c) => {
+            const who = profilesById[c.author_id]
+            const links = c.body.match(/https?:\/\/\S+/gi) || []
+            return (
+              <div className="post-comment" key={c.id}>
+                <p className="comment-meta">
+                  <NameWithBadge
+                    name={who?.display_name || who?.username || 'Friend'}
+                    tier={who?.verify_tier}
+                  />
+                  <span>· {new Date(c.created_at).toLocaleString()}</span>
+                </p>
+                <p className="profile-bio">{c.body}</p>
+                {c.media_url ? (
+                  <button
+                    type="button"
+                    className="post-media-btn comment-media-btn"
+                    onClick={() => setLightboxUrl(c.media_url!)}
+                    aria-label="Enlarge comment picture"
+                  >
+                    <img className="comment-media" src={c.media_url} alt="" />
+                  </button>
+                ) : null}
+                {links.length > 0 ? (
+                  <p className="chat-msg-links">
+                    {links.map((u) => (
+                      <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                        Open link
+                      </a>
+                    ))}
+                  </p>
+                ) : null}
+                {c.author_id === userId ? (
+                  <button
+                    className="ghost btn-compact"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => remove(c.id)}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      <div className="siobhan-comment-dock-composer">
+        <CommentComposer
+          busy={busy}
+          variant="dock"
+          uploadPicture={uploadPicture}
+          onSubmit={async ({ body, mediaUrl }) => {
+            const check = await checkKidText(body)
+            if (!check.ok) {
+              await reportBlockedText('comment', body, check.matched)
+              throw new Error(check.message)
+            }
+            const { error } = await supabase.rpc('create_news_comment', {
+              p_article_key: articleKey,
+              p_body: body,
+              p_media_url: mediaUrl,
+            })
+            if (error) {
+              if (/could not find the function|schema cache|create_news_comment/i.test(error.message)) {
+                throw new Error('Run docs/sql-news-comments.sql in Supabase, then hard refresh.')
+              }
+              throw new Error(error.message)
+            }
+            await loadComments()
+          }}
+        />
+        {err ? <p className="error">{err}</p> : null}
+      </div>
+
       <MediaLightbox src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </div>
   )

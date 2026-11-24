@@ -2,6 +2,7 @@
 // updated: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news
 // updated: 2026-11-24T13:20:00-08:00 — music replaces kindness
 // updated: 2026-11-24T13:25:00-08:00 — comments on news cards
+// updated: 2026-11-24T14:15:00-08:00 — side/bottom comment dock; feed stays readable
 import { useCallback, useEffect, useState } from 'react'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
@@ -19,13 +20,16 @@ type Props = {
 }
 
 /** created: 2026-11-24T13:10:00-08:00 */
-/** updated: 2026-11-24T14:05:00-08:00 — pass photo upload into standard comment panel */
+/** updated: 2026-11-24T14:15:00-08:00 — comments open in sticky dock beside the feed */
 export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }: Props) {
   const [items, setItems] = useState<LiveNewsItem[]>([])
   const [fromLive, setFromLive] = useState(false)
   const [busy, setBusy] = useState(true)
   const [err, setErr] = useState('')
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
+  const [activeKey, setActiveKey] = useState<string | null>(null)
+
+  const activeStory = items.find((a) => a.id.slice(0, 500) === activeKey) || null
 
   const refresh = useCallback(async () => {
     setBusy(true)
@@ -50,7 +54,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   }, [refresh])
 
   return (
-    <div className="siobhan-panel">
+    <div className={`siobhan-panel ${activeKey ? 'has-comment-dock' : ''}`}>
       <header className="siobhan-hero">
         <div className="siobhan-hero-badge" aria-hidden>
           📰✨
@@ -89,57 +93,84 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       </header>
 
       <p className="siobhan-scroll-hint muted">
-        Kid-safe filter on · comment on stories · tap Open for the full article
+        Kid-safe filter on · open Comments to chat while you keep reading
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 
-      <div className="siobhan-feed" role="feed" aria-label="Siobhan live science and music news">
-        {items.length === 0 && busy ? (
-          <p className="muted">Summoning friendly headlines…</p>
-        ) : (
-          items.map((a, i) => (
-            <article
-              key={a.id}
-              className={`siobhan-panel-card tone-${(i % 4) + 1}`}
-              aria-posinset={i + 1}
-              aria-setsize={items.length}
-            >
-              <div className="siobhan-panel-chrome">
-                <span className="siobhan-sticker" aria-hidden>
-                  {a.emoji}
-                </span>
-                <span className="siobhan-chip">{a.tag}</span>
-                <span className="siobhan-place">{a.place}</span>
-                {a.live ? <span className="siobhan-chip live">Live</span> : null}
-              </div>
-              <h3 className="siobhan-title">{a.title}</h3>
-              <p className="siobhan-blurb">{a.blurb}</p>
-              <div className="siobhan-bubble">
-                <span className="siobhan-bubble-label">{a.live ? 'Why it fits' : 'Fun fact'}</span>
-                <p>{a.funFact}</p>
-              </div>
-              <div className="siobhan-card-actions">
-                {a.url ? (
-                  <a className="primary btn-compact" href={a.url} target="_blank" rel="noopener noreferrer">
-                    Open story
-                  </a>
-                ) : null}
-                {a.publishedAt ? (
-                  <span className="muted siobhan-when">{new Date(a.publishedAt).toLocaleString()}</span>
-                ) : (
-                  <span className="muted siobhan-when">{a.source}</span>
-                )}
-              </div>
-              <SiobhanNewsComments
-                articleKey={a.id.slice(0, 500)}
-                userId={userId}
-                profilesById={profilesById}
-                onProfiles={onProfiles}
-                uploadPicture={uploadPicture}
-              />
-            </article>
-          ))
-        )}
+      <div className="siobhan-workspace">
+        <div className="siobhan-feed" role="feed" aria-label="Siobhan live science and music news">
+          {items.length === 0 && busy ? (
+            <p className="muted">Summoning friendly headlines…</p>
+          ) : (
+            items.map((a, i) => {
+              const key = a.id.slice(0, 500)
+              const open = activeKey === key
+              return (
+                <article
+                  key={a.id}
+                  className={`siobhan-panel-card tone-${(i % 4) + 1}${open ? ' commenting' : ''}`}
+                  aria-posinset={i + 1}
+                  aria-setsize={items.length}
+                >
+                  <div className="siobhan-panel-chrome">
+                    <span className="siobhan-sticker" aria-hidden>
+                      {a.emoji}
+                    </span>
+                    <span className="siobhan-chip">{a.tag}</span>
+                    <span className="siobhan-place">{a.place}</span>
+                    {a.live ? <span className="siobhan-chip live">Live</span> : null}
+                  </div>
+                  <h3 className="siobhan-title">{a.title}</h3>
+                  <p className="siobhan-blurb">{a.blurb}</p>
+                  <div className="siobhan-bubble">
+                    <span className="siobhan-bubble-label">{a.live ? 'Why it fits' : 'Fun fact'}</span>
+                    <p>{a.funFact}</p>
+                  </div>
+                  <div className="siobhan-card-actions">
+                    {a.url ? (
+                      <a
+                        className="primary btn-compact"
+                        href={a.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open story
+                      </a>
+                    ) : null}
+                    <button
+                      className={open ? 'primary btn-compact' : 'ghost btn-compact'}
+                      type="button"
+                      onClick={() => setActiveKey(open ? null : key)}
+                    >
+                      {open ? 'Comments open' : 'Comments'}
+                    </button>
+                    {a.publishedAt ? (
+                      <span className="muted siobhan-when">
+                        {new Date(a.publishedAt).toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="muted siobhan-when">{a.source}</span>
+                    )}
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </div>
+
+        {activeKey && activeStory ? (
+          <aside className="siobhan-comment-rail" aria-label="Story comments">
+            <SiobhanNewsComments
+              articleKey={activeKey}
+              storyTitle={activeStory.title}
+              userId={userId}
+              profilesById={profilesById}
+              onProfiles={onProfiles}
+              uploadPicture={uploadPicture}
+              onClose={() => setActiveKey(null)}
+            />
+          </aside>
+        ) : null}
       </div>
 
       <footer className="siobhan-footer">
