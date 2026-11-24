@@ -1,11 +1,11 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:22:00-08:00 — fix Follow button via RPC result + list_my_following
+// updated: 2026-11-23T20:28:00-08:00 — public followers / following lists on Me + People profiles
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
-import type { ChatRow, MessageRow, Profile, Tab } from './types'
+import type { ChatRow, FollowListKind, MessageRow, Profile, Tab } from './types'
 
 type Props = {
   userId: string
@@ -18,6 +18,12 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
+  // created: 2026-11-23T20:28:00-08:00 — follower/following counts + open profile lists
+  const [followerCountById, setFollowerCountById] = useState<Record<string, number>>({})
+  const [followingCountById, setFollowingCountById] = useState<Record<string, number>>({})
+  const [viewProfile, setViewProfile] = useState<Profile | null>(null)
+  const [followListKind, setFollowListKind] = useState<FollowListKind | null>(null)
+  const [followList, setFollowList] = useState<Profile[]>([])
   const [chats, setChats] = useState<ChatRow[]>([])
   const [activeChat, setActiveChat] = useState<ChatRow | null>(null)
   const [messages, setMessages] = useState<MessageRow[]>([])
@@ -59,16 +65,62 @@ export function HomeApp({ userId, onLogout }: Props) {
     setEditBio(data.bio || '')
   }, [userId])
 
+  const loadFollowGraph = useCallback(async (allProfiles: Profile[]) => {
+    // created: 2026-11-23T20:28:00-08:00 — counts for Me + People (needs follows SELECT or RPCs)
+    const ids = allProfiles.map((p) => p.id)
+    const followers: Record<string, number> = {}
+    const following: Record<string, number> = {}
+    for (const id of ids) {
+      followers[id] = 0
+      following[id] = 0
+    }
+
+    const edges = await supabase.from('follows').select('follower_id, following_id')
+    if (!edges.error && edges.data) {
+      for (const row of edges.data) {
+        const a = String(row.follower_id)
+        const b = String(row.following_id)
+        if (following[a] !== undefined) following[a] += 1
+        else following[a] = 1
+        if (followers[b] !== undefined) followers[b] += 1
+        else followers[b] = 1
+      }
+      setFollowerCountById(followers)
+      setFollowingCountById(following)
+      return
+    }
+
+    // Fallback: RPC per profile (after sql/fix-follows-rls.sql)
+    await Promise.all(
+      ids.map(async (id) => {
+        const [fol, fing] = await Promise.all([
+          supabase.rpc('list_user_followers', { p_user_id: id }),
+          supabase.rpc('list_user_following', { p_user_id: id }),
+        ])
+        followers[id] = Array.isArray(fol.data) ? fol.data.length : 0
+        following[id] = Array.isArray(fing.data) ? fing.data.length : 0
+      }),
+    )
+    setFollowerCountById(followers)
+    setFollowingCountById(following)
+  }, [])
+
   const loadPeople = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:22:00-08:00 — load following via RPC (follows SELECT RLS was empty)
+    // updated: 2026-11-23T20:28:00-08:00 — load my following + everyone's follow counts
     const peopleRes = await supabase
       .from('profiles')
       .select('*')
       .neq('id', userId)
       .order('username')
     if (peopleRes.error) throw peopleRes.error
-    setPeople((peopleRes.data || []) as Profile[])
+    const others = (peopleRes.data || []) as Profile[]
+    setPeople(others)
+
+    const meRes = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    const meRow = (meRes.data as Profile | null) || null
+    const graphProfiles = meRow ? [meRow, ...others] : others
+    await loadFollowGraph(graphProfiles)
 
     const rpcRes = await supabase.rpc('list_my_following')
     if (!rpcRes.error && Array.isArray(rpcRes.data)) {
@@ -82,7 +134,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       .eq('follower_id', userId)
     if (followsRes.error) throw followsRes.error
     setFollowingIds(new Set((followsRes.data || []).map((f) => f.following_id as string)))
-  }, [userId])
+  }, [userId, loadFollowGraph])
 
   const loadChats = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -279,9 +331,76 @@ export function HomeApp({ userId, onLogout }: Props) {
     return p.username || 'User'
   }
 
+  async function openFollowList(profile: Profile, kind: FollowListKind) {
+    // created: 2026-11-23T20:28:00-08:00 — show someone's followers or following
+    setError('')
+    setBusy(true)
+    setViewProfile(profile)
+    setFollowListKind(kind)
+    setFollowList([])
+    try {
+      const rpcName = kind === 'followers' ? 'list_user_followers' : 'list_user_following'
+      const { data, error: err } = await supabase.rpc(rpcName, { p_user_id: profile.id })
+      if (!err && Array.isArray(data)) {
+        setFollowList(data as Profile[])
+        return
+      }
+
+      // Table fallback once follows SELECT is public
+      if (kind === 'followers') {
+        const { data: edges, error: e2 } = await supabase
+          .from('follows')
+          .select('follower_id')
+          .eq('following_id', profile.id)
+        if (e2) throw err || e2
+        const ids = (edges || []).map((r) => String(r.follower_id))
+        if (!ids.length) {
+          setFollowList([])
+          return
+        }
+        const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
+        if (e3) throw e3
+        setFollowList((rows || []) as Profile[])
+      } else {
+        const { data: edges, error: e2 } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', profile.id)
+        if (e2) throw err || e2
+        const ids = (edges || []).map((r) => String(r.following_id))
+        if (!ids.length) {
+          setFollowList([])
+          return
+        }
+        const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
+        if (e3) throw e3
+        setFollowList((rows || []) as Profile[])
+      }
+    } catch (err) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err instanceof Error
+            ? err.message
+            : 'Could not load list.'
+      setError(
+        `Follow list failed: ${msg}. Run sql/fix-follows-rls.sql in Supabase if this keeps happening.`,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function closeFollowProfile() {
+    // created: 2026-11-23T20:28:00-08:00
+    setViewProfile(null)
+    setFollowListKind(null)
+    setFollowList([])
+  }
+
   async function toggleFollow(targetId: string) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:22:00-08:00 — apply RPC result to button (don’t trust empty follows SELECT)
+    // updated: 2026-11-23T20:28:00-08:00 — update counts + refresh open list
     setError('')
     try {
       const { data, error: err } = await supabase.rpc('toggle_follow', {
@@ -289,13 +408,24 @@ export function HomeApp({ userId, onLogout }: Props) {
       })
       if (err) throw err
       const result = String(data || '')
-      // Do not reload follows from table here — RLS SELECT returns [] and wiped Unfollow.
+      const followed = result !== 'unfollowed'
       setFollowingIds((prev) => {
         const next = new Set(prev)
-        if (result === 'unfollowed') next.delete(targetId)
-        else next.add(targetId)
+        if (followed) next.add(targetId)
+        else next.delete(targetId)
         return next
       })
+      setFollowerCountById((prev) => ({
+        ...prev,
+        [targetId]: Math.max(0, (prev[targetId] || 0) + (followed ? 1 : -1)),
+      }))
+      setFollowingCountById((prev) => ({
+        ...prev,
+        [userId]: Math.max(0, (prev[userId] || 0) + (followed ? 1 : -1)),
+      }))
+      if (viewProfile && followListKind) {
+        await openFollowList(viewProfile, followListKind)
+      }
     } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
@@ -437,13 +567,34 @@ export function HomeApp({ userId, onLogout }: Props) {
       </div>
 
       <div className="nav">
-        <button type="button" className={tab === 'chats' ? 'active' : ''} onClick={() => setTab('chats')}>
+        <button
+          type="button"
+          className={tab === 'chats' && !viewProfile ? 'active' : ''}
+          onClick={() => {
+            closeFollowProfile()
+            setTab('chats')
+          }}
+        >
           Chats
         </button>
-        <button type="button" className={tab === 'people' ? 'active' : ''} onClick={() => setTab('people')}>
+        <button
+          type="button"
+          className={tab === 'people' && !viewProfile ? 'active' : ''}
+          onClick={() => {
+            closeFollowProfile()
+            setTab('people')
+          }}
+        >
           People
         </button>
-        <button type="button" className={tab === 'me' ? 'active' : ''} onClick={() => setTab('me')}>
+        <button
+          type="button"
+          className={tab === 'me' && !viewProfile ? 'active' : ''}
+          onClick={() => {
+            closeFollowProfile()
+            setTab('me')
+          }}
+        >
           Me
         </button>
       </div>
@@ -451,10 +602,97 @@ export function HomeApp({ userId, onLogout }: Props) {
       {error ? <p className="error">{error}</p> : null}
       {status ? <p className="muted">{status}</p> : null}
 
-      {tab === 'me' && (
+      {viewProfile && (
+        <div className="follow-panel">
+          {/* created: 2026-11-23T20:28:00-08:00 — anyone can open followers / following */}
+          <div className="toolbar" style={{ marginBottom: 10 }}>
+            <button className="ghost" type="button" onClick={closeFollowProfile}>
+              ← Back
+            </button>
+            <strong>{niceName(viewProfile)}</strong>
+          </div>
+          <p className="muted">@{viewProfile.username}</p>
+          <div className="follow-counts">
+            <button
+              type="button"
+              className={followListKind === 'followers' ? 'count-btn active' : 'count-btn'}
+              onClick={() => openFollowList(viewProfile, 'followers')}
+            >
+              {followerCountById[viewProfile.id] || 0} followers
+            </button>
+            <button
+              type="button"
+              className={followListKind === 'following' ? 'count-btn active' : 'count-btn'}
+              onClick={() => openFollowList(viewProfile, 'following')}
+            >
+              {followingCountById[viewProfile.id] || 0} following
+            </button>
+          </div>
+          {viewProfile.id !== userId ? (
+            <div className="row-actions" style={{ marginBottom: 12 }}>
+              <button className="ghost" type="button" onClick={() => toggleFollow(viewProfile.id)}>
+                {followingIds.has(viewProfile.id) ? 'Unfollow' : 'Follow'}
+              </button>
+              <button className="primary" type="button" disabled={busy} onClick={() => startDm(viewProfile)}>
+                Message
+              </button>
+            </div>
+          ) : null}
+          <h2 className="panel-title">
+            {followListKind === 'followers' ? 'Followers' : followListKind === 'following' ? 'Following' : 'Lists'}
+          </h2>
+          <div className="list">
+            {!followListKind ? (
+              <p className="muted">Tap followers or following above.</p>
+            ) : followList.length === 0 ? (
+              <p className="muted">
+                {followListKind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+              </p>
+            ) : (
+              followList.map((p) => (
+                <div className="row" key={p.id}>
+                  <button
+                    type="button"
+                    className="row-main linkish"
+                    onClick={() => openFollowList(p, 'followers')}
+                  >
+                    <p className="row-title">{niceName(p)}</p>
+                    <p className="row-sub">@{p.username}</p>
+                  </button>
+                  {p.id !== userId ? (
+                    <div className="row-actions">
+                      <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
+                        {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {!viewProfile && tab === 'me' && (
         <form className="form" onSubmit={saveProfile}>
           <h2 className="panel-title">My profile</h2>
           <p className="muted">@{me?.username}</p>
+          <div className="follow-counts">
+            <button
+              type="button"
+              className="count-btn"
+              onClick={() => me && openFollowList(me, 'followers')}
+            >
+              {followerCountById[userId] || 0} followers
+            </button>
+            <button
+              type="button"
+              className="count-btn"
+              onClick={() => me && openFollowList(me, 'following')}
+            >
+              {followingCountById[userId] || 0} following
+            </button>
+          </div>
 
           {me?.banner_url ? (
             <img className="banner-preview" src={me.banner_url} alt="Banner" />
@@ -508,20 +746,23 @@ export function HomeApp({ userId, onLogout }: Props) {
         </form>
       )}
 
-      {tab === 'people' && (
+      {!viewProfile && tab === 'people' && (
         <div>
           <h2 className="panel-title">People</h2>
-          <p className="muted">Follow friends or start a chat.</p>
+          <p className="muted">Follow friends or start a chat. Tap a name to see their lists.</p>
           <div className="list">
             {people.length === 0 ? (
               <p className="muted">No other users yet. Make a second account to test.</p>
             ) : (
               people.map((p) => (
                 <div className="row" key={p.id}>
-                  <div className="row-main">
+                  <button type="button" className="row-main linkish" onClick={() => openFollowList(p, 'followers')}>
                     <p className="row-title">{niceName(p)}</p>
-                    <p className="row-sub">@{p.username}</p>
-                  </div>
+                    <p className="row-sub">
+                      @{p.username} · {followerCountById[p.id] || 0} followers · {followingCountById[p.id] || 0}{' '}
+                      following
+                    </p>
+                  </button>
                   {/* updated: 2026-11-23T19:55:00-08:00 — fixed action column so long names wrap */}
                   <div className="row-actions">
                     <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
@@ -538,7 +779,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {tab === 'chats' && !activeChat && (
+      {!viewProfile && tab === 'chats' && !activeChat && (
         <div>
           <h2 className="panel-title">Chats</h2>
           <form className="form" onSubmit={createGroup} style={{ marginBottom: 12 }}>
@@ -577,7 +818,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {tab === 'chats' && activeChat && (
+      {!viewProfile && tab === 'chats' && activeChat && (
         <div>
           <div className="toolbar">
             <button className="ghost" type="button" onClick={() => setActiveChat(null)}>

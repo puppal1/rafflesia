@@ -1,24 +1,24 @@
 -- created: 2026-11-23T20:22:00-08:00
--- Fix Follow/Unfollow UI: follows rows were written by toggle_follow but
--- SELECT RLS returned [] so the button never flipped to Unfollow.
+-- updated: 2026-11-23T20:28:00-08:00 — public follow graph + list followers/following RPCs
+-- Run in Supabase SQL Editor (project btzgwfcnpnhtfnfxauqe)
 
 alter table public.follows enable row level security;
 
 drop policy if exists "follows_select_own" on public.follows;
+drop policy if exists "follows_select_all" on public.follows;
 drop policy if exists "follows_insert_own" on public.follows;
 drop policy if exists "follows_delete_own" on public.follows;
 drop policy if exists follows_select on public.follows;
 drop policy if exists follows_insert on public.follows;
 drop policy if exists follows_delete on public.follows;
 
--- See who I follow and who follows me
-create policy "follows_select_own"
+-- Club graph is public to logged-in kids (see anyone's followers / following)
+create policy "follows_select_all"
   on public.follows
   for select
   to authenticated
-  using (follower_id = auth.uid() or following_id = auth.uid());
+  using (true);
 
--- Optional direct writes (RPC still preferred)
 create policy "follows_insert_own"
   on public.follows
   for insert
@@ -31,7 +31,6 @@ create policy "follows_delete_own"
   to authenticated
   using (follower_id = auth.uid());
 
--- Belt-and-suspenders: list following via security definer (works even if RLS tight)
 create or replace function public.list_my_following()
 returns uuid[]
 language plpgsql
@@ -53,10 +52,52 @@ begin
 end;
 $$;
 
-revoke all on function public.list_my_following() from public;
-grant execute on function public.list_my_following() to authenticated;
+-- created: 2026-11-23T20:28:00-08:00
+create or replace function public.list_user_following(p_user_id uuid)
+returns setof public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not logged in';
+  end if;
+  if p_user_id is null then
+    raise exception 'Missing user';
+  end if;
+  return query
+  select p.*
+  from public.follows f
+  join public.profiles p on p.id = f.following_id
+  where f.follower_id = p_user_id
+  order by lower(p.username);
+end;
+$$;
 
--- Ensure toggle_follow exists (idempotent)
+-- created: 2026-11-23T20:28:00-08:00
+create or replace function public.list_user_followers(p_user_id uuid)
+returns setof public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not logged in';
+  end if;
+  if p_user_id is null then
+    raise exception 'Missing user';
+  end if;
+  return query
+  select p.*
+  from public.follows f
+  join public.profiles p on p.id = f.follower_id
+  where f.following_id = p_user_id
+  order by lower(p.username);
+end;
+$$;
+
 create or replace function public.toggle_follow(p_other_user_id uuid)
 returns text
 language plpgsql
@@ -91,5 +132,11 @@ begin
 end;
 $$;
 
+revoke all on function public.list_my_following() from public;
+revoke all on function public.list_user_following(uuid) from public;
+revoke all on function public.list_user_followers(uuid) from public;
 revoke all on function public.toggle_follow(uuid) from public;
+grant execute on function public.list_my_following() to authenticated;
+grant execute on function public.list_user_following(uuid) to authenticated;
+grant execute on function public.list_user_followers(uuid) to authenticated;
 grant execute on function public.toggle_follow(uuid) to authenticated;

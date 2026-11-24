@@ -332,3 +332,42 @@
   margin-left: auto;
   margin-right: auto;
 }
+
+/* created: 2026-11-23T20:28:00-08:00 — followers / following lists */
+.follow-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.count-btn {
+  border: 1px solid #b8d9f5;
+  background: #eef6ff;
+  color: #2f3a55;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.count-btn.active {
+  background: #4d9fff;
+  border-color: #4d9fff;
+  color: #fff;
+}
+
+.row-main.linkish {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.follow-panel .toolbar strong {
+  color: #2f3a55;
+}
