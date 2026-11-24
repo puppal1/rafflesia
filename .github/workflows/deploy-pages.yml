@@ -1,5 +1,6 @@
 # created: 2026-11-23T19:02:00-08:00
-# Deploy Rafflesia Online to GitHub Pages (school Chromebooks allow *.github.io)
+# updated: 2026-11-23T21:58:00-08:00 — branch deploy (bypasses stuck Actions Pages lock)
+# Deploy Rafflesia Online to GitHub Pages via gh-pages branch
 name: Deploy GitHub Pages
 
 on:
@@ -8,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -17,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,26 +35,16 @@ jobs:
         run: npm ci
       - name: Build
         # created: 2026-11-23T19:02:00-08:00
-        # updated: 2026-11-23T21:25:00-08:00 — Supabase via Actions secrets (no .env in repo)
+        # updated: 2026-11-23T21:58:00-08:00 — publish to gh-pages branch
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
-      - name: Upload Pages artifact
-        # created: 2026-11-23T19:02:00-08:00
-        uses: actions/upload-pages-artifact@v3
+      - name: Publish to gh-pages branch
+        # created: 2026-11-23T21:58:00-08:00
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        # created: 2026-11-23T19:02:00-08:00
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          force_orphan: true
