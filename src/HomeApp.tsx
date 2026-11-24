@@ -52,10 +52,11 @@ export function HomeApp({ userId, onLogout }: Props) {
   const groupTitleRef = useRef<HTMLInputElement | null>(null)
   const editNameRef = useRef<HTMLInputElement | null>(null)
   const editBioRef = useRef<HTMLTextAreaElement | null>(null)
-  const [showEmojiBar, setShowEmojiBar] = useState(true)
-  const [showGroupEmoji, setShowGroupEmoji] = useState(true)
-  const [showNameEmoji, setShowNameEmoji] = useState(true)
-  const [showBioEmoji, setShowBioEmoji] = useState(true)
+  // updated: 2026-11-23T21:55:00-08:00 — emoji pickers closed by default
+  const [showEmojiBar, setShowEmojiBar] = useState(false)
+  const [showGroupEmoji, setShowGroupEmoji] = useState(false)
+  const [showNameEmoji, setShowNameEmoji] = useState(false)
+  const [showBioEmoji, setShowBioEmoji] = useState(false)
   // created: 2026-11-23T20:40:00-08:00 — prevent stuck / double-tap Follow
   const [followBusyId, setFollowBusyId] = useState<string | null>(null)
   // created: 2026-11-23T20:45:00-08:00 — group member pickers (create + add)

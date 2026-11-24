@@ -1,28 +1,29 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T21:45:00-08:00 — force light pastel; Chromebook-wide wash */
+/* updated: 2026-11-23T21:55:00-08:00 — solid opaque pastels (Chrome was washing translucent) */
 :root {
-  color-scheme: light only;
+  color-scheme: only light;
   supported-color-schemes: light;
   font-family: "Segoe UI", system-ui, sans-serif;
   line-height: 1.45;
   font-weight: 400;
-  color: #243556;
-  background: #d9efff;
+  color: #1e2f52;
+  background: #b8e0ff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  /* created: 2026-11-23T21:45:00-08:00 — tokens (brighter for Chrome) */
-  --bg-wash-top: #eaf7ff;
-  --bg-wash-mid: #c8e8ff;
-  --bg-wash-edge: #efe8ff;
-  --text: #243556;
-  --muted: #5a6d90;
-  --card-border: #7ec4f5;
-  --btn-primary: #2f8fff;
-  --btn-active: #5b7cff;
-  --btn-ghost-border: #3db89a;
-  --btn-ghost-bg: #d8fff4;
-  --btn-ghost-text: #1f6b58;
+  /* created: 2026-11-23T21:55:00-08:00 — higher chroma for Chrome sRGB */
+  --bg-wash-top: #d6f0ff;
+  --bg-wash-mid: #9fd4ff;
+  --bg-wash-edge: #c9e0ff;
+  --text: #1e2f52;
+  --muted: #3d5478;
+  --card-bg: #f4fbff;
+  --card-border: #3da8f0;
+  --btn-primary: #1a7fff;
+  --btn-active: #4f6fff;
+  --btn-ghost-border: #1fa887;
+  --btn-ghost-bg: #c5fff0;
+  --btn-ghost-text: #0f5c4a;
 }
 
 * {
@@ -30,7 +31,7 @@
 }
 
 html {
-  color-scheme: light only;
+  color-scheme: only light;
 }
 
 html,
@@ -38,17 +39,21 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  background: var(--bg-wash-top);
+  background-color: #b8e0ff;
   color: var(--text);
 }
 
 body {
   min-height: 100svh;
-  /* updated: 2026-11-23T21:45:00-08:00 — richer sky gloss (Proton-like pop in Chrome) */
-  background:
-    radial-gradient(circle at 18% 0%, #ffffff 0%, transparent 40%),
-    radial-gradient(circle at 88% 12%, #8fd0ff 0%, transparent 42%),
-    radial-gradient(circle at 45% 100%, #d8f0ff 0%, transparent 45%),
-    linear-gradient(165deg, var(--bg-wash-top) 0%, var(--bg-wash-mid) 48%, var(--bg-wash-edge) 100%);
+  /* updated: 2026-11-23T21:55:00-08:00 — opaque sky (no see-through muddy Chrome blur) */
+  background-color: #b8e0ff;
+  background-image:
+    radial-gradient(circle at 15% 0%, #ffffff 0%, #b8e0ff 45%),
+    radial-gradient(circle at 90% 10%, #6ec4ff 0%, #b8e0ff 50%),
+    linear-gradient(165deg, #d6f0ff 0%, #9fd4ff 55%, #c5dcff 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   forced-color-adjust: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }

@@ -39,7 +39,8 @@ function App() {
   const [error, setError] = useState('')
   // created: 2026-11-23T20:34:00-08:00
   const displayNameRef = useRef<HTMLInputElement | null>(null)
-  const [showSignupEmoji, setShowSignupEmoji] = useState(true)
+  // updated: 2026-11-23T21:55:00-08:00 — emoji picker closed by default
+  const [showSignupEmoji, setShowSignupEmoji] = useState(false)
 
   useEffect(() => {
     // created: 2026-11-23T11:59:00-08:00
