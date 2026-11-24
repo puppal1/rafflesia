@@ -3,9 +3,11 @@
 // updated: 2026-11-24T12:35:00-08:00 — PRD v2: FYP, comments, share, Siobhan, delete account
 // updated: 2026-11-24T13:40:00-08:00 — Gotcha-style messaging + expandable photos
 // updated: 2026-11-24T13:45:00-08:00 — modern attach on Share + Me (no Choose File)
+// updated: 2026-11-24T14:30:00-08:00 — hide listed usernames from People / FYP / search
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+import { isHiddenProfile, visibleProfiles } from './lib/hiddenUsers'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/follows'
 import { checkKidText, reportBlockedText } from './lib/textChecker'
@@ -149,7 +151,8 @@ export function HomeApp({ userId, onLogout }: Props) {
       .neq('id', userId)
       .order('username')
     if (peopleRes.error) throw peopleRes.error
-    const others = (peopleRes.data || []) as Profile[]
+    // updated: 2026-11-24T14:30:00-08:00 — drop hidden usernames (e.g. pr123)
+    const others = visibleProfiles((peopleRes.data || []) as Profile[])
     setPeople(others)
 
     const meRes = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
@@ -239,6 +242,16 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
     setPosts((data || []) as PostRow[])
   }, [])
+
+  // created: 2026-11-24T14:30:00-08:00 — posts from hidden authors stay off FYP
+  const publicPosts = useMemo(() => {
+    return posts.filter((p) => {
+      if (p.author_id === userId) return true
+      const author = people.find((x) => x.id === p.author_id) || profilesById[p.author_id]
+      if (author) return !isHiddenProfile(author)
+      return true
+    })
+  }, [posts, people, profilesById, userId])
 
   const refreshAll = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -690,6 +703,11 @@ export function HomeApp({ userId, onLogout }: Props) {
   }
 
   async function openProfile(profile: Profile, kind: FollowListKind | null = null) {
+    // updated: 2026-11-24T14:30:00-08:00 — refuse hidden usernames
+    if (isHiddenProfile(profile) && profile.id !== userId) {
+      setError('That profile is not available.')
+      return
+    }
     // created: 2026-11-23T20:33:00-08:00 — full account card + optional follow list
     setError('')
     setBusy(true)
@@ -1070,7 +1088,15 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = club room + groups
   // updated: 2026-11-23T22:40:00-08:00 — Everyone is the Lounge room, not a group chat
-  const dmChats = useMemo(() => chats.filter((c) => !c.is_group), [chats])
+  const dmChats = useMemo(() => {
+    // updated: 2026-11-24T14:30:00-08:00 — hide DMs with hidden peers
+    return chats.filter((c) => {
+      if (c.is_group) return false
+      const peer = dmPeerByChatId[c.id]
+      if (peer && isHiddenProfile(peer)) return false
+      return true
+    })
+  }, [chats, dmPeerByChatId])
   const everyoneRoom = useMemo(
     () => chats.find((c) => c.lounge_key === 'everyone') || null,
     [chats],
@@ -1103,10 +1129,12 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const filteredPosts = useMemo(() => {
     // created: 2026-11-24T12:35:00-08:00 — FYP search
+    // updated: 2026-11-24T14:30:00-08:00 — start from publicPosts (hidden authors out)
     const q = fypQuery.trim().toLowerCase()
-    if (!q) return posts
-    return posts.filter((p) => {
+    if (!q) return publicPosts
+    return publicPosts.filter((p) => {
       const author = authorProfile(p.author_id)
+      if (isHiddenProfile(author) && p.author_id !== userId) return false
       const hay = [
         p.body || '',
         p.media_url || '',
@@ -1118,15 +1146,16 @@ export function HomeApp({ userId, onLogout }: Props) {
         .toLowerCase()
       return hay.includes(q)
     })
-  }, [posts, fypQuery, people, profilesById, me, userId])
+  }, [publicPosts, fypQuery, people, profilesById, me, userId])
 
   const peopleSearchHits = useMemo(() => {
     const q = fypQuery.trim().toLowerCase()
     if (!q) return [] as Profile[]
     return people.filter(
       (p) =>
-        p.username.toLowerCase().includes(q) ||
-        (p.display_name || '').toLowerCase().includes(q),
+        !isHiddenProfile(p) &&
+        (p.username.toLowerCase().includes(q) ||
+          (p.display_name || '').toLowerCase().includes(q)),
     )
   }, [people, fypQuery])
 
