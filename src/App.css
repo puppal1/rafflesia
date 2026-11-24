@@ -571,17 +571,15 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
 }
 
 .bubble {
-  /* updated: 2026-11-24T13:52:00-08:00 — contain long text / media inside the pane */
+  /* updated: 2026-11-24T14:05:00-08:00 — normal chat bubble width (no 1-char collapse) */
   padding: 8px 10px;
   border-radius: 14px;
   background: #eef6ff;
   border: 2px solid #9ed0ff;
   box-sizing: border-box;
-  min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .bubble.mine {
@@ -593,8 +591,7 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   font-size: 0.75rem;
   color: #4a6f94;
   margin-bottom: 4px;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: normal;
 }
 
 .composer {
@@ -2528,20 +2525,17 @@ select {
   margin-right: 8px;
 }
 .chat-msg-body {
-  /* updated: 2026-11-24T13:52:00-08:00 — keep long text inside bubble */
+  /* updated: 2026-11-24T14:05:00-08:00 */
   display: grid;
   gap: 6px;
-  min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .chat-msg-text {
-  /* updated: 2026-11-24T13:55:00-08:00 — hard-break minified pastes */
-  min-width: 0;
+  /* updated: 2026-11-24T14:05:00-08:00 — wrap at words; overflow-wrap handles long tokens */
   max-width: 100%;
   overflow-wrap: anywhere;
-  word-break: break-all;
+  word-break: normal;
   white-space: pre-wrap;
 }
 .siobhan-when {
@@ -2905,15 +2899,15 @@ select {
 }
 
 .msg-thread .bubble {
-  /* updated: 2026-11-24T14:00:00-08:00 — wrap sideways only; never clip message height */
+  /* updated: 2026-11-24T14:05:00-08:00 — real bubble size; wrap words, don't shatter letters */
   align-self: flex-start;
-  width: auto;
-  max-width: min(92%, 480px);
-  min-width: 0;
-  overflow-x: hidden;
+  width: fit-content;
+  min-width: min(100%, 11rem);
+  max-width: min(85%, 420px);
+  overflow-x: auto;
   overflow-y: visible;
-  overflow-wrap: anywhere;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .msg-thread .bubble.mine {
@@ -2921,23 +2915,30 @@ select {
   margin-left: 0;
 }
 
-.msg-thread .chat-msg-body,
-.msg-thread .chat-msg-text,
-.msg-thread .bubble-meta {
-  min-width: 0 !important;
-  max-width: 100% !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-all !important;
+.msg-thread .chat-msg-body {
+  display: grid;
+  gap: 6px;
+  max-width: 100%;
 }
 
 .msg-thread .chat-msg-text {
-  /* updated: 2026-11-24T14:00:00-08:00 — full text; tall pastes scroll inside the bubble */
+  /* updated: 2026-11-24T14:05:00-08:00 — readable wrap; long pastes scroll in-bubble */
   display: block;
+  max-width: 100%;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
   max-height: min(45vh, 360px);
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.msg-thread .bubble-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .msg-thread .chat-media-btn,
@@ -2952,11 +2953,9 @@ select {
 }
 
 .msg-thread .share-card {
-  min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .msg-empty,
