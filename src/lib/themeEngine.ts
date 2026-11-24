@@ -74,14 +74,15 @@ export function applyTheme(theme: ThemeDef) {
   if (meta) meta.setAttribute('content', theme.washMid)
   document.body.style.backgroundColor = theme.washMid
 
+  // updated: 2026-11-24T14:15:00-08:00 — explicit "none" clears panel (ignore theme.bgImage)
   const picked = mangaBgById(getMangaBgId())
-  const file = picked.file || theme.bgImage || ''
+  const wantNone = picked.id === 'none'
+  const file = wantNone ? '' : picked.file || ''
   if (file) {
-    const folder = picked.file ? picked.folder : 'theme-bgs'
+    const folder = picked.folder || 'theme-bgs'
     const url = `${baseUrl}${folder}/${file}`
     const washStrength = picked.group === 'character' ? 52 : 62
     const wash = `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} ${washStrength}%, transparent), color-mix(in srgb, ${theme.washMid} ${washStrength - 6}%, transparent), color-mix(in srgb, ${theme.washEdge} ${washStrength - 4}%, transparent))`
-    // CSS vars consumed by .glass-card / .app-main-col
     root.style.setProperty('--panel-manga-image', `url("${url}")`)
     root.style.setProperty('--panel-manga-wash', wash)
     root.style.setProperty(

@@ -102,8 +102,12 @@ export function ThemePicker({ compact, onPicked }: Props) {
             ))}
           </div>
 
-          <h3 className="theme-section-title">Manga scenes</h3>
-          <p className="theme-picker-hint">Hero · Villain · Neutral scenes</p>
+          <h3 className="theme-section-title">Manga picture</h3>
+          <p className="theme-picker-hint">
+            {bgId === 'none'
+              ? 'No picture — colors only. Pick a scene or character below.'
+              : 'Tap No picture to clear. Switch scenes/characters anytime.'}
+          </p>
           <div className="theme-bg-grid">
             {scenes.map((b) => (
               <button
@@ -123,7 +127,7 @@ export function ThemePicker({ compact, onPicked }: Props) {
           </div>
 
           <h3 className="theme-section-title">Manga characters</h3>
-          <p className="theme-picker-hint">Same stickers as icons — use as full-screen background</p>
+          <p className="theme-picker-hint">Same stickers as icons — full-screen background</p>
           <div className="theme-bg-grid">
             {characters.map((b) => (
               <button

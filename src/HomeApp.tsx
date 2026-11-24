@@ -15,6 +15,7 @@ import { FaceAvatar } from './components/FaceAvatar'
 import { PostCard } from './components/PostCard'
 import { SiobhanFeed } from './components/SiobhanFeed'
 import { PhotoAttach } from './components/PhotoAttach'
+import { PeoplePickGrid } from './components/PeoplePickGrid'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -1838,38 +1839,14 @@ export function HomeApp({ userId, onLogout }: Props) {
                     insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
                   }
                 />
-                <p className="friend-pick-heading">Who should be in it?</p>
-                <div className="member-pick-list soft-scroll">
-                  {people.length === 0 ? (
-                    <p className="muted">No other people yet — create alone, invite later from inside.</p>
-                  ) : (
-                    people.map((p) => {
-                      const on = createPickIds.has(p.id)
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
-                          onClick={() => toggleCreatePick(p.id)}
-                        >
-                          <FaceAvatar
-                            avatarUrl={p.avatar_url}
-                            iconPack={p.icon_pack}
-                            iconId={p.icon_id}
-                            size="sm"
-                          />
-                          <span className="friend-pick-text">
-                            <strong>{niceName(p)}</strong>
-                            <span className="muted">@{p.username}</span>
-                          </span>
-                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
-                            {on ? '✓' : ''}
-                          </span>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
+                <PeoplePickGrid
+                  people={people}
+                  selectedIds={createPickIds}
+                  onToggle={toggleCreatePick}
+                  niceName={niceName}
+                  heading="Who should be in it?"
+                  emptyText="No other people yet — create alone, invite later from inside."
+                />
                 <button className="primary" type="submit" disabled={busy}>
                   {busy
                     ? 'Creating…'
@@ -2254,41 +2231,16 @@ export function HomeApp({ userId, onLogout }: Props) {
               <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
                 Add friends to this group chat
               </h3>
-              <div className="member-pick-list soft-scroll">
-                {people.filter((p) => !groupMemberIds.has(p.id)).length === 0 ? (
-                  <p className="muted">Everyone you know is already in this group.</p>
-                ) : (
-                  people
-                    .filter((p) => !groupMemberIds.has(p.id))
-                    .map((p) => {
-                      const on = addPickIds.has(p.id)
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
-                          onClick={() => toggleAddPick(p.id)}
-                        >
-                          <FaceAvatar
-                            avatarUrl={p.avatar_url}
-                            iconPack={p.icon_pack}
-                            iconId={p.icon_id}
-                            size="sm"
-                          />
-                          <span className="friend-pick-text">
-                            <strong>{niceName(p)}</strong>
-                            <span className="muted">@{p.username}</span>
-                          </span>
-                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'}>
-                            {on ? '✓' : ''}
-                          </span>
-                        </button>
-                      )
-                    })
-                )}
-              </div>
+              <PeoplePickGrid
+                people={people.filter((p) => !groupMemberIds.has(p.id))}
+                selectedIds={addPickIds}
+                onToggle={toggleAddPick}
+                niceName={niceName}
+                heading="Who to add?"
+                emptyText="Everyone you know is already in this group."
+              />
               <button
-                className="primary"
+                className="primary btn-compact"
                 type="button"
                 disabled={busy || addPickIds.size === 0}
                 onClick={submitAddFriends}
