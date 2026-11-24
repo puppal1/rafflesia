@@ -1,18 +1,36 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T19:49:00-08:00 — pastel glossy light blue (Diyaan) */
+/* updated: 2026-11-23T21:45:00-08:00 — force light pastel; Chromebook-wide wash */
 :root {
+  color-scheme: light only;
+  supported-color-schemes: light;
   font-family: "Segoe UI", system-ui, sans-serif;
-  line-height: 1.4;
+  line-height: 1.45;
   font-weight: 400;
-  color: #2f3a55;
-  background: #e8f4ff;
+  color: #243556;
+  background: #d9efff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  /* created: 2026-11-23T21:45:00-08:00 — tokens (brighter for Chrome) */
+  --bg-wash-top: #eaf7ff;
+  --bg-wash-mid: #c8e8ff;
+  --bg-wash-edge: #efe8ff;
+  --text: #243556;
+  --muted: #5a6d90;
+  --card-border: #7ec4f5;
+  --btn-primary: #2f8fff;
+  --btn-active: #5b7cff;
+  --btn-ghost-border: #3db89a;
+  --btn-ghost-bg: #d8fff4;
+  --btn-ghost-text: #1f6b58;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  color-scheme: light only;
 }
 
 html,
@@ -20,14 +38,17 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
+  background: var(--bg-wash-top);
+  color: var(--text);
 }
 
 body {
   min-height: 100svh;
-  /* updated: 2026-11-23T19:49:00-08:00 — light pastel blue gloss wash */
+  /* updated: 2026-11-23T21:45:00-08:00 — richer sky gloss (Proton-like pop in Chrome) */
   background:
-    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 42%),
-    radial-gradient(circle at 85% 15%, rgba(180, 220, 255, 0.65), transparent 45%),
-    radial-gradient(circle at 40% 100%, rgba(230, 245, 255, 0.8), transparent 40%),
-    linear-gradient(165deg, #eef7ff 0%, #e0f0ff 45%, #f3f0ff 100%);
+    radial-gradient(circle at 18% 0%, #ffffff 0%, transparent 40%),
+    radial-gradient(circle at 88% 12%, #8fd0ff 0%, transparent 42%),
+    radial-gradient(circle at 45% 100%, #d8f0ff 0%, transparent 45%),
+    linear-gradient(165deg, var(--bg-wash-top) 0%, var(--bg-wash-mid) 48%, var(--bg-wash-edge) 100%);
+  forced-color-adjust: none;
 }
