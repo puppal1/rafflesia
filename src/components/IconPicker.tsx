@@ -1,5 +1,6 @@
 // created: 2026-11-23T21:00:00-08:00
 // updated: 2026-11-23T23:55:00-08:00 — emoji tiles only
+// updated: 2026-11-24T12:40:00-08:00 — manga image tiles + compact continue (PRD v2 C3)
 import { useState } from 'react'
 import { ICON_PACKS, type IconDef } from '../lib/iconPacks'
 
@@ -12,6 +13,7 @@ type Props = {
 
 /** created: 2026-11-23T21:00:00-08:00 */
 /** updated: 2026-11-23T23:55:00-08:00 */
+/** updated: 2026-11-24T12:40:00-08:00 */
 export function IconPicker({ title = 'Pick your icon', onPick, busy }: Props) {
   const [selected, setSelected] = useState<IconDef | null>(null)
 
@@ -31,21 +33,27 @@ export function IconPicker({ title = 'Pick your icon', onPick, busy }: Props) {
                 onClick={() => setSelected(icon)}
                 disabled={busy}
               >
-                <span className="icon-emoji">{icon.emoji}</span>
+                {icon.imageUrl ? (
+                  <img className="icon-manga-thumb" src={icon.imageUrl} alt="" />
+                ) : (
+                  <span className="icon-emoji">{icon.emoji}</span>
+                )}
                 <span className="icon-label">{icon.label}</span>
               </button>
             ))}
           </div>
         </div>
       ))}
-      <button
-        className="primary block"
-        type="button"
-        disabled={!selected || busy}
-        onClick={() => selected && onPick(selected)}
-      >
-        {busy ? 'Saving…' : 'Continue'}
-      </button>
+      <div className="action-row">
+        <button
+          className="primary btn-compact"
+          type="button"
+          disabled={!selected || busy}
+          onClick={() => selected && onPick(selected)}
+        >
+          {busy ? 'Saving…' : 'Continue'}
+        </button>
+      </div>
     </div>
   )
 }

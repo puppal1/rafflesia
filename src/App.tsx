@@ -1,6 +1,7 @@
 // created: 2026-11-23T11:59:00-08:00
 // updated: 2026-11-24T11:30:00-08:00 — reliable muted intro + corner controls
 // updated: 2026-11-24T11:50:00-08:00 — theme engine + ThemePicker on login
+// updated: 2026-11-24T12:35:00-08:00 — ToS/Privacy signup consent (PRD v2 B1)
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -10,6 +11,7 @@ import { ThemePicker } from './components/ThemePicker'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { ensureHourlyTheme } from './lib/themeEngine'
 import { supabase } from './lib/supabase'
+import { PRIVACY_VERSION, TOS_PRIVACY_TEXT, TOS_VERSION } from './lib/tosCopy'
 
 import {
   DISPLAY_NAME_MAX,
@@ -46,6 +48,8 @@ function App() {
   const displayNameRef = useRef<HTMLInputElement | null>(null)
   // updated: 2026-11-23T21:55:00-08:00 — emoji picker closed by default
   const [showSignupEmoji, setShowSignupEmoji] = useState(false)
+  // created: 2026-11-24T12:35:00-08:00 — ToS gate
+  const [tosAgreed, setTosAgreed] = useState(false)
   // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
   // updated: 2026-11-24T11:40:00-08:00 — unmuted by default; mute only if browser blocks
   const [showIntro, setShowIntro] = useState(true)
@@ -186,6 +190,9 @@ function App() {
       const email = toAuthEmail(cleanUser)
 
       if (mode === 'signup') {
+        if (!tosAgreed) {
+          throw new Error('Please agree to the Terms of Service and Privacy Policy.')
+        }
         // created: 2026-11-23T19:55:00-08:00 — exact duplicate vs existing usernames
         // updated: 2026-11-23T19:59:00-08:00 — similarity check removed
         const { data: existingRows, error: listError } = await supabase
@@ -220,6 +227,15 @@ function App() {
         }
         // created: 2026-11-23T22:35:00-08:00 — Everyone lounge (trigger also joins)
         await supabase.rpc('join_lounge_everyone')
+        await supabase.rpc('join_lounge_announcements')
+        // created: 2026-11-24T12:35:00-08:00 — consent ledger
+        await supabase.rpc('record_signup_consent', {
+          p_username: cleanUser,
+          p_tos_version: TOS_VERSION,
+          p_privacy_version: PRIVACY_VERSION,
+          p_ip_address: null,
+          p_device_info: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 400) : null,
+        })
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -289,14 +305,15 @@ function App() {
         ) : user ? (
           <HomeApp userId={user.id} onLogout={onLogout} />
         ) : (
-          <>
+          <div className="auth-panel">
+            {/* updated: 2026-11-24T12:15:00-08:00 — compact auth; content > buttons */}
             <img className="logo" src={logoSrc} alt="Rafflesia Online logo" />
             <h1 className="brand">Rafflesia Online</h1>
             <p className="tag">Rafflesia Channel Entertainment</p>
             {/* created: 2026-11-24T11:50:00-08:00 — pick locks; Auto resumes hourly */}
             <ThemePicker />
 
-            <div className="tabs">
+            <div className="tabs tabs-compact">
               <button
                 type="button"
                 className={mode === 'signup' ? 'active' : ''}
@@ -313,7 +330,7 @@ function App() {
               </button>
             </div>
 
-            <form className="form" onSubmit={onSubmit}>
+            <form className="form form-compact" onSubmit={onSubmit}>
               {mode === 'signup' && (
                 <>
                   <label>
@@ -362,9 +379,30 @@ function App() {
                   required
                 />
               </label>
-              <button className="primary" type="submit" disabled={busy}>
-                {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Log in'}
-              </button>
+              {mode === 'signup' ? (
+                <div className="tos-block">
+                  {/* created: 2026-11-24T12:35:00-08:00 */}
+                  <p className="friend-pick-heading">Terms &amp; Privacy</p>
+                  <pre className="tos-scroll">{TOS_PRIVACY_TEXT}</pre>
+                  <label className="tos-check">
+                    <input
+                      type="checkbox"
+                      checked={tosAgreed}
+                      onChange={(e) => setTosAgreed(e.target.checked)}
+                    />
+                    <span>I agree to the Terms of Service and Privacy Policy</span>
+                  </label>
+                </div>
+              ) : null}
+              <div className="action-row">
+                <button
+                  className="primary"
+                  type="submit"
+                  disabled={busy || (mode === 'signup' && !tosAgreed)}
+                >
+                  {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Log in'}
+                </button>
+              </div>
             </form>
             {error ? <p className="error">{error}</p> : null}
             {/* created: 2026-11-23T21:05:00-08:00 */}
@@ -372,11 +410,10 @@ function App() {
               className="ghost teacher-link"
               type="button"
               onClick={() => setTeacherMode(true)}
-              style={{ marginTop: 14 }}
             >
               Teacher access
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

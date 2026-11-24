@@ -1,5 +1,6 @@
 // created: 2026-11-23T12:14:00-08:00
 // updated: 2026-11-24T00:05:00-08:00 — website_links on profiles
+// updated: 2026-11-24T12:35:00-08:00 — FYP + Siobhan tabs
 export type VerifyTier = 'pink' | 'gold' | 'blue' | null
 
 /** created: 2026-11-24T00:05:00-08:00 */
@@ -60,4 +61,5 @@ export type PostRow = {
 
 /** created: 2026-11-23T21:05:00-08:00 — A6 nav shell */
 /** updated: 2026-11-23T22:35:00-08:00 — lounge (group chats) replaces play */
-export type Tab = 'home' | 'post' | 'chats' | 'lounge' | 'people' | 'me'
+/** updated: 2026-11-24T12:35:00-08:00 — FYP replaces Home; Siobhan Daily */
+export type Tab = 'fyp' | 'post' | 'chats' | 'lounge' | 'people' | 'me' | 'siobhan'

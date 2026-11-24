@@ -1,5 +1,6 @@
 // created: 2026-11-23T12:14:00-08:00
 // updated: 2026-11-23T23:35:00-08:00 — show teacher verify badges
+// updated: 2026-11-24T12:35:00-08:00 — PRD v2: FYP, comments, share, Siobhan, delete account
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -7,9 +8,11 @@ import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/follows'
 import { checkKidText, reportBlockedText } from './lib/textChecker'
 import { iconEmoji, type IconDef } from './lib/iconPacks'
+import { encodePostShare, parsePostShare } from './lib/postShare'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
+import { PostCard } from './components/PostCard'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -30,7 +33,12 @@ type Props = {
 export function HomeApp({ userId, onLogout }: Props) {
   // created: 2026-11-23T12:14:00-08:00
   // updated: 2026-11-23T21:10:00-08:00 — default Home tab
-  const [tab, setTab] = useState<Tab>('home')
+  const [tab, setTab] = useState<Tab>('fyp')
+  // created: 2026-11-24T12:35:00-08:00 — FYP search + share pickers
+  const [fypQuery, setFypQuery] = useState('')
+  const [sharePost, setSharePost] = useState<PostRow | null>(null)
+  const [shareMode, setShareMode] = useState<'send' | 'share' | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -244,6 +252,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
     try {
       await supabase.rpc('join_lounge_everyone')
+      await supabase.rpc('join_lounge_announcements')
     } catch {
       /* lounge SQL may not be applied yet */
     }
@@ -531,7 +540,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       setPostFileName('')
       setPostSource('upload')
       setStatus('Posted!')
-      setTab('home')
+      setTab('fyp')
       await loadPosts()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not post.')
@@ -1046,6 +1055,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     // updated: 2026-11-23T22:40:00-08:00 — Everyone = lounge room title
     if (!activeChat) return ''
     if (activeChat.lounge_key === 'everyone') return 'Rafflesia Lounge'
+    if (activeChat.lounge_key === 'announcements') return 'Announcements & Updates'
     if (activeChat.is_group) return activeChat.title || 'Group chat'
     const peer = dmPeerByChatId[activeChat.id]
     return peer ? niceName(peer) : 'Private chat'
@@ -1061,14 +1071,22 @@ export function HomeApp({ userId, onLogout }: Props) {
     () => chats.find((c) => c.lounge_key === 'everyone') || null,
     [chats],
   )
+  const announcementsRoom = useMemo(
+    () => chats.find((c) => c.lounge_key === 'announcements') || null,
+    [chats],
+  )
   const loungeGroups = useMemo(
     () =>
       chats
-        .filter((c) => c.is_group && c.lounge_key !== 'everyone')
+        .filter(
+          (c) =>
+            c.is_group && c.lounge_key !== 'everyone' && c.lounge_key !== 'announcements',
+        )
         .sort((a, b) => (a.title || '').localeCompare(b.title || '')),
     [chats],
   )
   const isEveryoneChat = activeChat?.lounge_key === 'everyone'
+  const isAnnouncementsChat = activeChat?.lounge_key === 'announcements'
 
   const authorProfile = (authorId: string) => {
     // created: 2026-11-23T21:10:00-08:00
@@ -1078,6 +1096,35 @@ export function HomeApp({ userId, onLogout }: Props) {
   }
 
   const authorName = (authorId: string) => niceName(authorProfile(authorId))
+
+  const filteredPosts = useMemo(() => {
+    // created: 2026-11-24T12:35:00-08:00 — FYP search
+    const q = fypQuery.trim().toLowerCase()
+    if (!q) return posts
+    return posts.filter((p) => {
+      const author = authorProfile(p.author_id)
+      const hay = [
+        p.body || '',
+        p.media_url || '',
+        p.kind,
+        author?.username || '',
+        author?.display_name || '',
+      ]
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [posts, fypQuery, people, profilesById, me, userId])
+
+  const peopleSearchHits = useMemo(() => {
+    const q = fypQuery.trim().toLowerCase()
+    if (!q) return [] as Profile[]
+    return people.filter(
+      (p) =>
+        p.username.toLowerCase().includes(q) ||
+        (p.display_name || '').toLowerCase().includes(q),
+    )
+  }, [people, fypQuery])
 
   if (showIconPicker && me) {
     return (
@@ -1106,15 +1153,17 @@ export function HomeApp({ userId, onLogout }: Props) {
   const mainNav = (
     // created: 2026-11-23T21:10:00-08:00 — A6 nav shell
     // updated: 2026-11-23T23:45:00-08:00 — right-hand rail
+    // updated: 2026-11-24T12:35:00-08:00 — FYP + Siobhan
     <nav className="nav nav-shell nav-rail" aria-label="Main">
       {(
         [
-          ['home', 'Home'],
+          ['fyp', 'For You'],
           ['post', 'Post'],
           ['chats', 'Messages'],
           ['lounge', 'Lounge'],
           ['people', 'People'],
           ['me', 'Me'],
+          ['siobhan', 'Siobhan'],
         ] as const
       ).map(([id, label]) => (
         <button
@@ -1125,7 +1174,7 @@ export function HomeApp({ userId, onLogout }: Props) {
             closeFollowProfile()
             setActiveChat(null)
             setTab(id)
-            if (id === 'home') loadPosts()
+            if (id === 'fyp') loadPosts()
           }}
         >
           {label}
@@ -1133,6 +1182,95 @@ export function HomeApp({ userId, onLogout }: Props) {
       ))}
     </nav>
   )
+
+  async function deliverSharedPost(targetChatId: string, post: PostRow, note?: string) {
+    // created: 2026-11-24T12:35:00-08:00
+    const body = encodePostShare(post.id, note)
+    const { error: err } = await supabase.rpc('send_chat_message', {
+      p_chat_id: targetChatId,
+      p_body: body,
+    })
+    if (err) throw err
+  }
+
+  async function onSendPost(post: PostRow) {
+    setSharePost(post)
+    setShareMode('send')
+  }
+
+  async function onSharePost(post: PostRow) {
+    setSharePost(post)
+    setShareMode('share')
+  }
+
+  async function confirmSendToPerson(other: Profile) {
+    if (!sharePost) return
+    setBusy(true)
+    setError('')
+    try {
+      const { data: chat, error: chatErr } = await supabase.rpc('start_dm', {
+        p_other_user_id: other.id,
+      })
+      if (chatErr) throw chatErr
+      await deliverSharedPost((chat as ChatRow).id, sharePost)
+      setSharePost(null)
+      setShareMode(null)
+      setActiveChat(chat as ChatRow)
+      setTab('chats')
+      await loadChats()
+      setStatus(`Sent post to ${niceName(other)}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmShareToGroup(chat: ChatRow) {
+    if (!sharePost) return
+    if (chat.lounge_key === 'announcements' && me?.username !== 'rafflesiaonline') {
+      setError('Only @rafflesiaonline can post in Announcements.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await deliverSharedPost(chat.id, sharePost)
+      setSharePost(null)
+      setShareMode(null)
+      setActiveChat(chat)
+      setTab('lounge')
+      setStatus('Shared to Lounge.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not share.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteMyAccount() {
+    // created: 2026-11-24T12:35:00-08:00
+    if (!me) return
+    if (deleteConfirm.trim().toLowerCase() !== me.username.toLowerCase()) {
+      setError('Type your username to confirm delete account.')
+      return
+    }
+    if (!window.confirm('Delete your account forever? This cannot be undone.')) return
+    setBusy(true)
+    try {
+      const { error: err } = await supabase.rpc('delete_my_account')
+      if (err) throw err
+      await onLogout()
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not delete account. Run sql-delete-account.sql in Supabase.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="app-with-rail">
@@ -1355,49 +1493,62 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'home' && (
-        <div>
-          {/* created: 2026-11-23T21:10:00-08:00 */}
-          <h2 className="panel-title">Home</h2>
-          <p className="muted">Club posts from everyone</p>
-          <div className="list">
-            {posts.length === 0 ? (
+      {!viewProfile && !textBlockMsg && tab === 'fyp' && (
+        <div className="fyp-panel">
+          {/* created: 2026-11-24T12:35:00-08:00 — FYP + search */}
+          <h2 className="panel-title">For You</h2>
+          <p className="muted">Scroll posts · search people or media</p>
+          <label className="fyp-search">
+            Search
+            <input
+              value={fypQuery}
+              onChange={(e) => setFypQuery(e.target.value)}
+              placeholder="Find friends or posts…"
+            />
+          </label>
+          {peopleSearchHits.length > 0 ? (
+            <div className="list fyp-people-hits">
+              <p className="friend-pick-heading">People</p>
+              {peopleSearchHits.slice(0, 8).map((p) => (
+                <div className="row" key={`hit-${p.id}`}>
+                  <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
+                    <FaceAvatar avatarUrl={p.avatar_url} iconPack={p.icon_pack} iconId={p.icon_id} size="sm" />
+                    <span>
+                      <p className="row-title">
+                        <NameWithBadge name={niceName(p)} tier={p.verify_tier} />
+                      </p>
+                      <p className="row-sub">@{p.username}</p>
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="list fyp-feed">
+            {filteredPosts.length === 0 ? (
               <p className="muted">No posts yet. Tap Post to share something.</p>
             ) : (
-              posts.map((p) => (
-                <div className="row post-row" key={p.id}>
-                  <div className="row-main">
-                    <p className="row-title">
-                      <NameWithBadge
-                        name={authorName(p.author_id)}
-                        tier={authorProfile(p.author_id)?.verify_tier}
-                      />{' '}
-                      ·{' '}
-                      {p.kind === 'picture'
-                        ? '🖼️ Picture'
-                        : p.kind === 'video'
-                          ? '🎬 Video'
-                          : p.kind === 'link'
-                            ? '🔗 Link'
-                            : '✏️ Text'}
-                    </p>
-                    <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
-                    {p.body ? <p className="profile-bio">{p.body}</p> : null}
-                    {p.kind === 'picture' && p.media_url ? (
-                      <img className="post-media" src={p.media_url} alt="" />
-                    ) : null}
-                    {p.kind === 'video' && p.media_url ? (
-                      <video className="post-media" src={p.media_url} controls playsInline />
-                    ) : null}
-                    {p.kind === 'link' && p.media_url ? (
-                      <p className="row-sub">
-                        <a href={p.media_url} target="_blank" rel="noreferrer">
-                          Open link
-                        </a>
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
+              filteredPosts.map((p) => (
+                <PostCard
+                  key={p.id}
+                  post={p}
+                  userId={userId}
+                  authorName={authorName(p.author_id)}
+                  authorTier={authorProfile(p.author_id)?.verify_tier}
+                  profilesById={{
+                    ...profilesById,
+                    ...Object.fromEntries(people.map((x) => [x.id, x])),
+                    ...(me ? { [userId]: me } : {}),
+                  }}
+                  busy={busy}
+                  onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
+                  onSend={onSendPost}
+                  onShare={onSharePost}
+                  onOpenAuthor={(aid) => {
+                    const p = authorProfile(aid)
+                    if (p) openProfile(p)
+                  }}
+                />
               ))
             )}
           </div>
@@ -1405,9 +1556,10 @@ export function HomeApp({ userId, onLogout }: Props) {
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'post' && (
-        <form className="form" onSubmit={submitPost}>
+        <form className="form form-compact" onSubmit={submitPost}>
           {/* created: 2026-11-23T21:10:00-08:00 */}
           {/* updated: 2026-11-23T21:50:00-08:00 — C3 icon mode picker; upload+link for pic/video */}
+          {/* updated: 2026-11-24T12:15:00-08:00 — compact actions */}
           <h2 className="panel-title">New post</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             Pick what you want to share
@@ -1513,20 +1665,22 @@ export function HomeApp({ userId, onLogout }: Props) {
               placeholder="Say something kind…"
             />
           </label>
-          <button
-            className="primary"
-            type="submit"
-            disabled={
-              busy ||
-              (postKind === 'text'
-                ? !postBody.trim()
-                : postKind === 'link'
-                  ? !postMedia.trim()
-                  : !postMedia.trim())
-            }
-          >
-            Share
-          </button>
+          <div className="action-row">
+            <button
+              className="primary"
+              type="submit"
+              disabled={
+                busy ||
+                (postKind === 'text'
+                  ? !postBody.trim()
+                  : postKind === 'link'
+                    ? !postMedia.trim()
+                    : !postMedia.trim())
+              }
+            >
+              Share
+            </button>
+          </div>
         </form>
       )}
 
@@ -1557,7 +1711,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               className="row chat-list-row lounge-main-room"
               type="button"
               onClick={() => setActiveChat(everyoneRoom)}
-              style={{ marginBottom: 14 }}
+              style={{ marginBottom: 10 }}
             >
               <span className="face-avatar face-emoji sm" aria-hidden>
                 🌸
@@ -1572,6 +1726,25 @@ export function HomeApp({ userId, onLogout }: Props) {
               Run <strong>sql-lounge-everyone.sql</strong> in Supabase, then refresh to open the lounge
               room.
             </p>
+          )}
+
+          {announcementsRoom ? (
+            <button
+              className="row chat-list-row"
+              type="button"
+              onClick={() => setActiveChat(announcementsRoom)}
+              style={{ marginBottom: 14 }}
+            >
+              <span className="face-avatar face-emoji sm" aria-hidden>
+                📢
+              </span>
+              <div className="row-main">
+                <p className="row-title">Announcements &amp; Updates</p>
+                <p className="row-sub">Official club news · only @rafflesiaonline can post</p>
+              </div>
+            </button>
+          ) : (
+            <p className="muted">Run sql-announcements.sql for Announcements &amp; Updates.</p>
           )}
 
           {showNewGroup ? (
@@ -1827,7 +2000,46 @@ export function HomeApp({ userId, onLogout }: Props) {
               Save profile
             </button>
           </div>
+
+          {/* created: 2026-11-24T12:35:00-08:00 — delete account (PRD v2 B8) */}
+          <div className="danger-zone">
+            <p className="friend-pick-heading">Delete account</p>
+            <p className="muted">Type your username ({me?.username}) to confirm.</p>
+            <input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="username"
+              autoComplete="off"
+            />
+            <div className="action-row">
+              <button className="danger btn-compact" type="button" disabled={busy} onClick={deleteMyAccount}>
+                Delete account
+              </button>
+            </div>
+          </div>
         </form>
+      )}
+
+      {!viewProfile && !textBlockMsg && tab === 'siobhan' && (
+        <div className="siobhan-panel">
+          {/* created: 2026-11-24T12:35:00-08:00 — PRD v2 B7 */}
+          <h2 className="panel-title">Siobhan Daily</h2>
+          <p className="muted">School news for Oak Park / Siobhán Daily.</p>
+          <div className="siobhan-articles">
+            <p className="friend-pick-heading">In-app reading</p>
+            <p className="muted">More articles can live here later. For now, open the school site:</p>
+          </div>
+          <div className="action-row">
+            <a
+              className="primary btn-compact"
+              href="https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Click here to go to Siobhan Daily!
+            </a>
+          </div>
+        </div>
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'people' && (
@@ -1955,7 +2167,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               ← Back
             </button>
             <strong className="chat-title">{chatLabel}</strong>
-            {activeChat.is_group && !isEveryoneChat ? (
+            {activeChat.is_group && !isEveryoneChat && !isAnnouncementsChat ? (
               <button
                 className="ghost"
                 type="button"
@@ -1972,11 +2184,13 @@ export function HomeApp({ userId, onLogout }: Props) {
             <p className="muted" style={{ textAlign: 'left' }}>
               {isEveryoneChat
                 ? 'Club lounge room · anybody who signed up can talk here'
-                : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
+                : isAnnouncementsChat
+                  ? 'Official board · only @rafflesiaonline can post'
+                  : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
             </p>
           ) : null}
           {/* created: 2026-11-23T20:45:00-08:00 — WF-G3 Add friends */}
-          {activeChat.is_group && !isEveryoneChat && showAddFriends ? (
+          {activeChat.is_group && !isEveryoneChat && !isAnnouncementsChat && showAddFriends ? (
             <div className="add-friends-panel">
               <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
                 Add friends to this group chat
@@ -2028,6 +2242,8 @@ export function HomeApp({ userId, onLogout }: Props) {
             {messages.map((m) => {
               const sender = profilesById[m.sender_id]
               const mine = m.sender_id === userId
+              const shared = parsePostShare(m.body)
+              const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
               return (
                 <div className={`bubble ${mine ? 'mine' : ''}`} key={m.id}>
                   <div className="bubble-meta">
@@ -2037,7 +2253,32 @@ export function HomeApp({ userId, onLogout }: Props) {
                     />{' '}
                     · {new Date(m.created_at).toLocaleTimeString()}
                   </div>
-                  <div>{m.body}</div>
+                  {shared ? (
+                    <div className="share-card">
+                      <p className="friend-pick-heading">Shared post</p>
+                      {sharedPost ? (
+                        <>
+                          <p className="row-sub">
+                            {sharedPost.kind} · {authorName(sharedPost.author_id)}
+                          </p>
+                          {sharedPost.body ? <p className="profile-bio">{sharedPost.body}</p> : null}
+                          {sharedPost.kind === 'picture' && sharedPost.media_url ? (
+                            <img className="post-media" src={sharedPost.media_url} alt="" />
+                          ) : null}
+                          {sharedPost.kind === 'link' && sharedPost.media_url ? (
+                            <a href={sharedPost.media_url} target="_blank" rel="noreferrer">
+                              Open link
+                            </a>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="muted">Post preview (id {shared.postId.slice(0, 8)}…)</p>
+                      )}
+                      {shared.note ? <p className="profile-bio">{shared.note}</p> : null}
+                    </div>
+                  ) : (
+                    <div>{m.body}</div>
+                  )}
                   <button
                     type="button"
                     className={`like-btn ${myLiked.has(m.id) ? 'on' : ''}`}
@@ -2049,26 +2290,97 @@ export function HomeApp({ userId, onLogout }: Props) {
               )
             })}
           </div>
-          {/* created: 2026-11-23T20:30:00-08:00 — emoji bar */}
-          <EmojiBar
-            label="Emoji"
-            open={showEmojiBar}
-            onToggle={() => setShowEmojiBar((v) => !v)}
-            onPick={insertEmoji}
-          />
-          <form className="composer" onSubmit={sendMessage}>
-            <input
-              ref={draftInputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Type a message"
-            />
-            <button className="primary" type="submit" disabled={busy || !draft.trim()}>
-              Send
-            </button>
-          </form>
+          {isAnnouncementsChat && me?.username !== 'rafflesiaonline' ? (
+            <p className="muted">Read-only — only @rafflesiaonline can post here.</p>
+          ) : (
+            <>
+              <EmojiBar
+                label="Emoji"
+                open={showEmojiBar}
+                onToggle={() => setShowEmojiBar((v) => !v)}
+                onPick={insertEmoji}
+              />
+              <form className="composer" onSubmit={sendMessage}>
+                <input
+                  ref={draftInputRef}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Type a message"
+                />
+                <button className="primary" type="submit" disabled={busy || !draft.trim()}>
+                  Send
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
+
+      {sharePost && shareMode ? (
+        <div className="share-picker-overlay">
+          {/* created: 2026-11-24T12:35:00-08:00 */}
+          <div className="share-picker-card">
+            <h3 className="panel-title">{shareMode === 'send' ? 'Send post' : 'Share to Lounge'}</h3>
+            <button
+              className="ghost btn-compact"
+              type="button"
+              onClick={() => {
+                setSharePost(null)
+                setShareMode(null)
+              }}
+            >
+              Cancel
+            </button>
+            {shareMode === 'send' ? (
+              <div className="list">
+                {people.length === 0 ? (
+                  <p className="muted">No people to send to yet.</p>
+                ) : (
+                  people.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="row chat-list-row"
+                      disabled={busy}
+                      onClick={() => confirmSendToPerson(p)}
+                    >
+                      <FaceAvatar avatarUrl={p.avatar_url} iconPack={p.icon_pack} iconId={p.icon_id} size="sm" />
+                      <div className="row-main">
+                        <p className="row-title">{niceName(p)}</p>
+                        <p className="row-sub">@{p.username}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="list">
+                {[everyoneRoom, announcementsRoom, ...loungeGroups]
+                  .filter(Boolean)
+                  .map((c) => (
+                    <button
+                      key={(c as ChatRow).id}
+                      type="button"
+                      className="row chat-list-row"
+                      disabled={busy}
+                      onClick={() => confirmShareToGroup(c as ChatRow)}
+                    >
+                      <div className="row-main">
+                        <p className="row-title">
+                          {(c as ChatRow).lounge_key === 'everyone'
+                            ? 'Everyone'
+                            : (c as ChatRow).lounge_key === 'announcements'
+                              ? 'Announcements & Updates'
+                              : (c as ChatRow).title || 'Group'}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
       </div>
       {mainNav}
     </div>

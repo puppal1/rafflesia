@@ -1,6 +1,9 @@
 // created: 2026-11-24T11:45:00-08:00 — hourly no-repeat pastel rotation + user picks
 // updated: 2026-11-24T11:50:00-08:00 — user pick locks; no auto-rotate until Auto
+// updated: 2026-11-24T12:35:00-08:00 — manga full-screen BG images
 import { THEMES, themeById, type ThemeDef, type ThemeId } from './themes'
+
+const baseUrl = import.meta.env.BASE_URL || '/'
 
 const KEY_CURRENT = 'rafflesia_theme_id'
 const KEY_USED = 'rafflesia_theme_used'
@@ -60,6 +63,22 @@ export function applyTheme(theme: ThemeDef) {
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', theme.washMid)
   document.body.style.backgroundColor = theme.washMid
+  // created: 2026-11-24T12:35:00-08:00 — full-viewport manga BG when set
+  if (theme.bgImage) {
+    const url = `${baseUrl}theme-bgs/${theme.bgImage}`
+    document.body.style.backgroundImage = [
+      `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} 78%, transparent), color-mix(in srgb, ${theme.washMid} 72%, transparent), color-mix(in srgb, ${theme.washEdge} 75%, transparent))`,
+      `url("${url}")`,
+    ].join(', ')
+    document.body.style.backgroundSize = 'cover, cover'
+    document.body.style.backgroundPosition = 'center, center'
+    document.body.style.backgroundAttachment = 'fixed, fixed'
+  } else {
+    document.body.style.backgroundImage = ''
+    document.body.style.backgroundSize = ''
+    document.body.style.backgroundPosition = ''
+    document.body.style.backgroundAttachment = ''
+  }
 }
 
 /** created: 2026-11-24T11:45:00-08:00 — rotate each hour unless user locked a pick */

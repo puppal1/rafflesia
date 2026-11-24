@@ -284,15 +284,28 @@
   margin-bottom: 12px;
 }
 
+.tabs-compact {
+  /* created: 2026-11-24T12:15:00-08:00 — no full-bleed tab stretch */
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.tabs-compact button {
+  flex: 0 0 auto !important;
+  min-width: 7.5rem;
+  padding: 8px 16px !important;
+}
+
 .tabs button,
 .nav button {
   /* updated: 2026-11-24T11:50:00-08:00 */
-  flex: 1;
+  /* updated: 2026-11-24T12:15:00-08:00 — prefer compact unless rail */
+  flex: 0 1 auto;
   border: 2px solid var(--card-border);
   background: color-mix(in srgb, var(--card-bg) 70%, #fff);
   color: var(--text);
   border-radius: 999px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
@@ -317,6 +330,82 @@
   display: grid;
   gap: 10px;
   text-align: left;
+}
+
+/* created: 2026-11-24T12:15:00-08:00 — modern UX: content wins, actions stay small */
+.auth-panel,
+.form-compact,
+.me-form {
+  max-width: 420px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.auth-panel {
+  text-align: center;
+}
+
+.auth-panel .form {
+  text-align: left;
+}
+
+.auth-panel .teacher-link {
+  margin-top: 12px;
+  width: auto;
+  display: inline-flex;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
+.form > .primary,
+.form > .ghost,
+.form > .danger,
+.form .action-row .primary,
+.form .action-row .ghost,
+.form .action-row .danger,
+.me-actions-row .primary,
+.me-actions-row .ghost,
+.app-main-col .primary:not(.nav-rail button):not(.nav button),
+.app-main-col .ghost:not(.nav-rail button):not(.nav button),
+.app-main-col .danger,
+.auth-panel .primary,
+.auth-panel .ghost {
+  /* updated: 2026-11-24T12:35:00-08:00 — A1: no full-bleed kid CTAs */
+  width: auto;
+  max-width: 100%;
+  justify-self: start;
+  border-radius: 999px;
+  padding: 9px 16px;
+}
+
+.messages-header-row .primary,
+.messages-header-row .ghost {
+  width: auto !important;
+  flex-shrink: 0;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.row-actions .primary,
+.row-actions .ghost {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  border-radius: 999px;
 }
 
 .form label,
@@ -1090,8 +1179,11 @@
 }
 
 .primary.block {
-  width: 100%;
+  /* updated: 2026-11-24T12:15:00-08:00 — still not page-wide */
+  width: auto;
+  max-width: 100%;
   margin-top: 8px;
+  justify-self: start;
 }
 
 .text-blocked {
@@ -1624,4 +1716,206 @@ select {
   font-weight: 700;
   color: var(--text);
   line-height: 1.2;
+}
+
+/* created: 2026-11-24T12:45:00-08:00 — PRD v2 ToS / FYP / share / Siobhan / delete / manga */
+.tos-block {
+  margin: 10px 0 4px;
+  text-align: left;
+}
+.tos-scroll {
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--input-border);
+  background: color-mix(in srgb, var(--card-bg) 90%, #fff);
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.tos-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.tos-check input {
+  margin-top: 3px;
+}
+
+.fyp-panel {
+  display: grid;
+  gap: 10px;
+}
+.fyp-search {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--text);
+}
+.fyp-search input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--input-border);
+  background: var(--card-bg);
+  color: var(--text);
+  font: inherit;
+}
+.fyp-people-hits {
+  margin: 0;
+}
+.fyp-feed {
+  display: grid;
+  gap: 14px;
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  padding-bottom: 24px;
+}
+.fyp-card {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: 220px;
+}
+
+.post-comments {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  display: grid;
+  gap: 8px;
+}
+.post-comment {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-bg) 85%, #fff);
+}
+.post-comment .comment-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.post-comment-composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.post-comment-composer input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--input-border);
+  background: var(--card-bg);
+  font: inherit;
+}
+
+.share-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, #1a2430 45%, transparent);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.share-picker-card {
+  width: min(420px, 100%);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 2px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 25%, transparent);
+}
+.share-card {
+  border: 2px solid var(--card-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--card-bg) 92%, #fff);
+  display: grid;
+  gap: 4px;
+}
+.share-card .share-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.siobhan-panel {
+  display: grid;
+  gap: 12px;
+}
+.siobhan-articles {
+  display: grid;
+  gap: 10px;
+}
+.siobhan-articles a.primary {
+  width: auto;
+  justify-self: start;
+}
+
+.danger-zone {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid color-mix(in srgb, #c03030 55%, var(--card-border));
+  background: color-mix(in srgb, #ffe8e8 55%, var(--card-bg));
+  display: grid;
+  gap: 8px;
+}
+.danger-zone h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #8a2828;
+}
+.danger {
+  background: linear-gradient(135deg, #e05050, #c03030);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icon-manga-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  margin: 0 auto 4px;
+  border: 2px solid var(--card-border);
+}
+.face-avatar.face-manga {
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--card-border);
+}
+.icon-picker .action-row {
+  margin-top: 12px;
 }
