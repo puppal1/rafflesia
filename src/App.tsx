@@ -1,9 +1,10 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T19:59:00-08:00 — username max/vulgar/exact duplicate (similarity dropped)
-import { useEffect, useState } from 'react'
+// updated: 2026-11-23T20:34:00-08:00 — emoji bar on signup display name
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
+import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { supabase } from './lib/supabase'
 import {
   DISPLAY_NAME_MAX,
@@ -32,6 +33,9 @@ function App() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // created: 2026-11-23T20:34:00-08:00
+  const displayNameRef = useRef<HTMLInputElement | null>(null)
+  const [showSignupEmoji, setShowSignupEmoji] = useState(true)
 
   useEffect(() => {
     // created: 2026-11-23T11:59:00-08:00
@@ -147,16 +151,30 @@ function App() {
 
             <form className="form" onSubmit={onSubmit}>
               {mode === 'signup' && (
-                <label>
-                  Display name
-                  <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))}
-                    placeholder="What friends see"
-                    autoComplete="nickname"
-                    maxLength={DISPLAY_NAME_MAX}
+                <>
+                  <label>
+                    Display name
+                    <input
+                      ref={displayNameRef}
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))}
+                      placeholder="What friends see 😎"
+                      autoComplete="nickname"
+                      maxLength={DISPLAY_NAME_MAX}
+                    />
+                  </label>
+                  {/* created: 2026-11-23T20:34:00-08:00 */}
+                  <EmojiBar
+                    label="Emoji"
+                    open={showSignupEmoji}
+                    onToggle={() => setShowSignupEmoji((v) => !v)}
+                    onPick={(emoji) =>
+                      insertEmojiAtCursor(displayNameRef.current, displayName, (next) => {
+                        setDisplayName(next.slice(0, DISPLAY_NAME_MAX))
+                      }, emoji)
+                    }
                   />
-                </label>
+                </>
               )}
               <label>
                 Username

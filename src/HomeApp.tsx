@@ -1,35 +1,12 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:30:00-08:00 — live chat poll + emoji bar
+// updated: 2026-11-23T20:34:00-08:00 — emoji bars for group name, bio, display name
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, Profile, Tab } from './types'
-
-/** created: 2026-11-23T20:30:00-08:00 — school-safe emoji picker */
-const CHAT_EMOJIS = [
-  '😀',
-  '😂',
-  '🥰',
-  '😎',
-  '🤩',
-  '🙌',
-  '👍',
-  '👏',
-  '❤️',
-  '🔥',
-  '⭐',
-  '🎉',
-  '🌈',
-  '🌸',
-  '🍕',
-  '🎮',
-  '🏀',
-  '🐱',
-  '🐶',
-  '✨',
-]
 
 type Props = {
   userId: string
@@ -48,6 +25,8 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [viewProfile, setViewProfile] = useState<Profile | null>(null)
   const [followListKind, setFollowListKind] = useState<FollowListKind | null>(null)
   const [followList, setFollowList] = useState<Profile[]>([])
+  // created: 2026-11-23T20:33:00-08:00 — groups both you and they are in
+  const [sharedGroups, setSharedGroups] = useState<ChatRow[]>([])
   const [chats, setChats] = useState<ChatRow[]>([])
   const [activeChat, setActiveChat] = useState<ChatRow | null>(null)
   const [messages, setMessages] = useState<MessageRow[]>([])
@@ -62,8 +41,15 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   // created: 2026-11-23T20:30:00-08:00
+  // updated: 2026-11-23T20:34:00-08:00 — refs for all emoji fields
   const draftInputRef = useRef<HTMLInputElement | null>(null)
+  const groupTitleRef = useRef<HTMLInputElement | null>(null)
+  const editNameRef = useRef<HTMLInputElement | null>(null)
+  const editBioRef = useRef<HTMLTextAreaElement | null>(null)
   const [showEmojiBar, setShowEmojiBar] = useState(true)
+  const [showGroupEmoji, setShowGroupEmoji] = useState(true)
+  const [showNameEmoji, setShowNameEmoji] = useState(true)
+  const [showBioEmoji, setShowBioEmoji] = useState(true)
 
   const loadMe = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -386,71 +372,128 @@ export function HomeApp({ userId, onLogout }: Props) {
     return p.username || 'User'
   }
 
-  async function openFollowList(profile: Profile, kind: FollowListKind) {
-    // created: 2026-11-23T20:28:00-08:00 — show someone's followers or following
+  async function loadSharedGroups(otherUserId: string) {
+    // created: 2026-11-23T20:33:00-08:00 — invite-safe: only groups you both belong to
+    if (otherUserId === userId) {
+      const mine = chats.filter((c) => c.is_group)
+      setSharedGroups(mine)
+      return
+    }
+    const rpc = await supabase.rpc('list_shared_group_chats', { p_other_user_id: otherUserId })
+    if (!rpc.error && Array.isArray(rpc.data)) {
+      setSharedGroups(rpc.data as ChatRow[])
+      return
+    }
+    const myGroupIds = chats.filter((c) => c.is_group).map((c) => c.id)
+    if (!myGroupIds.length) {
+      setSharedGroups([])
+      return
+    }
+    const { data: edges, error } = await supabase
+      .from('chat_members')
+      .select('chat_id')
+      .eq('user_id', otherUserId)
+      .in('chat_id', myGroupIds)
+    if (error) {
+      setSharedGroups([])
+      return
+    }
+    const ids = new Set((edges || []).map((e) => String(e.chat_id)))
+    setSharedGroups(chats.filter((c) => c.is_group && ids.has(c.id)))
+  }
+
+  async function openProfile(profile: Profile, kind: FollowListKind | null = null) {
+    // created: 2026-11-23T20:33:00-08:00 — full account card + optional follow list
     setError('')
     setBusy(true)
-    setViewProfile(profile)
-    setFollowListKind(kind)
     setFollowList([])
+    setFollowListKind(kind)
     try {
-      const rpcName = kind === 'followers' ? 'list_user_followers' : 'list_user_following'
-      const { data, error: err } = await supabase.rpc(rpcName, { p_user_id: profile.id })
-      if (!err && Array.isArray(data)) {
-        setFollowList(data as Profile[])
-        return
-      }
-
-      // Table fallback once follows SELECT is public
-      if (kind === 'followers') {
-        const { data: edges, error: e2 } = await supabase
-          .from('follows')
-          .select('follower_id')
-          .eq('following_id', profile.id)
-        if (e2) throw err || e2
-        const ids = (edges || []).map((r) => String(r.follower_id))
-        if (!ids.length) {
-          setFollowList([])
-          return
-        }
-        const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
-        if (e3) throw e3
-        setFollowList((rows || []) as Profile[])
-      } else {
-        const { data: edges, error: e2 } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', profile.id)
-        if (e2) throw err || e2
-        const ids = (edges || []).map((r) => String(r.following_id))
-        if (!ids.length) {
-          setFollowList([])
-          return
-        }
-        const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
-        if (e3) throw e3
-        setFollowList((rows || []) as Profile[])
-      }
+      const { data: fresh, error: pErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .maybeSingle()
+      if (pErr) throw pErr
+      const full = (fresh as Profile | null) || profile
+      setViewProfile(full)
+      await loadSharedGroups(full.id)
+      if (kind) await loadFollowListFor(full.id, kind)
     } catch (err) {
+      setViewProfile(profile)
+      await loadSharedGroups(profile.id)
       const msg =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: string }).message)
           : err instanceof Error
             ? err.message
-            : 'Could not load list.'
-      setError(
-        `Follow list failed: ${msg}. Run sql/fix-follows-rls.sql in Supabase if this keeps happening.`,
-      )
+            : 'Could not open profile.'
+      setError(`Profile: ${msg}`)
     } finally {
       setBusy(false)
     }
   }
 
+  async function loadFollowListFor(profileId: string, kind: FollowListKind) {
+    // created: 2026-11-23T20:28:00-08:00
+    // updated: 2026-11-23T20:33:00-08:00 — split from openProfile
+    const rpcName = kind === 'followers' ? 'list_user_followers' : 'list_user_following'
+    const { data, error: err } = await supabase.rpc(rpcName, { p_user_id: profileId })
+    if (!err && Array.isArray(data)) {
+      setFollowList(data as Profile[])
+      return
+    }
+    if (kind === 'followers') {
+      const { data: edges, error: e2 } = await supabase
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', profileId)
+      if (e2) throw err || e2
+      const ids = (edges || []).map((r) => String(r.follower_id))
+      if (!ids.length) {
+        setFollowList([])
+        return
+      }
+      const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
+      if (e3) throw e3
+      setFollowList((rows || []) as Profile[])
+    } else {
+      const { data: edges, error: e2 } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', profileId)
+      if (e2) throw err || e2
+      const ids = (edges || []).map((r) => String(r.following_id))
+      if (!ids.length) {
+        setFollowList([])
+        return
+      }
+      const { data: rows, error: e3 } = await supabase.from('profiles').select('*').in('id', ids)
+      if (e3) throw e3
+      setFollowList((rows || []) as Profile[])
+    }
+  }
+
+  async function openFollowList(profile: Profile, kind: FollowListKind) {
+    // created: 2026-11-23T20:28:00-08:00
+    // updated: 2026-11-23T20:33:00-08:00 — route through full profile
+    await openProfile(profile, kind)
+  }
+
   function closeFollowProfile() {
     // created: 2026-11-23T20:28:00-08:00
+    // updated: 2026-11-23T20:33:00-08:00
     setViewProfile(null)
     setFollowListKind(null)
     setFollowList([])
+    setSharedGroups([])
+  }
+
+  async function openSharedGroup(chat: ChatRow) {
+    // created: 2026-11-23T20:33:00-08:00
+    closeFollowProfile()
+    setTab('chats')
+    setActiveChat(chat)
   }
 
   async function toggleFollow(targetId: string) {
@@ -552,20 +595,8 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   function insertEmoji(emoji: string) {
     // created: 2026-11-23T20:30:00-08:00
-    const el = draftInputRef.current
-    if (!el) {
-      setDraft((d) => d + emoji)
-      return
-    }
-    const start = el.selectionStart ?? draft.length
-    const end = el.selectionEnd ?? draft.length
-    const next = draft.slice(0, start) + emoji + draft.slice(end)
-    setDraft(next)
-    requestAnimationFrame(() => {
-      el.focus()
-      const pos = start + emoji.length
-      el.setSelectionRange(pos, pos)
-    })
+    // updated: 2026-11-23T20:34:00-08:00 — shared helper
+    insertEmojiAtCursor(draftInputRef.current, draft, setDraft, emoji)
   }
 
   async function sendMessage(e: FormEvent) {
@@ -686,14 +717,34 @@ export function HomeApp({ userId, onLogout }: Props) {
 
       {viewProfile && (
         <div className="follow-panel">
-          {/* created: 2026-11-23T20:28:00-08:00 — anyone can open followers / following */}
+          {/* created: 2026-11-23T20:28:00-08:00 */}
+          {/* updated: 2026-11-23T20:33:00-08:00 — full account: bio, pics, shared groups */}
           <div className="toolbar" style={{ marginBottom: 10 }}>
             <button className="ghost" type="button" onClick={closeFollowProfile}>
               ← Back
             </button>
-            <strong>{niceName(viewProfile)}</strong>
+            <strong>{viewProfile.id === userId ? 'My profile' : 'Profile'}</strong>
           </div>
+
+          {viewProfile.banner_url ? (
+            <img className="banner-preview" src={viewProfile.banner_url} alt="Banner" />
+          ) : (
+            <div className="banner-preview placeholder">No banner yet</div>
+          )}
+          {viewProfile.avatar_url ? (
+            <img className="avatar-preview" src={viewProfile.avatar_url} alt="Profile" />
+          ) : (
+            <div className="avatar-preview placeholder">No picture</div>
+          )}
+
+          <h2 className="panel-title" style={{ marginTop: 8 }}>
+            {niceName(viewProfile)}
+          </h2>
           <p className="muted">@{viewProfile.username}</p>
+          <p className="profile-bio">
+            {(viewProfile.bio || '').trim() ? viewProfile.bio : 'No bio yet.'}
+          </p>
+
           <div className="follow-counts">
             <button
               type="button"
@@ -710,6 +761,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               {followingCountById[viewProfile.id] || 0} following
             </button>
           </div>
+
           {viewProfile.id !== userId ? (
             <div className="row-actions" style={{ marginBottom: 12 }}>
               <button className="ghost" type="button" onClick={() => toggleFollow(viewProfile.id)}>
@@ -720,38 +772,69 @@ export function HomeApp({ userId, onLogout }: Props) {
               </button>
             </div>
           ) : null}
-          <h2 className="panel-title">
-            {followListKind === 'followers' ? 'Followers' : followListKind === 'following' ? 'Following' : 'Lists'}
-          </h2>
-          <div className="list">
-            {!followListKind ? (
-              <p className="muted">Tap followers or following above.</p>
-            ) : followList.length === 0 ? (
+
+          <h2 className="panel-title">Group chats together</h2>
+          <div className="list" style={{ marginBottom: 14 }}>
+            {sharedGroups.length === 0 ? (
               <p className="muted">
-                {followListKind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+                {viewProfile.id === userId
+                  ? 'Your groups show under Chats. Create one and add friends.'
+                  : 'No shared groups yet. Create a group in Chats and add them.'}
               </p>
             ) : (
-              followList.map((p) => (
-                <div className="row" key={p.id}>
-                  <button
-                    type="button"
-                    className="row-main linkish"
-                    onClick={() => openFollowList(p, 'followers')}
-                  >
-                    <p className="row-title">{niceName(p)}</p>
-                    <p className="row-sub">@{p.username}</p>
-                  </button>
-                  {p.id !== userId ? (
-                    <div className="row-actions">
-                      <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
-                        {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+              sharedGroups.map((g) => (
+                <button
+                  key={g.id}
+                  className="row"
+                  type="button"
+                  style={{ width: '100%', cursor: 'pointer', textAlign: 'left' }}
+                  onClick={() => openSharedGroup(g)}
+                >
+                  <div className="row-main">
+                    <p className="row-title">{g.title || 'Group'}</p>
+                    <p className="row-sub">Group chat · tap to open</p>
+                  </div>
+                </button>
               ))
             )}
           </div>
+
+          {followListKind ? (
+            <>
+              <h2 className="panel-title">
+                {followListKind === 'followers' ? 'Followers' : 'Following'}
+              </h2>
+              <div className="list">
+                {followList.length === 0 ? (
+                  <p className="muted">
+                    {followListKind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+                  </p>
+                ) : (
+                  followList.map((p) => (
+                    <div className="row" key={p.id}>
+                      <button
+                        type="button"
+                        className="row-main linkish"
+                        onClick={() => openProfile(p)}
+                      >
+                        <p className="row-title">{niceName(p)}</p>
+                        <p className="row-sub">@{p.username}</p>
+                      </button>
+                      {p.id !== userId ? (
+                        <div className="row-actions">
+                          <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
+                            {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="muted">Tap followers or following to see those lists.</p>
+          )}
         </div>
       )}
 
@@ -816,12 +899,35 @@ export function HomeApp({ userId, onLogout }: Props) {
 
           <label>
             Display name
-            <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <input
+              ref={editNameRef}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
           </label>
+          {/* created: 2026-11-23T20:34:00-08:00 */}
+          <EmojiBar
+            label="Emoji"
+            open={showNameEmoji}
+            onToggle={() => setShowNameEmoji((v) => !v)}
+            onPick={(emoji) =>
+              insertEmojiAtCursor(editNameRef.current, editName, setEditName, emoji)
+            }
+          />
           <label>
             Bio
-            <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} />
+            <textarea
+              ref={editBioRef}
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+            />
           </label>
+          <EmojiBar
+            label="Emoji"
+            open={showBioEmoji}
+            onToggle={() => setShowBioEmoji((v) => !v)}
+            onPick={(emoji) => insertEmojiAtCursor(editBioRef.current, editBio, setEditBio, emoji)}
+          />
           <button className="primary" type="submit" disabled={busy}>
             Save profile
           </button>
@@ -838,7 +944,7 @@ export function HomeApp({ userId, onLogout }: Props) {
             ) : (
               people.map((p) => (
                 <div className="row" key={p.id}>
-                  <button type="button" className="row-main linkish" onClick={() => openFollowList(p, 'followers')}>
+                  <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
                     <p className="row-title">{niceName(p)}</p>
                     <p className="row-sub">
                       @{p.username} · {followerCountById[p.id] || 0} followers · {followingCountById[p.id] || 0}{' '}
@@ -868,11 +974,21 @@ export function HomeApp({ userId, onLogout }: Props) {
             <label>
               New group name
               <input
+                ref={groupTitleRef}
                 value={groupTitle}
                 onChange={(e) => setGroupTitle(e.target.value)}
-                placeholder="My group"
+                placeholder="My group 🎉"
               />
             </label>
+            {/* created: 2026-11-23T20:34:00-08:00 — emoji for group titles */}
+            <EmojiBar
+              label="Emoji"
+              open={showGroupEmoji}
+              onToggle={() => setShowGroupEmoji((v) => !v)}
+              onPick={(emoji) =>
+                insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
+              }
+            />
             <button className="primary" type="submit" disabled={busy || !groupTitle.trim()}>
               Create group
             </button>
@@ -931,29 +1047,12 @@ export function HomeApp({ userId, onLogout }: Props) {
             })}
           </div>
           {/* created: 2026-11-23T20:30:00-08:00 — emoji bar */}
-          <div className="emoji-bar-wrap">
-            <button
-              className="ghost emoji-toggle"
-              type="button"
-              onClick={() => setShowEmojiBar((v) => !v)}
-            >
-              {showEmojiBar ? 'Hide emoji' : 'Emoji'}
-            </button>
-            {showEmojiBar ? (
-              <div className="emoji-bar" role="listbox" aria-label="Emoji">
-                {CHAT_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className="emoji-btn"
-                    onClick={() => insertEmoji(emoji)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <EmojiBar
+            label="Emoji"
+            open={showEmojiBar}
+            onToggle={() => setShowEmojiBar((v) => !v)}
+            onPick={insertEmoji}
+          />
           <form className="composer" onSubmit={sendMessage}>
             <input
               ref={draftInputRef}
