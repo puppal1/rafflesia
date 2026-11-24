@@ -59,6 +59,10 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [myLiked, setMyLiked] = useState<Set<string>>(new Set())
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({})
   const [draft, setDraft] = useState('')
+  // created: 2026-11-24T13:35:00-08:00 — chat photo + link attach
+  const [chatMediaUrl, setChatMediaUrl] = useState<string | null>(null)
+  const [chatMediaName, setChatMediaName] = useState('')
+  const [chatLink, setChatLink] = useState('')
   const [groupTitle, setGroupTitle] = useState('')
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
@@ -977,31 +981,46 @@ export function HomeApp({ userId, onLogout }: Props) {
   async function sendMessage(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
     // updated: 2026-11-23T21:10:00-08:00 — calm text block before send
+    // updated: 2026-11-24T13:35:00-08:00 — photo + link attach
     e.preventDefault()
-    if (!activeChat || !draft.trim()) return
+    const link = chatLink.trim()
+    const text = draft.trim()
+    const parts = [text]
+    if (link) {
+      if (!/^https?:\/\//i.test(link)) {
+        setError('Link must start with http:// or https://')
+        return
+      }
+      parts.push(link)
+    }
+    const body = parts.filter(Boolean).join('\n')
+    if (!activeChat || (!body && !chatMediaUrl)) return
     setBusy(true)
     setError('')
-    const body = draft.trim()
     try {
-      const check = await checkKidText(body)
-      if (!check.ok) {
-        await reportBlockedText('message', body, check.matched)
-        setTextBlockMsg(check.message)
-        return
+      if (body) {
+        const check = await checkKidText(body)
+        if (!check.ok) {
+          await reportBlockedText('message', body, check.matched)
+          setTextBlockMsg(check.message)
+          return
+        }
       }
       const restr = await supabase.rpc('my_restrictions')
       if (!restr.error && restr.data && (restr.data as { block_message?: boolean }).block_message) {
         setError('Messaging is restricted by a teacher right now.')
         return
       }
-      // updated: 2026-11-24T13:05:00-08:00 — always pass p_video_url (overload ambiguity)
       const { data, error: err } = await supabase.rpc('send_chat_message', {
         p_chat_id: activeChat.id,
-        p_body: body,
-        p_video_url: null,
+        p_body: body || (chatMediaUrl ? '📷' : ''),
+        p_video_url: chatMediaUrl,
       })
       if (err) throw err
       setDraft('')
+      setChatLink('')
+      setChatMediaUrl(null)
+      setChatMediaName('')
       if (data && typeof data === 'object' && 'id' in data) {
         const row = data as MessageRow
         setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
@@ -1028,6 +1047,22 @@ export function HomeApp({ userId, onLogout }: Props) {
             ? err.message
             : 'Could not send.'
       setError(`Send failed: ${msg}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onChatPhoto(file: File | null) {
+    // created: 2026-11-24T13:35:00-08:00
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const url = await uploadPostFile(file, 'picture')
+      setChatMediaUrl(url)
+      setChatMediaName(file.name)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo upload failed.')
     } finally {
       setBusy(false)
     }
@@ -1559,6 +1594,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                   userId={userId}
                   authorName={authorName(p.author_id)}
                   authorTier={authorProfile(p.author_id)?.verify_tier}
+                  uploadPicture={(file) => uploadPostFile(file, 'picture')}
                   profilesById={{
                     ...profilesById,
                     ...Object.fromEntries(people.map((x) => [x.id, x])),
@@ -2298,7 +2334,28 @@ export function HomeApp({ userId, onLogout }: Props) {
                       {shared.note ? <p className="profile-bio">{shared.note}</p> : null}
                     </div>
                   ) : (
-                    <div>{m.body}</div>
+                    <div className="chat-msg-body">
+                      {m.body ? <div className="chat-msg-text">{m.body}</div> : null}
+                      {m.video_url ? (
+                        /\.(png|jpe?g|gif|webp)(\?|$)/i.test(m.video_url) ||
+                        m.video_url.includes('/storage/v1/object/public/posts/') ? (
+                          <img className="chat-media" src={m.video_url} alt="" />
+                        ) : (
+                          <video className="chat-media" src={m.video_url} controls playsInline />
+                        )
+                      ) : null}
+                      {m.body &&
+                      /https?:\/\/\S+/i.test(m.body) &&
+                      !m.video_url ? (
+                        <p className="chat-msg-links">
+                          {(m.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
+                            <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                              Open link
+                            </a>
+                          ))}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
                   <button
                     type="button"
@@ -2321,14 +2378,51 @@ export function HomeApp({ userId, onLogout }: Props) {
                 onToggle={() => setShowEmojiBar((v) => !v)}
                 onPick={insertEmoji}
               />
-              <form className="composer" onSubmit={sendMessage}>
+              <form className="composer composer-rich" onSubmit={sendMessage}>
                 <input
                   ref={draftInputRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Type a message"
                 />
-                <button className="primary" type="submit" disabled={busy || !draft.trim()}>
+                <label className="composer-link">
+                  Link (optional)
+                  <input
+                    value={chatLink}
+                    onChange={(e) => setChatLink(e.target.value)}
+                    placeholder="https://…"
+                    inputMode="url"
+                  />
+                </label>
+                <label className="post-file-label composer-photo">
+                  Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={busy}
+                    onChange={(e) => onChatPhoto(e.target.files?.[0] || null)}
+                  />
+                </label>
+                {chatMediaUrl ? (
+                  <p className="muted composer-attach">
+                    Photo ready{chatMediaName ? `: ${chatMediaName}` : ''}{' '}
+                    <button
+                      type="button"
+                      className="ghost btn-compact"
+                      onClick={() => {
+                        setChatMediaUrl(null)
+                        setChatMediaName('')
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </p>
+                ) : null}
+                <button
+                  className="primary"
+                  type="submit"
+                  disabled={busy || (!draft.trim() && !chatMediaUrl && !chatLink.trim())}
+                >
                   Send
                 </button>
               </form>

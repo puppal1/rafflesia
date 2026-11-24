@@ -2109,6 +2109,77 @@ select {
   display: grid;
   gap: 8px;
 }
+
+/* created: 2026-11-24T13:35:00-08:00 — emoji likes + comment/chat media */
+.reaction-bar {
+  display: grid;
+  gap: 6px;
+}
+.reaction-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.reaction-pill {
+  border: 2px solid var(--card-border, #cfe4f8);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.reaction-pill.on {
+  border-color: var(--accent, #4da3e8);
+  background: color-mix(in srgb, var(--accent, #4da3e8) 18%, #fff);
+}
+.reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.reaction-picker .emoji-btn.on {
+  outline: 2px solid var(--accent, #4da3e8);
+}
+.comment-media,
+.chat-media {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 10px;
+  margin-top: 6px;
+  background: #e3f2ff;
+}
+.composer-rich {
+  display: grid;
+  gap: 8px;
+}
+.composer-rich input[type='text'],
+.composer-link input {
+  width: 100%;
+}
+.composer-link {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text, #2f3a55);
+}
+.composer-attach,
+.chat-msg-links {
+  margin: 0;
+  text-align: left;
+}
+.chat-msg-links a {
+  display: inline-block;
+  margin-right: 8px;
+}
+.chat-msg-body {
+  display: grid;
+  gap: 6px;
+}
 .siobhan-when {
   font-size: 0.75rem;
 }
