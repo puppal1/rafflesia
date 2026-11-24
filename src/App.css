@@ -571,10 +571,17 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
 }
 
 .bubble {
+  /* updated: 2026-11-24T13:52:00-08:00 — contain long text / media inside the pane */
   padding: 8px 10px;
   border-radius: 14px;
   background: #eef6ff;
   border: 2px solid #9ed0ff;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .bubble.mine {
@@ -586,6 +593,8 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   font-size: 0.75rem;
   color: #4a6f94;
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .composer {
@@ -2487,8 +2496,20 @@ select {
   margin-right: 8px;
 }
 .chat-msg-body {
+  /* updated: 2026-11-24T13:52:00-08:00 — keep long text inside bubble */
   display: grid;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.chat-msg-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 .siobhan-when {
   font-size: 0.75rem;
@@ -2693,8 +2714,10 @@ select {
 }
 
 .msg-inbox {
+  /* updated: 2026-11-24T13:52:00-08:00 — friends list must scroll */
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -2703,6 +2726,7 @@ select {
 }
 
 .msg-inbox-head {
+  flex-shrink: 0;
   padding: 14px 14px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--card-border, #9ed0ff) 55%, transparent);
 }
@@ -2724,9 +2748,12 @@ select {
 }
 
 .msg-inbox-list {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 6px;
 }
 
@@ -2842,10 +2869,30 @@ select {
 
 .msg-thread .bubble {
   max-width: min(92%, 520px);
+  width: fit-content;
 }
 
 .msg-thread .bubble.mine {
   margin-left: auto;
+}
+
+.msg-thread .chat-media-btn,
+.msg-thread .chat-media {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.msg-thread .chat-media {
+  max-height: 220px;
+}
+
+.msg-thread .share-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .msg-empty,
