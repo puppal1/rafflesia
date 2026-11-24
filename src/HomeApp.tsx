@@ -1091,15 +1091,35 @@ export function HomeApp({ userId, onLogout }: Props) {
   return (
     <div className="app-with-rail">
       <div className="app-main-col">
-      {/* updated: 2026-11-23T23:59:00-08:00 — Log out lives on Me profile only */}
+      {/* updated: 2026-11-24T00:00:00-08:00 — corner face opens My profile */}
       <div className="header-bar">
-        <div>
-          <img className="logo-sm" src={logoSrc} alt="" />
-          <h1 className="brand">Rafflesia Online</h1>
-          <p className="tag" style={{ marginBottom: 0 }}>
-            {iconEmoji(me?.icon_pack, me?.icon_id)} Hi{' '}
-            <NameWithBadge name={niceName(me)} tier={me?.verify_tier} />
-          </p>
+        <div className="header-identity">
+          <button
+            type="button"
+            className="header-face-btn"
+            title="My profile"
+            aria-label="Open my profile"
+            onClick={() => {
+              closeFollowProfile()
+              setActiveChat(null)
+              setTab('me')
+            }}
+          >
+            <FaceAvatar
+              avatarUrl={me?.avatar_url}
+              iconPack={me?.icon_pack}
+              iconId={me?.icon_id}
+              size="md"
+              className="header-face"
+            />
+          </button>
+          <div>
+            <h1 className="brand">Rafflesia Online</h1>
+            <p className="tag" style={{ marginBottom: 0 }}>
+              {iconEmoji(me?.icon_pack, me?.icon_id)} Hi{' '}
+              <NameWithBadge name={niceName(me)} tier={me?.verify_tier} />
+            </p>
+          </div>
         </div>
       </div>
 
