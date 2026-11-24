@@ -2086,6 +2086,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         // updated: 2026-11-24T13:10:00-08:00 — manga science scrolling feed
         <SiobhanFeed
           userId={userId}
+          uploadPicture={(file) => uploadPostFile(file, 'picture')}
           profilesById={{
             ...profilesById,
             ...(me ? { [userId]: me } : {}),

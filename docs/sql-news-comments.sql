@@ -1,4 +1,5 @@
 -- created: 2026-11-24T13:25:00-08:00
+-- updated: 2026-11-24T14:05:00-08:00 — media_url for standard comment panel (photo)
 -- Siobhan Daily / news feed comments (keyed by article_key, not posts.id)
 
 create table if not exists public.news_comments (
@@ -10,6 +11,9 @@ create table if not exists public.news_comments (
   deleted_at timestamptz,
   deleted_reason text
 );
+
+alter table public.news_comments
+  add column if not exists media_url text;
 
 create index if not exists news_comments_article_idx
   on public.news_comments (article_key, created_at)
@@ -27,7 +31,14 @@ create policy "news_comments_insert_own" on public.news_comments
   for insert to authenticated
   with check (author_id = auth.uid());
 
-create or replace function public.create_news_comment(p_article_key text, p_body text)
+drop function if exists public.create_news_comment(text, text);
+drop function if exists public.create_news_comment(text, text, text);
+
+create or replace function public.create_news_comment(
+  p_article_key text,
+  p_body text,
+  p_media_url text default null
+)
 returns public.news_comments
 language plpgsql
 security definer
@@ -37,20 +48,28 @@ declare
   uid uuid := auth.uid();
   body text := trim(coalesce(p_body, ''));
   key text := trim(coalesce(p_article_key, ''));
+  media text := nullif(trim(coalesce(p_media_url, '')), '');
   rec public.news_comments;
-  restr public.user_restrictions;
+  v_block_msg boolean := false;
 begin
   if uid is null then raise exception 'Not logged in'; end if;
   if key = '' then raise exception 'Missing article'; end if;
   if char_length(key) > 500 then raise exception 'Article key too long'; end if;
-  if body = '' then raise exception 'Comment is empty'; end if;
-  if char_length(body) > 500 then raise exception 'Comment too long'; end if;
-  select * into restr from public.user_restrictions where user_id = uid;
-  if coalesce(restr.block_message, false) then
+  if body = '' and media is null then raise exception 'Write a comment or add a picture.'; end if;
+  if char_length(body) > 800 then raise exception 'Comment too long'; end if;
+
+  if to_regclass('public.user_restrictions') is not null then
+    select coalesce(ur.block_message, false)
+      into v_block_msg
+    from public.user_restrictions ur
+    where ur.user_id = uid;
+  end if;
+  if v_block_msg then
     raise exception 'Messaging is restricted by a teacher';
   end if;
-  insert into public.news_comments (article_key, author_id, body)
-  values (key, uid, body)
+
+  insert into public.news_comments (article_key, author_id, body, media_url)
+  values (key, uid, case when body = '' then '📷' else body end, media)
   returning * into rec;
   return rec;
 end;
@@ -72,7 +91,7 @@ begin
 end;
 $$;
 
-revoke all on function public.create_news_comment(text, text) from public;
+revoke all on function public.create_news_comment(text, text, text) from public;
 revoke all on function public.soft_delete_my_news_comment(uuid) from public;
-grant execute on function public.create_news_comment(text, text) to authenticated;
+grant execute on function public.create_news_comment(text, text, text) to authenticated;
 grant execute on function public.soft_delete_my_news_comment(uuid) to authenticated;

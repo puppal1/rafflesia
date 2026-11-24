@@ -1,15 +1,13 @@
 // created: 2026-11-24T12:35:00-08:00 — post card: media, comments, delete, send/share
 // updated: 2026-11-24T12:55:00-08:00 — stacked layout (no action overlap)
 // updated: 2026-11-24T13:35:00-08:00 — emoji likes, comment emoji + photo
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
-import { EmojiBar, insertEmojiAtCursor } from '../lib/emojiBar'
 import type { ReactionRow, ReactionTarget } from '../lib/reactions'
 import { NameWithBadge } from './VerifiedBadge'
 import { ReactionBar } from './ReactionBar'
-import { PhotoAttach } from './PhotoAttach'
+import { CommentComposer } from './CommentComposer'
 import type { PostRow, Profile } from '../types'
 
 export type PostComment = {
@@ -55,14 +53,9 @@ export function PostCard({
 }: Props) {
   const [openComments, setOpenComments] = useState(false)
   const [comments, setComments] = useState<PostComment[]>([])
-  const [draft, setDraft] = useState('')
-  const [commentMedia, setCommentMedia] = useState<string | null>(null)
-  const [commentFileName, setCommentFileName] = useState('')
-  const [showEmoji, setShowEmoji] = useState(false)
   const [localBusy, setLocalBusy] = useState(false)
   const [err, setErr] = useState('')
   const [reactions, setReactions] = useState<ReactionRow[]>([])
-  const draftRef = useRef<HTMLInputElement | null>(null)
   const mine = post.author_id === userId
 
   const loadComments = useCallback(async () => {
@@ -131,82 +124,6 @@ export function PostCard({
       await loadReactions()
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : 'Could not react.')
-    } finally {
-      setLocalBusy(false)
-    }
-  }
-
-  async function onPickCommentPhoto(file: File | null) {
-    if (!file || !uploadPicture) return
-    setLocalBusy(true)
-    setErr('')
-    try {
-      const url = await uploadPicture(file)
-      setCommentMedia(url)
-      setCommentFileName(file.name)
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Photo upload failed.')
-    } finally {
-      setLocalBusy(false)
-    }
-  }
-
-  async function submitComment(e: FormEvent) {
-    e.preventDefault()
-    const body = draft.trim()
-    if (!body && !commentMedia) return
-    setLocalBusy(true)
-    setErr('')
-    try {
-      if (body) {
-        const check = await checkKidText(body)
-        if (!check.ok) {
-          await reportBlockedText('comment', body, check.matched)
-          setErr(check.message)
-          return
-        }
-      }
-      const { error } = await supabase.rpc('create_post_comment', {
-        p_post_id: post.id,
-        p_body: body || '📷',
-        p_media_url: commentMedia,
-      })
-      if (error) {
-        if (/ambiguous|block_post/i.test(error.message)) {
-          throw new Error('Run docs/sql-fix-comment-block-ambiguous.sql in Supabase, then hard refresh.')
-        }
-        const missing =
-          /could not find the function|schema cache|create_post_comment/i.test(error.message) ||
-          error.code === 'PGRST202'
-        if (missing) {
-          const { error: insErr } = await supabase.from('post_comments').insert({
-            post_id: post.id,
-            author_id: userId,
-            body: body || '📷',
-            media_url: commentMedia,
-          })
-          if (insErr) {
-            throw new Error(
-              insErr.message.includes('post_comments')
-                ? 'Run docs/sql-post-comments.sql + sql-fix-comment-block-ambiguous.sql in Supabase.'
-                : insErr.message,
-            )
-          }
-        } else {
-          throw new Error(error.message)
-        }
-      }
-      setDraft('')
-      setCommentMedia(null)
-      setCommentFileName('')
-      await loadComments()
-      await loadReactions()
-    } catch (ex) {
-      const msg =
-        ex && typeof ex === 'object' && 'message' in ex && typeof (ex as { message: unknown }).message === 'string'
-          ? (ex as { message: string }).message
-          : 'Could not comment.'
-      setErr(msg)
     } finally {
       setLocalBusy(false)
     }
@@ -332,6 +249,15 @@ export function PostCard({
                   </p>
                   <p className="profile-bio">{c.body}</p>
                   {c.media_url ? <img className="comment-media" src={c.media_url} alt="" /> : null}
+                  {(c.body.match(/https?:\/\/\S+/gi) || []).length > 0 ? (
+                    <p className="chat-msg-links">
+                      {(c.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
+                        <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                          Open link
+                        </a>
+                      ))}
+                    </p>
+                  ) : null}
                   <ReactionBar
                     targetType="comment"
                     targetId={c.id}
@@ -354,47 +280,30 @@ export function PostCard({
               )
             })
           )}
-          <form className="form form-compact comment-form" onSubmit={submitComment}>
-            <EmojiBar
-              label="Emoji"
-              open={showEmoji}
-              onToggle={() => setShowEmoji((v) => !v)}
-              onPick={(emoji) => insertEmojiAtCursor(draftRef.current, draft, setDraft, emoji)}
-            />
-            <label>
-              Comment
-              <input
-                ref={draftRef}
-                value={draft}
-                maxLength={500}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Say hi… add emoji or a photo"
-              />
-            </label>
-            {uploadPicture ? (
-              <PhotoAttach
-                label="Add photo to comment"
-                hint="Optional · tap to attach a picture"
-                previewUrl={commentMedia}
-                fileName={commentFileName}
-                busy={localBusy}
-                onPick={(file) => onPickCommentPhoto(file)}
-                onClear={() => {
-                  setCommentMedia(null)
-                  setCommentFileName('')
-                }}
-              />
-            ) : null}
-            <div className="action-row">
-              <button
-                className="primary btn-compact"
-                type="submit"
-                disabled={localBusy || (!draft.trim() && !commentMedia)}
-              >
-                Comment
-              </button>
-            </div>
-          </form>
+          <CommentComposer
+            busy={localBusy || busy}
+            uploadPicture={uploadPicture}
+            onSubmit={async ({ body, mediaUrl }) => {
+              const check = await checkKidText(body)
+              if (!check.ok) {
+                await reportBlockedText('comment', body, check.matched)
+                throw new Error(check.message)
+              }
+              const { error } = await supabase.rpc('create_post_comment', {
+                p_post_id: post.id,
+                p_body: body,
+                p_media_url: mediaUrl,
+              })
+              if (error) {
+                if (/ambiguous|block_post|deleted_at/i.test(error.message)) {
+                  throw new Error('Run docs/sql-fix-comment-block-ambiguous.sql in Supabase, then hard refresh.')
+                }
+                throw new Error(error.message)
+              }
+              await loadComments()
+              await loadReactions()
+            }}
+          />
         </div>
       ) : null}
     </article>

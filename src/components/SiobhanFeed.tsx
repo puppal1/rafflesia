@@ -14,11 +14,13 @@ type Props = {
   userId: string
   profilesById: Record<string, Profile>
   onProfiles?: (rows: Profile[]) => void
+  /** created: 2026-11-24T14:05:00-08:00 */
+  uploadPicture?: (file: File) => Promise<string>
 }
 
 /** created: 2026-11-24T13:10:00-08:00 */
-/** updated: 2026-11-24T13:25:00-08:00 */
-export function SiobhanFeed({ userId, profilesById, onProfiles }: Props) {
+/** updated: 2026-11-24T14:05:00-08:00 — pass photo upload into standard comment panel */
+export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }: Props) {
   const [items, setItems] = useState<LiveNewsItem[]>([])
   const [fromLive, setFromLive] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -133,6 +135,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles }: Props) {
                 userId={userId}
                 profilesById={profilesById}
                 onProfiles={onProfiles}
+                uploadPicture={uploadPicture}
               />
             </article>
           ))

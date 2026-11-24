@@ -4,9 +4,9 @@
 <!-- project: btzgwfcnpnhtfnfxauqe -->
 
 1. Open https://supabase.com/dashboard/project/btzgwfcnpnhtfnfxauqe/sql/new  
-2. Paste **entire** [`sql-fix-comment-block-ambiguous.sql`](sql-fix-comment-block-ambiguous.sql) → **Run** ← **do this now**  
-   (adds `posts.deleted_at` if missing · fixes comments · comment photos)  
-3. Paste **entire** [`sql-content-reactions.sql`](sql-content-reactions.sql) → **Run** (emoji likes)  
-4. Hard refresh https://diyaanuppal.github.io/rafflesia-online/
+2. Paste **entire** [`sql-fix-comment-block-ambiguous.sql`](sql-fix-comment-block-ambiguous.sql) → **Run** ← For You comments  
+3. Paste **entire** [`sql-news-comments.sql`](sql-news-comments.sql) → **Run** ← **Siobhan comments + photos**  
+4. Paste **entire** [`sql-content-reactions.sql`](sql-content-reactions.sql) → **Run** (emoji likes)  
+5. Hard refresh https://diyaanuppal.github.io/rafflesia-online/
 
 **Fixes:** `column p.deleted_at does not exist` · ambiguous `block_post` · For You comments.

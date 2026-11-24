@@ -1,9 +1,10 @@
 // created: 2026-11-24T13:25:00-08:00 — comments on Siobhan news cards
+// updated: 2026-11-24T14:05:00-08:00 — standard CommentComposer (emoji / link / photo)
 import { useCallback, useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
 import { NameWithBadge } from './VerifiedBadge'
+import { CommentComposer } from './CommentComposer'
 import type { Profile } from '../types'
 
 export type NewsComment = {
@@ -13,6 +14,7 @@ export type NewsComment = {
   author_id: string
   body: string
   created_at: string
+  media_url?: string | null
 }
 
 type Props = {
@@ -21,20 +23,27 @@ type Props = {
   userId: string
   profilesById: Record<string, Profile>
   onProfiles?: (rows: Profile[]) => void
+  uploadPicture?: (file: File) => Promise<string>
 }
 
 /** created: 2026-11-24T13:25:00-08:00 */
-export function SiobhanNewsComments({ articleKey, userId, profilesById, onProfiles }: Props) {
+/** updated: 2026-11-24T14:05:00-08:00 */
+export function SiobhanNewsComments({
+  articleKey,
+  userId,
+  profilesById,
+  onProfiles,
+  uploadPicture,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<NewsComment[]>([])
-  const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
   const loadComments = useCallback(async () => {
     const { data, error } = await supabase
       .from('news_comments')
-      .select('id, article_key, author_id, body, created_at')
+      .select('id, article_key, author_id, body, created_at, media_url')
       .eq('article_key', articleKey)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
@@ -59,33 +68,6 @@ export function SiobhanNewsComments({ articleKey, userId, profilesById, onProfil
     if (open) loadComments().catch(() => undefined)
   }, [open, loadComments])
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    const body = draft.trim()
-    if (!body) return
-    setBusy(true)
-    setErr('')
-    try {
-      const check = await checkKidText(body)
-      if (!check.ok) {
-        await reportBlockedText('comment', body, check.matched)
-        setErr(check.message)
-        return
-      }
-      const { error } = await supabase.rpc('create_news_comment', {
-        p_article_key: articleKey,
-        p_body: body,
-      })
-      if (error) throw error
-      setDraft('')
-      await loadComments()
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Could not comment.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function remove(id: string) {
     if (!window.confirm('Delete this comment?')) return
     setBusy(true)
@@ -108,10 +90,11 @@ export function SiobhanNewsComments({ articleKey, userId, profilesById, onProfil
       {open ? (
         <div className="post-comments">
           {comments.length === 0 ? (
-            <p className="muted">No comments yet — say something kind about the story</p>
+            <p className="muted">No comments yet — say hi about the story</p>
           ) : (
             comments.map((c) => {
               const who = profilesById[c.author_id]
+              const links = c.body.match(/https?:\/\/\S+/gi) || []
               return (
                 <div className="post-comment" key={c.id}>
                   <p className="row-title">
@@ -121,6 +104,16 @@ export function SiobhanNewsComments({ articleKey, userId, profilesById, onProfil
                     />
                   </p>
                   <p className="profile-bio">{c.body}</p>
+                  {c.media_url ? <img className="comment-media" src={c.media_url} alt="" /> : null}
+                  {links.length > 0 ? (
+                    <p className="chat-msg-links">
+                      {links.map((u) => (
+                        <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                          Open link
+                        </a>
+                      ))}
+                    </p>
+                  ) : null}
                   {c.author_id === userId ? (
                     <button className="ghost btn-compact" type="button" disabled={busy} onClick={() => remove(c.id)}>
                       Delete
@@ -130,22 +123,29 @@ export function SiobhanNewsComments({ articleKey, userId, profilesById, onProfil
               )
             })
           )}
-          <form className="form form-compact comment-form" onSubmit={submit}>
-            <label>
-              Add a comment
-              <input
-                value={draft}
-                maxLength={500}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Be kind…"
-              />
-            </label>
-            <div className="action-row">
-              <button className="primary btn-compact" type="submit" disabled={busy || !draft.trim()}>
-                Comment
-              </button>
-            </div>
-          </form>
+          <CommentComposer
+            busy={busy}
+            uploadPicture={uploadPicture}
+            onSubmit={async ({ body, mediaUrl }) => {
+              const check = await checkKidText(body)
+              if (!check.ok) {
+                await reportBlockedText('comment', body, check.matched)
+                throw new Error(check.message)
+              }
+              const { error } = await supabase.rpc('create_news_comment', {
+                p_article_key: articleKey,
+                p_body: body,
+                p_media_url: mediaUrl,
+              })
+              if (error) {
+                if (/could not find the function|schema cache|create_news_comment/i.test(error.message)) {
+                  throw new Error('Run docs/sql-news-comments.sql in Supabase, then hard refresh.')
+                }
+                throw new Error(error.message)
+              }
+              await loadComments()
+            }}
+          />
           {err ? <p className="error">{err}</p> : null}
         </div>
       ) : null}
