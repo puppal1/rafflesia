@@ -6,21 +6,21 @@
   font-family: "Segoe UI", system-ui, sans-serif;
   line-height: 1.45;
   font-weight: 400;
-  color: #1e2f52;
-  background: #b8e0ff;
+  color: #12315c;
+  background: #7ec4f5;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  /* created: 2026-11-23T21:55:00-08:00 — higher chroma for Chrome sRGB */
-  --bg-wash-top: #d6f0ff;
-  --bg-wash-mid: #9fd4ff;
-  --bg-wash-edge: #c9e0ff;
-  --text: #1e2f52;
-  --muted: #3d5478;
-  --card-bg: #f4fbff;
-  --card-border: #3da8f0;
-  --btn-primary: #1a7fff;
-  --btn-active: #4f6fff;
+  /* updated: 2026-11-23T22:15:00-08:00 — deeper blue UX for Chromebook */
+  --bg-wash-top: #b8e0ff;
+  --bg-wash-mid: #6eb4ef;
+  --bg-wash-edge: #8eb8e8;
+  --text: #12315c;
+  --muted: #2a4a78;
+  --card-bg: #eef7ff;
+  --card-border: #1a6fc4;
+  --btn-primary: #1560d0;
+  --btn-active: #1f4fd0;
   --btn-ghost-border: #1fa887;
   --btn-ghost-bg: #c5fff0;
   --btn-ghost-text: #0f5c4a;
@@ -46,11 +46,11 @@ body,
 body {
   min-height: 100svh;
   /* updated: 2026-11-23T21:55:00-08:00 — opaque sky (no see-through muddy Chrome blur) */
-  background-color: #b8e0ff;
+  background-color: #6eb4ef;
   background-image:
-    radial-gradient(circle at 15% 0%, #ffffff 0%, #b8e0ff 45%),
-    radial-gradient(circle at 90% 10%, #6ec4ff 0%, #b8e0ff 50%),
-    linear-gradient(165deg, #d6f0ff 0%, #9fd4ff 55%, #c5dcff 100%);
+    radial-gradient(circle at 15% 0%, #e8f6ff 0%, #7ec4f5 45%),
+    radial-gradient(circle at 90% 10%, #3d9eef 0%, #6eb4ef 50%),
+    linear-gradient(165deg, #b8e0ff 0%, #5aa8e8 55%, #7a9fd4 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
   forced-color-adjust: none;

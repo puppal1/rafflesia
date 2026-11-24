@@ -10,6 +10,7 @@ import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
+import { PlayHub } from './games/PlayHub'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
@@ -1402,35 +1403,13 @@ export function HomeApp({ userId, onLogout }: Props) {
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'play' && (
-        <div>
-          {/* created: 2026-11-23T21:10:00-08:00 */}
-          <h2 className="panel-title">Play · Matches</h2>
-          <p className="muted">
-            Friends who picked the same icon pack as you
-            {me?.icon_pack ? ` (${me.icon_pack})` : ''}
-          </p>
-          <div className="list">
-            {matchFriends.length === 0 ? (
-              <p className="muted">No matches yet. Ask friends to pick the same pack!</p>
-            ) : (
-              matchFriends.map((p) => (
-                <div className="row" key={p.id}>
-                  <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
-                    <p className="row-title">
-                      {iconEmoji(p.icon_pack, p.icon_id)} {niceName(p)}
-                    </p>
-                    <p className="row-sub">@{p.username}</p>
-                  </button>
-                  <div className="row-actions">
-                    <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
-                      Message
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <PlayHub
+          matchFriends={matchFriends}
+          onOpenProfile={openProfile}
+          onMessage={startDm}
+          busy={busy}
+          niceName={niceName}
+        />
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'me' && (
