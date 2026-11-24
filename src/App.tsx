@@ -1,5 +1,5 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T21:05:00-08:00 — teacher entry + emoji on signup
+// updated: 2026-11-23T22:35:00-08:00 — signup joins Everyone lounge
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -119,6 +119,8 @@ function App() {
           }
           throw profileError
         }
+        // created: 2026-11-23T22:35:00-08:00 — Everyone lounge (trigger also joins)
+        await supabase.rpc('join_lounge_everyone')
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,

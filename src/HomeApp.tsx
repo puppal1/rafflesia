@@ -1,5 +1,5 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T21:10:00-08:00 — phase5: text check, icons, home/post/play nav
+// updated: 2026-11-23T22:35:00-08:00 — Rafflesia Lounge (groups) replaces Play
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -10,7 +10,6 @@ import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
-import { PlayHub } from './games/PlayHub'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
@@ -218,7 +217,7 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const refreshAll = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T12:25:00-08:00 — load each part separately so one failure does not hide people
+    // updated: 2026-11-23T22:35:00-08:00 — join Everyone lounge before chat list
     setError('')
     const problems: string[] = []
     try {
@@ -230,6 +229,11 @@ export function HomeApp({ userId, onLogout }: Props) {
       await loadPeople()
     } catch (err) {
       problems.push(err instanceof Error ? err.message : 'People load failed.')
+    }
+    try {
+      await supabase.rpc('join_lounge_everyone')
+    } catch {
+      /* lounge SQL may not be applied yet */
     }
     try {
       await loadChats()
@@ -681,8 +685,9 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function openSharedGroup(chat: ChatRow) {
     // created: 2026-11-23T20:33:00-08:00
+    // updated: 2026-11-23T22:35:00-08:00 — groups live in Lounge
     closeFollowProfile()
-    setTab('chats')
+    setTab('lounge')
     setActiveChat(chat)
   }
 
@@ -851,13 +856,14 @@ export function HomeApp({ userId, onLogout }: Props) {
       setCreatePickIds(new Set())
       setShowNewGroup(false)
       setShowAddFriends(false)
+      setTab('lounge')
       setActiveChat(chat as ChatRow)
       await loadChats()
       await loadGroupMembers((chat as ChatRow).id)
       setStatus(
         memberIds.length
-          ? `Group chat ready with ${memberIds.length} friend${memberIds.length === 1 ? '' : 's'}.`
-          : 'Group chat ready. Open + Friends inside to invite people.',
+          ? `Lounge group ready with ${memberIds.length} friend${memberIds.length === 1 ? '' : 's'}.`
+          : 'Lounge group ready. Open + Friends inside to invite people.',
       )
     } catch (err) {
       const msg =
@@ -990,8 +996,9 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const chatLabel = useMemo(() => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T22:05:00-08:00 — show who for DMs
+    // updated: 2026-11-23T22:35:00-08:00 — Everyone lounge label
     if (!activeChat) return ''
+    if (activeChat.lounge_key === 'everyone') return 'Everyone'
     if (activeChat.is_group) return activeChat.title || 'Group chat'
     const peer = dmPeerByChatId[activeChat.id]
     return peer ? niceName(peer) : 'Private chat'
@@ -1000,11 +1007,17 @@ export function HomeApp({ userId, onLogout }: Props) {
   const needsIcon = Boolean(me && !me.icon_id)
   const showIconPicker = needsIcon || pickIconMode
 
-  const matchFriends = useMemo(() => {
-    // created: 2026-11-23T21:10:00-08:00
-    if (!me?.icon_pack) return []
-    return people.filter((p) => p.icon_pack && p.icon_pack === me.icon_pack)
-  }, [me, people])
+  // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = groups
+  const dmChats = useMemo(() => chats.filter((c) => !c.is_group), [chats])
+  const loungeChats = useMemo(() => {
+    const groups = chats.filter((c) => c.is_group)
+    return [...groups].sort((a, b) => {
+      if (a.lounge_key === 'everyone') return -1
+      if (b.lounge_key === 'everyone') return 1
+      return (a.title || '').localeCompare(b.title || '')
+    })
+  }, [chats])
+  const isEveryoneChat = activeChat?.lounge_key === 'everyone'
 
   const authorName = (authorId: string) => {
     // created: 2026-11-23T21:10:00-08:00
@@ -1059,7 +1072,7 @@ export function HomeApp({ userId, onLogout }: Props) {
             ['home', 'Home'],
             ['post', 'Post'],
             ['chats', 'Messages'],
-            ['play', 'Play'],
+            ['lounge', 'Lounge'],
             ['people', 'People'],
             ['me', 'Me'],
           ] as const
@@ -1165,13 +1178,13 @@ export function HomeApp({ userId, onLogout }: Props) {
             </div>
           ) : null}
 
-          <h2 className="panel-title">Group chats together</h2>
+          <h2 className="panel-title">Lounge groups together</h2>
           <div className="list" style={{ marginBottom: 14 }}>
             {sharedGroups.length === 0 ? (
               <p className="muted">
                 {viewProfile.id === userId
-                  ? 'Your groups show under Chats. Create one and add friends.'
-                  : 'No shared groups yet. Create a group in Chats and add them.'}
+                  ? 'Your groups show under Rafflesia Lounge.'
+                  : 'No shared Lounge groups yet.'}
               </p>
             ) : (
               sharedGroups.map((g) => (
@@ -1183,8 +1196,14 @@ export function HomeApp({ userId, onLogout }: Props) {
                   onClick={() => openSharedGroup(g)}
                 >
                   <div className="row-main">
-                    <p className="row-title">{g.title || 'Group'}</p>
-                    <p className="row-sub">Group chat · tap to open</p>
+                    <p className="row-title">
+                      {g.lounge_key === 'everyone' ? 'Everyone' : g.title || 'Group'}
+                    </p>
+                    <p className="row-sub">
+                      {g.lounge_key === 'everyone'
+                        ? 'Club lounge · everyone who signed up'
+                        : 'Lounge group · tap to open'}
+                    </p>
                   </div>
                 </button>
               ))
@@ -1410,14 +1429,130 @@ export function HomeApp({ userId, onLogout }: Props) {
         </form>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'play' && (
-        <PlayHub
-          matchFriends={matchFriends}
-          onOpenProfile={openProfile}
-          onMessage={startDm}
-          busy={busy}
-          niceName={niceName}
-        />
+      {!viewProfile && !textBlockMsg && tab === 'lounge' && !activeChat && (
+        <div>
+          {/* created: 2026-11-23T22:35:00-08:00 — Rafflesia Lounge = all group chats */}
+          <div className="messages-header-row">
+            <div>
+              <h2 className="panel-title" style={{ marginBottom: 2 }}>
+                Rafflesia Lounge
+              </h2>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Club group chats. <strong>Everyone</strong> includes anybody who signs up.
+              </p>
+            </div>
+            <button
+              className={showNewGroup ? 'ghost' : 'primary'}
+              type="button"
+              onClick={() => setShowNewGroup((v) => !v)}
+            >
+              {showNewGroup ? 'Cancel' : '+ Group'}
+            </button>
+          </div>
+
+          {showNewGroup ? (
+            <div className="group-create-card">
+              <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
+                New Lounge group
+              </h3>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Name it, tap who to invite, then create. (Everyone is already there for the whole club.)
+              </p>
+              <form className="form group-create-form" onSubmit={createGroup}>
+                <label>
+                  Name this group
+                  <input
+                    ref={groupTitleRef}
+                    value={groupTitle}
+                    onChange={(e) => {
+                      setGroupTitle(e.target.value)
+                      if (error) setError('')
+                    }}
+                    placeholder="e.g. Lunch table"
+                    autoFocus
+                  />
+                </label>
+                <EmojiBar
+                  label="Emoji"
+                  open={showGroupEmoji}
+                  onToggle={() => setShowGroupEmoji((v) => !v)}
+                  onPick={(emoji) =>
+                    insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
+                  }
+                />
+                <p className="friend-pick-heading">Who should be in it?</p>
+                <div className="member-pick-list soft-scroll">
+                  {people.length === 0 ? (
+                    <p className="muted">No other people yet — create alone, invite later from inside.</p>
+                  ) : (
+                    people.map((p) => {
+                      const on = createPickIds.has(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
+                          onClick={() => toggleCreatePick(p.id)}
+                        >
+                          <FaceAvatar
+                            avatarUrl={p.avatar_url}
+                            iconPack={p.icon_pack}
+                            iconId={p.icon_id}
+                            size="sm"
+                          />
+                          <span className="friend-pick-text">
+                            <strong>{niceName(p)}</strong>
+                            <span className="muted">@{p.username}</span>
+                          </span>
+                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
+                            {on ? '✓' : ''}
+                          </span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+                <button className="primary" type="submit" disabled={busy}>
+                  {busy
+                    ? 'Creating…'
+                    : `Create group${createPickIds.size ? ` · ${createPickIds.size} invited` : ''}`}
+                </button>
+              </form>
+            </div>
+          ) : null}
+
+          <div className="list">
+            {loungeChats.length === 0 ? (
+              <p className="muted">
+                Run <strong>sql-lounge-everyone.sql</strong> in Supabase, then refresh — Everyone will
+                appear here.
+              </p>
+            ) : (
+              loungeChats.map((c) => (
+                <button
+                  key={c.id}
+                  className="row chat-list-row"
+                  type="button"
+                  onClick={() => setActiveChat(c)}
+                >
+                  <span className="face-avatar face-emoji sm" aria-hidden>
+                    {c.lounge_key === 'everyone' ? '🌸' : '👥'}
+                  </span>
+                  <div className="row-main">
+                    <p className="row-title">
+                      {c.lounge_key === 'everyone' ? 'Everyone' : c.title || 'Group chat'}
+                    </p>
+                    <p className="row-sub">
+                      {c.lounge_key === 'everyone'
+                        ? 'Whole club · every signup is here'
+                        : 'Lounge group · several friends'}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'me' && (
@@ -1584,105 +1719,26 @@ export function HomeApp({ userId, onLogout }: Props) {
 
       {!viewProfile && !textBlockMsg && tab === 'chats' && !activeChat && (
         <div>
-          {/* created: 2026-11-23T22:05:00-08:00 — chats first; group create is a clear action */}
+          {/* updated: 2026-11-23T22:35:00-08:00 — Messages = private DMs only */}
           <div className="messages-header-row">
             <div>
               <h2 className="panel-title" style={{ marginBottom: 2 }}>
                 Messages
               </h2>
               <p className="muted" style={{ marginTop: 0 }}>
-                Tap a chat to open it. DMs are 1:1 with one friend.
+                Private 1:1 chats. Group chats live in <strong>Lounge</strong>.
               </p>
             </div>
-            <button
-              className={showNewGroup ? 'ghost' : 'primary'}
-              type="button"
-              onClick={() => setShowNewGroup((v) => !v)}
-            >
-              {showNewGroup ? 'Cancel' : '+ Group chat'}
-            </button>
           </div>
 
-          {showNewGroup ? (
-            <div className="group-create-card">
-              <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
-                New group chat
-              </h3>
-              <p className="muted" style={{ marginTop: 0 }}>
-                A shared chat for several friends (not a DM). Name it, tap who to invite, then create.
-              </p>
-              <form className="form group-create-form" onSubmit={createGroup}>
-                <label>
-                  Name this group chat
-                  <input
-                    ref={groupTitleRef}
-                    value={groupTitle}
-                    onChange={(e) => {
-                      setGroupTitle(e.target.value)
-                      if (error) setError('')
-                    }}
-                    placeholder="e.g. Lunch table"
-                    autoFocus
-                  />
-                </label>
-                <EmojiBar
-                  label="Emoji"
-                  open={showGroupEmoji}
-                  onToggle={() => setShowGroupEmoji((v) => !v)}
-                  onPick={(emoji) =>
-                    insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
-                  }
-                />
-                <p className="friend-pick-heading">Who should be in it?</p>
-                <div className="member-pick-list soft-scroll">
-                  {people.length === 0 ? (
-                    <p className="muted">No other people yet — create alone, invite later from inside.</p>
-                  ) : (
-                    people.map((p) => {
-                      const on = createPickIds.has(p.id)
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
-                          onClick={() => toggleCreatePick(p.id)}
-                        >
-                          <FaceAvatar
-                            avatarUrl={p.avatar_url}
-                            iconPack={p.icon_pack}
-                            iconId={p.icon_id}
-                            size="sm"
-                          />
-                          <span className="friend-pick-text">
-                            <strong>{niceName(p)}</strong>
-                            <span className="muted">@{p.username}</span>
-                          </span>
-                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
-                            {on ? '✓' : ''}
-                          </span>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-                <button className="primary" type="submit" disabled={busy}>
-                  {busy
-                    ? 'Creating…'
-                    : `Create group chat${createPickIds.size ? ` · ${createPickIds.size} invited` : ''}`}
-                </button>
-              </form>
-            </div>
-          ) : null}
-
           <div className="list">
-            {chats.length === 0 ? (
+            {dmChats.length === 0 ? (
               <p className="muted">
-                No chats yet. Go to <strong>People</strong> → Message someone for a private DM, or tap{' '}
-                <strong>+ Group chat</strong>.
+                No private chats yet. Go to <strong>People</strong> → Message someone.
               </p>
             ) : (
-              chats.map((c) => {
-                const peer = !c.is_group ? dmPeerByChatId[c.id] : null
+              dmChats.map((c) => {
+                const peer = dmPeerByChatId[c.id]
                 return (
                   <button
                     key={c.id}
@@ -1690,32 +1746,16 @@ export function HomeApp({ userId, onLogout }: Props) {
                     type="button"
                     onClick={() => setActiveChat(c)}
                   >
-                    {c.is_group ? (
-                      <span className="face-avatar face-emoji sm" aria-hidden>
-                        👥
-                      </span>
-                    ) : (
-                      <FaceAvatar
-                        avatarUrl={peer?.avatar_url}
-                        iconPack={peer?.icon_pack}
-                        iconId={peer?.icon_id}
-                        size="sm"
-                      />
-                    )}
+                    <FaceAvatar
+                      avatarUrl={peer?.avatar_url}
+                      iconPack={peer?.icon_pack}
+                      iconId={peer?.icon_id}
+                      size="sm"
+                    />
                     <div className="row-main">
-                      <p className="row-title">
-                        {c.is_group
-                          ? c.title || 'Group chat'
-                          : peer
-                            ? niceName(peer)
-                            : 'Private chat'}
-                      </p>
+                      <p className="row-title">{peer ? niceName(peer) : 'Private chat'}</p>
                       <p className="row-sub">
-                        {c.is_group
-                          ? 'Group chat · several friends'
-                          : peer
-                            ? `Private chat with @${peer.username}`
-                            : 'Private 1:1 chat'}
+                        {peer ? `Private chat with @${peer.username}` : 'Private 1:1 chat'}
                       </p>
                     </div>
                   </button>
@@ -1726,7 +1766,10 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'chats' && activeChat && (
+      {!viewProfile &&
+        !textBlockMsg &&
+        ((tab === 'chats' && activeChat && !activeChat.is_group) ||
+          (tab === 'lounge' && activeChat && activeChat.is_group)) && (
         <div>
           <div className="toolbar">
             <button
@@ -1741,7 +1784,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               ← Back
             </button>
             <strong className="chat-title">{chatLabel}</strong>
-            {activeChat.is_group ? (
+            {activeChat.is_group && !isEveryoneChat ? (
               <button
                 className="ghost"
                 type="button"
@@ -1756,11 +1799,13 @@ export function HomeApp({ userId, onLogout }: Props) {
           </div>
           {activeChat.is_group ? (
             <p className="muted" style={{ textAlign: 'left' }}>
-              {groupMemberIds.size || 1} member{(groupMemberIds.size || 1) === 1 ? '' : 's'}
+              {isEveryoneChat
+                ? 'Whole club · every signup is in this chat'
+                : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
             </p>
           ) : null}
           {/* created: 2026-11-23T20:45:00-08:00 — WF-G3 Add friends */}
-          {activeChat.is_group && showAddFriends ? (
+          {activeChat.is_group && !isEveryoneChat && showAddFriends ? (
             <div className="add-friends-panel">
               <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
                 Add friends to this group chat

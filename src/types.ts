@@ -1,5 +1,5 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T21:05:00-08:00 — icons, posts, home/post/play tabs
+// updated: 2026-11-23T22:35:00-08:00 — lounge tab replaces play
 export type Profile = {
   id: string
   username: string
@@ -20,6 +20,8 @@ export type ChatRow = {
   is_group: boolean
   title: string | null
   created_by: string | null
+  /** created: 2026-11-23T22:35:00-08:00 — system lounge rooms e.g. everyone */
+  lounge_key?: string | null
 }
 
 export type MessageRow = {
@@ -45,4 +47,5 @@ export type PostRow = {
 }
 
 /** created: 2026-11-23T21:05:00-08:00 — A6 nav shell */
-export type Tab = 'home' | 'post' | 'chats' | 'play' | 'people' | 'me'
+/** updated: 2026-11-23T22:35:00-08:00 — lounge (group chats) replaces play */
+export type Tab = 'home' | 'post' | 'chats' | 'lounge' | 'people' | 'me'
