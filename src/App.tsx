@@ -1,7 +1,9 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T18:39:00-08:00 — type-only FormEvent for verbatimModuleSyntax
+// updated: 2026-11-23T19:33:00-08:00 — logo uses BASE_URL for GitHub Pages
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+
+const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { supabase } from './lib/supabase'
@@ -95,7 +97,7 @@ function App() {
           <HomeApp userId={user.id} onLogout={onLogout} />
         ) : (
           <>
-            <img className="logo" src="/logo.jpg" alt="Rafflesia Online logo" />
+            <img className="logo" src={logoSrc} alt="Rafflesia Online logo" />
             <h1 className="brand">Rafflesia Online</h1>
             <p className="tag">Rafflesia Channel Entertainment</p>
 

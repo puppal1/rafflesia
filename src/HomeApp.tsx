@@ -1,8 +1,10 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T18:39:00-08:00 — type-only FormEvent for verbatimModuleSyntax
+// updated: 2026-11-23T19:33:00-08:00 — logo uses BASE_URL for GitHub Pages
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+
+const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, MessageRow, Profile, Tab } from './types'
 
 type Props = {
@@ -409,7 +411,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     <div>
       <div className="header-bar">
         <div>
-          <img className="logo-sm" src="/logo.jpg" alt="" />
+          <img className="logo-sm" src={logoSrc} alt="" />
           <h1 className="brand">Rafflesia Online</h1>
           <p className="tag" style={{ marginBottom: 0 }}>
             Hi {niceName(me)}
