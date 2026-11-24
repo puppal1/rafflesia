@@ -3,9 +3,11 @@
 // updated: 2026-11-24T13:20:00-08:00 — music replaces kindness
 // updated: 2026-11-24T13:25:00-08:00 — comments on news cards
 // updated: 2026-11-24T14:15:00-08:00 — side/bottom comment dock; feed stays readable
+// updated: 2026-11-24T14:20:00-08:00 — emoji likes on news cards
 import { useCallback, useEffect, useState } from 'react'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
+import { SiobhanArticleReactions } from './SiobhanArticleReactions'
 import type { Profile } from '../types'
 
 const SCHOOL_URL = 'https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily'
@@ -152,6 +154,8 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                       <span className="muted siobhan-when">{a.source}</span>
                     )}
                   </div>
+                  {/* created: 2026-11-24T14:20:00-08:00 */}
+                  <SiobhanArticleReactions articleKey={key} userId={userId} />
                 </article>
               )
             })

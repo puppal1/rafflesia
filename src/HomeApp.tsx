@@ -619,6 +619,38 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  // created: 2026-11-24T14:20:00-08:00 — clear avatar/banner (SQL blank→null)
+  async function clearProfileImage(kind: 'avatar' | 'banner') {
+    setBusy(true)
+    setError('')
+    setStatus('')
+    try {
+      const bucket = kind === 'avatar' ? 'avatars' : 'banners'
+      const { data: listed } = await supabase.storage.from(bucket).list(userId)
+      const paths = (listed || [])
+        .map((f) => `${userId}/${f.name}`)
+        .filter((p) => p.includes(`/${kind}.`))
+      if (paths.length) await supabase.storage.from(bucket).remove(paths)
+      const { error } = await supabase.rpc('set_my_profile_image', {
+        p_kind: kind,
+        p_url: '',
+      })
+      if (error) throw error
+      setStatus(kind === 'avatar' ? 'Profile picture removed.' : 'Banner removed.')
+      await loadMe()
+    } catch (err) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : err instanceof Error
+            ? err.message
+            : 'Could not remove.'
+      setError(`Remove failed: ${msg}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function niceName(p?: Profile | null) {
     // created: 2026-11-23T12:42:00-08:00
     if (!p) return 'User'
@@ -1885,6 +1917,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               previewUrl={me?.avatar_url || null}
               busy={busy}
               onPick={(file) => uploadImage('avatar', file)}
+              onClear={() => clearProfileImage('avatar')}
             />
             <p className="friend-pick-heading" style={{ margin: '14px 0 6px' }}>
               Banner
@@ -1898,6 +1931,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               previewUrl={me?.banner_url || null}
               busy={busy}
               onPick={(file) => uploadImage('banner', file)}
+              onClear={() => clearProfileImage('banner')}
             />
           </div>
 

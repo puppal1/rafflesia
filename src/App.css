@@ -2229,6 +2229,10 @@ select {
   align-items: center;
   margin-top: 2px;
 }
+.siobhan-article-reactions {
+  /* created: 2026-11-24T14:20:00-08:00 */
+  margin-top: 2px;
+}
 .siobhan-news-comments {
   margin-top: 6px;
   display: grid;
