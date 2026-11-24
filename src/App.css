@@ -350,7 +350,7 @@
   height: 88px;
   object-fit: cover;
   border-radius: 50%;
-  border: 3px solid #4d9fff;
+  border: 3px solid #ff8c1a;
   margin: 0 0 12px;
   display: block;
 }
@@ -360,8 +360,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef6ff;
-  color: #6b7a99;
+  background: #fff3c4;
+  color: #7a6a8a;
   font-size: 0.85rem;
 }
 
@@ -380,8 +380,8 @@
 
 .count-btn {
   border: 1px solid #ffc0d4;
-  background: #eef6ff;
-  color: #2f3a55;
+  background: #ffe8f3;
+  color: #5a2d00;
   border-radius: 999px;
   padding: 6px 12px;
   font: inherit;
@@ -391,8 +391,8 @@
 }
 
 .count-btn.active {
-  background: #4d9fff;
-  border-color: #4d9fff;
+  background: #ff4d8d;
+  border-color: #ff4d8d;
   color: #fff;
 }
 
@@ -894,7 +894,7 @@ select {
   padding: 14px 8px;
   border-radius: 16px;
   border: 2px solid #ff8c1a;
-  background: #eef7ff;
+  background: #fff8e8;
   cursor: pointer;
   font: inherit;
   color: #2a1f3d;
@@ -902,8 +902,8 @@ select {
 
 .post-mode-tile.sel {
   border-color: #ff4d8d;
-  background: linear-gradient(180deg, #dff0ff 0%, #c8e4ff 100%);
-  box-shadow: 0 6px 16px rgba(47, 143, 255, 0.28);
+  background: linear-gradient(180deg, #ffe8f3 0%, #fff3c4 100%);
+  box-shadow: 0 6px 16px rgba(255, 77, 141, 0.28);
 }
 
 .post-mode-emoji {
@@ -961,7 +961,7 @@ select {
 }
 
 .theme-color-meta {
-  color: #0f3d7a;
+  color: #c2185b;
 }
 
 /* created: 2026-11-23T22:15:00-08:00 — Play hub + games */
@@ -988,8 +988,8 @@ select {
 }
 
 .game-pick-tile:hover {
-  background: #d0e8ff;
-  box-shadow: 0 6px 16px rgba(26, 111, 196, 0.25);
+  background: #ffe8f3;
+  box-shadow: 0 6px 16px rgba(255, 77, 141, 0.25);
 }
 
 .game-pick-emoji {
@@ -1016,21 +1016,21 @@ select {
   padding: 6px 12px;
   font-size: 0.85rem;
   font-weight: 700;
-  background: #cfe8ff;
+  background: #fff3c4;
   color: #c2185b;
-  border: 2px solid #1f7ed0;
+  border: 2px solid #ff8c1a;
 }
 
 .score-pill.mine {
-  background: #1f4fd0;
+  background: #ff4d8d;
   color: #fff;
-  border-color: #1a3fb8;
+  border-color: #e91e63;
 }
 
 .score-pill.club {
-  background: #1560d0;
+  background: #00c9a7;
   color: #fff;
-  border-color: #0f4aa8;
+  border-color: #007a66;
 }
 
 .club-top-list {
@@ -1151,16 +1151,16 @@ select {
   justify-content: center;
   border-radius: 10px;
   font-weight: 800;
-  background: #cfe8ff;
+  background: #fff3c4;
   color: #c2185b;
   border: 2px solid #ff5c8a;
 }
 
 .g2048-cell.n2 { background: #fff3c4; }
-.g2048-cell.n4 { background: #b8dfff; }
-.g2048-cell.n8 { background: #6eb4ef; color: #fff; }
-.g2048-cell.n16 { background: #3d8fff; color: #fff; }
-.g2048-cell.n32 { background: #1f4fd0; color: #fff; }
+.g2048-cell.n4 { background: #c8fff4; }
+.g2048-cell.n8 { background: #ffd23f; color: #5a2d00; }
+.g2048-cell.n16 { background: #ff8c1a; color: #fff; }
+.g2048-cell.n32 { background: #ff4d8d; color: #fff; }
 .g2048-cell.n64,
 .g2048-cell.n128,
 .g2048-cell.n256,
@@ -1173,7 +1173,7 @@ select {
   height: 220px;
   border-radius: 16px;
   border: 3px solid #ff5c8a;
-  background: linear-gradient(180deg, #d5ebff, #9fd0f5);
+  background: linear-gradient(180deg, #ffe566, #7ef0d0);
   margin: 10px 0;
 }
 
