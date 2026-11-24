@@ -1,0 +1,11 @@
+<!-- created: 2026-11-23T12:11:00-08:00 -->
+<!-- Paste this in Google Sites: Insert -> Embed -> Embed code -->
+<!-- Replace YOUR_PUBLIC_HTTPS_LINK with your free hosted link to rafflesia.html -->
+<iframe
+  src="YOUR_PUBLIC_HTTPS_LINK"
+  width="100%"
+  height="720"
+  style="border:0;border-radius:12px;max-width:100%;"
+  loading="lazy"
+  allow="fullscreen"
+></iframe>
