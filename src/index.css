@@ -1,26 +1,31 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T23:00:00-08:00 — simple all light-blue theme */
+/* updated: 2026-11-24T11:45:00-08:00 — theme CSS variables + modern type */
 :root {
   color-scheme: only light;
   supported-color-schemes: light;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: "Figtree", "Segoe UI", system-ui, sans-serif;
   line-height: 1.45;
   font-weight: 400;
-  font-size: 20px;
-  color: #1a3a5c;
-  background: #b8ddff;
+  font-size: 18px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --text: #1a3a5c;
-  --muted: #4a6f94;
-  --card-bg: #f2f8ff;
-  --card-border: #7ec4f5;
-  --btn-primary: #4da3e8;
-  --btn-active: #2f8fd6;
-  --btn-ghost-border: #7ec4f5;
-  --btn-ghost-bg: #e3f2ff;
-  --btn-ghost-text: #1a5a8a;
+  --wash-top: #d9f3ff;
+  --wash-mid: #c8ebf8;
+  --wash-edge: #b7f0e2;
+  --text: #1f4a5c;
+  --muted: #4d7382;
+  --card-bg: #f4fcff;
+  --card-border: #8fd4ea;
+  --btn-primary: #3db8d9;
+  --btn-primary-end: #2aa897;
+  --btn-ghost-bg: #dffaf3;
+  --btn-ghost-border: #7ad9c4;
+  --btn-ghost-text: #1a6b5c;
+  --accent: #2aa897;
+  --input-border: #9adceb;
+  color: var(--text);
+  background: var(--wash-mid);
 }
 
 * {
@@ -29,7 +34,7 @@
 
 html {
   color-scheme: only light;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 html,
@@ -37,29 +42,33 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  background-color: #b8ddff;
+  background-color: var(--wash-mid);
   color: var(--text);
 }
 
 body {
   min-height: 100svh;
-  background-color: #b8ddff;
-  background-image: linear-gradient(165deg, #dff0ff 0%, #b8ddff 45%, #9ed0ff 100%);
+  background-color: var(--wash-mid);
+  background-image:
+    radial-gradient(circle at 12% 0%, var(--wash-top) 0%, transparent 42%),
+    radial-gradient(circle at 90% 10%, var(--wash-edge) 0%, transparent 46%),
+    linear-gradient(165deg, var(--wash-top) 0%, var(--wash-mid) 48%, var(--wash-edge) 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
   forced-color-adjust: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+  transition: background-color 0.45s ease;
 }
 
 @media (min-width: 1100px) {
   html {
-    font-size: 22px;
+    font-size: 20px;
   }
 }
 
 @media (min-width: 1400px) {
   html {
-    font-size: 24px;
+    font-size: 22px;
   }
 }

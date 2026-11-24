@@ -10,7 +10,9 @@ import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
+import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
+
 import {
   WEBSITE_LINKS_MAX,
   cleanWebsiteLinksForSave,
@@ -1674,6 +1676,8 @@ export function HomeApp({ userId, onLogout }: Props) {
             {iconEmoji(me?.icon_pack, me?.icon_id)} @{me?.username}{' '}
             <VerifiedBadge tier={me?.verify_tier} />
           </p>
+          {/* created: 2026-11-24T11:50:00-08:00 — user pick stays until Auto */}
+          <ThemePicker compact />
           <button
             className="ghost"
             type="button"

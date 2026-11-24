@@ -1,12 +1,16 @@
 // created: 2026-11-23T11:59:00-08:00
 // updated: 2026-11-24T11:30:00-08:00 — reliable muted intro + corner controls
+// updated: 2026-11-24T11:50:00-08:00 — theme engine + ThemePicker on login
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { TeacherApp } from './TeacherApp'
+import { ThemePicker } from './components/ThemePicker'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
+import { ensureHourlyTheme } from './lib/themeEngine'
 import { supabase } from './lib/supabase'
+
 import {
   DISPLAY_NAME_MAX,
   USERNAME_MAX,
@@ -49,6 +53,13 @@ function App() {
   const [introPaused, setIntroPaused] = useState(false)
   const introVideoRef = useRef<HTMLVideoElement | null>(null)
   const introStartedRef = useRef(false)
+
+  useEffect(() => {
+    // created: 2026-11-24T11:50:00-08:00 — boot theme; locked picks never rotate
+    ensureHourlyTheme()
+    const id = window.setInterval(() => ensureHourlyTheme(), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     // created: 2026-11-23T11:59:00-08:00
@@ -239,6 +250,7 @@ function App() {
           className="intro-video"
           src={introSrc}
           playsInline
+          muted
           autoPlay
           preload="auto"
           onEnded={finishIntro}
@@ -281,6 +293,8 @@ function App() {
             <img className="logo" src={logoSrc} alt="Rafflesia Online logo" />
             <h1 className="brand">Rafflesia Online</h1>
             <p className="tag">Rafflesia Channel Entertainment</p>
+            {/* created: 2026-11-24T11:50:00-08:00 — pick locks; Auto resumes hourly */}
+            <ThemePicker />
 
             <div className="tabs">
               <button
