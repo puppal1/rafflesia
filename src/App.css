@@ -2,7 +2,7 @@
 /* updated: 2026-11-23T23:05:00-08:00 — intro video shell */
 
 /* created: 2026-11-23T23:05:00-08:00 */
-/* updated: 2026-11-23T23:10:00-08:00 — cropped landscape intro, audio, no skip */
+/* updated: 2026-11-24T11:30:00-08:00 — corner chips; video stays clear */
 .intro-shell {
   min-height: 100svh;
   width: 100%;
@@ -22,25 +22,37 @@
   object-fit: cover;
   background: #000;
   border-radius: 0;
+  cursor: pointer;
 }
 
-.intro-tap {
+.intro-chrome {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  min-width: 180px;
-}
-
-/* created: 2026-11-24T08:58:00-08:00 — always visible escape from intro */
-.intro-continue {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
+  right: 14px;
+  bottom: 14px;
   z-index: 3;
-  min-width: 200px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.intro-chip {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.intro-chip:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.intro-chip-skip {
+  border-color: rgba(126, 196, 245, 0.7);
 }
 
 /* created: 2026-11-23T23:35:00-08:00 — teacher verify badges */

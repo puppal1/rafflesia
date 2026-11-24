@@ -1,5 +1,5 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T23:05:00-08:00 — intro video before login
+// updated: 2026-11-24T11:30:00-08:00 — reliable muted intro + corner controls
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -43,9 +43,12 @@ function App() {
   // updated: 2026-11-23T21:55:00-08:00 — emoji picker closed by default
   const [showSignupEmoji, setShowSignupEmoji] = useState(false)
   // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
+  // updated: 2026-11-24T11:30:00-08:00 — muted autoplay; corner Skip/Unmute only
   const [showIntro, setShowIntro] = useState(true)
-  const [introNeedsTap, setIntroNeedsTap] = useState(false)
+  const [introMuted, setIntroMuted] = useState(true)
+  const [introPaused, setIntroPaused] = useState(false)
   const introVideoRef = useRef<HTMLVideoElement | null>(null)
+  const introStartedRef = useRef(false)
 
   useEffect(() => {
     // created: 2026-11-23T11:59:00-08:00
@@ -62,56 +65,72 @@ function App() {
   }, [])
 
   useEffect(() => {
-    // created: 2026-11-23T23:05:00-08:00
-    // updated: 2026-11-24T08:58:00-08:00 — Camarillo/school: fail open to login fast
+    // created: 2026-11-24T11:30:00-08:00 — stay muted (auto-unmute was pausing Chromebooks)
     if (!showIntro || user) return
     const el = introVideoRef.current
-    if (!el) {
-      setShowIntro(false)
-      return
-    }
-    // muted first so Chromebook autoplay is allowed, then try sound
+    if (!el) return
+    let cancelled = false
+    el.defaultMuted = true
     el.muted = true
     el.volume = 1
-    const play = el.play()
-    if (play && typeof play.then === 'function') {
-      play
-        .then(() => {
-          el.muted = false
+    const tryPlay = () => {
+      if (cancelled || !el) return
+      const p = el.play()
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          if (cancelled) return
+          introStartedRef.current = true
+          setIntroPaused(false)
+        }).catch(() => {
+          if (cancelled) return
+          setIntroPaused(true)
         })
-        .catch(() => setIntroNeedsTap(true))
+      }
     }
-    const stall = window.setTimeout(() => {
-      if (el.readyState < 2 || el.paused) setIntroNeedsTap(true)
-    }, 1500)
-    const hardCap = window.setTimeout(() => {
-      setShowIntro(false)
-      setIntroNeedsTap(false)
-    }, 6000)
+    if (el.readyState >= 2) tryPlay()
+    else el.addEventListener('loadeddata', tryPlay, { once: true })
     return () => {
-      window.clearTimeout(stall)
-      window.clearTimeout(hardCap)
+      cancelled = true
+      el.removeEventListener('loadeddata', tryPlay)
     }
   }, [showIntro, user])
 
   function finishIntro() {
     // created: 2026-11-23T23:05:00-08:00
+    const el = introVideoRef.current
+    if (el) {
+      el.pause()
+    }
     setShowIntro(false)
-    setIntroNeedsTap(false)
+    setIntroPaused(false)
   }
 
-  function startIntroWithTap() {
-    // created: 2026-11-23T23:05:00-08:00 — unlock audio with a user gesture
+  function playIntroFromTap() {
+    // created: 2026-11-24T11:30:00-08:00 — resume without resetting to 0
     const el = introVideoRef.current
     if (!el) {
       finishIntro()
       return
     }
-    setIntroNeedsTap(false)
-    el.muted = false
-    el.volume = 1
-    el.currentTime = 0
-    el.play().catch(() => finishIntro())
+    el.muted = introMuted
+    el.play()
+      .then(() => {
+        introStartedRef.current = true
+        setIntroPaused(false)
+      })
+      .catch(() => finishIntro())
+  }
+
+  function toggleIntroMute() {
+    // created: 2026-11-24T11:30:00-08:00
+    const el = introVideoRef.current
+    if (!el) return
+    const next = !introMuted
+    el.muted = next
+    setIntroMuted(next)
+    if (!next) {
+      el.play().catch(() => undefined)
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -203,30 +222,42 @@ function App() {
   }
 
   // created: 2026-11-23T23:05:00-08:00 — full-screen intro before login
-  // updated: 2026-11-24T08:55:00-08:00 — Continue so Chromebooks aren't stuck black
+  // updated: 2026-11-24T11:30:00-08:00 — quiet corner controls; no center overlay
   if (showIntro && !user && !teacherMode) {
     return (
-      <div className="intro-shell" onClick={introNeedsTap ? startIntroWithTap : undefined}>
+      <div className="intro-shell">
         <video
           ref={introVideoRef}
           className="intro-video"
           src={introSrc}
           playsInline
+          muted
           autoPlay
           preload="auto"
           onEnded={finishIntro}
           onError={finishIntro}
-          onStalled={() => setIntroNeedsTap(true)}
-          onWaiting={() => setIntroNeedsTap(true)}
+          onPause={() => {
+            if (showIntro && introStartedRef.current) setIntroPaused(true)
+          }}
+          onPlaying={() => setIntroPaused(false)}
+          onClick={() => {
+            if (introPaused) playIntroFromTap()
+          }}
         />
-        {introNeedsTap ? (
-          <button className="primary intro-tap" type="button" onClick={startIntroWithTap}>
-            Tap to play
+        <div className="intro-chrome">
+          {introPaused ? (
+            <button className="intro-chip" type="button" onClick={playIntroFromTap}>
+              Play
+            </button>
+          ) : (
+            <button className="intro-chip" type="button" onClick={toggleIntroMute}>
+              {introMuted ? 'Unmute' : 'Mute'}
+            </button>
+          )}
+          <button className="intro-chip intro-chip-skip" type="button" onClick={finishIntro}>
+            Skip
           </button>
-        ) : null}
-        <button className="primary intro-continue" type="button" onClick={finishIntro}>
-          Continue to login
-        </button>
+        </div>
       </div>
     )
   }
