@@ -1138,6 +1138,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     <div className="app-with-rail">
       <div className="app-main-col">
       {/* updated: 2026-11-24T00:00:00-08:00 — corner face opens My profile */}
+      {/* updated: 2026-11-24T12:05:00-08:00 — Log out always in header */}
       <div className="header-bar">
         <div className="header-identity">
           <button
@@ -1167,6 +1168,9 @@ export function HomeApp({ userId, onLogout }: Props) {
             </p>
           </div>
         </div>
+        <button className="ghost header-logout" type="button" onClick={onLogout}>
+          Log out
+        </button>
       </div>
 
       {error ? <p className="error">{error}</p> : null}
@@ -1670,7 +1674,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       )}
 
       {!viewProfile && !textBlockMsg && tab === 'me' && (
-        <form className="form" onSubmit={saveProfile}>
+        <form className="form me-form" onSubmit={saveProfile}>
           <h2 className="panel-title">My profile</h2>
           <p className="muted">
             {iconEmoji(me?.icon_pack, me?.icon_id)} @{me?.username}{' '}
@@ -1678,14 +1682,15 @@ export function HomeApp({ userId, onLogout }: Props) {
           </p>
           {/* created: 2026-11-24T11:50:00-08:00 — user pick stays until Auto */}
           <ThemePicker compact />
-          <button
-            className="ghost"
-            type="button"
-            style={{ marginBottom: 10 }}
-            onClick={() => setPickIconMode(true)}
-          >
-            Change icon
-          </button>
+          <div className="me-actions-row">
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => setPickIconMode(true)}
+            >
+              Change icon
+            </button>
+          </div>
           <div className="follow-counts">
             <button
               type="button"
@@ -1810,19 +1815,18 @@ export function HomeApp({ userId, onLogout }: Props) {
               </div>
             ))}
             {editLinks.length < WEBSITE_LINKS_MAX ? (
-              <button className="ghost" type="button" onClick={addEditLink}>
+              <button className="ghost btn-compact" type="button" onClick={addEditLink}>
                 + Add website link
               </button>
             ) : null}
           </div>
 
-          <button className="primary" type="submit" disabled={busy}>
-            Save profile
-          </button>
-          {/* created: 2026-11-23T23:59:00-08:00 — Log out only on My profile */}
-          <button className="ghost" type="button" onClick={onLogout} style={{ marginTop: 10 }}>
-            Log out
-          </button>
+          {/* updated: 2026-11-24T12:05:00-08:00 — compact save; logout lives in header */}
+          <div className="me-actions-row">
+            <button className="primary btn-compact" type="submit" disabled={busy}>
+              Save profile
+            </button>
+          </div>
         </form>
       )}
 

@@ -517,6 +517,7 @@
 }
 
 .header-bar {
+  /* updated: 2026-11-24T12:05:00-08:00 — room for always-on Log out */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -528,6 +529,72 @@
   font-size: 1.1rem;
   margin: 0;
   text-align: left;
+}
+
+.header-logout {
+  /* created: 2026-11-24T12:05:00-08:00 — compact; every page */
+  flex-shrink: 0;
+  width: auto;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* created: 2026-11-24T12:05:00-08:00 — Me form not full-bleed elongated */
+.me-form {
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+  gap: 8px;
+}
+
+.me-form .panel-title {
+  margin-bottom: 0;
+}
+
+.me-form .banner-preview {
+  height: 88px;
+  margin-bottom: 6px;
+}
+
+.me-form .form input,
+.me-form .form textarea,
+.me-form input,
+.me-form textarea {
+  padding: 9px 12px;
+}
+
+.me-form textarea {
+  min-height: 56px;
+}
+
+.me-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.btn-compact {
+  width: auto !important;
+  max-width: 100%;
+  justify-self: start;
+  padding: 9px 16px;
+  border-radius: 999px;
+}
+
+.me-form .ghost,
+.me-form .primary {
+  width: auto;
+  justify-self: start;
+}
+
+.profile-links-edit .btn-compact,
+.profile-links-edit > .ghost {
+  width: auto;
+  justify-self: start;
 }
 
 /* created: 2026-11-23T12:18:00-08:00 */
