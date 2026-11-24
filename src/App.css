@@ -561,11 +561,12 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
 }
 
 .messages {
+  /* updated: 2026-11-24T13:55:00-08:00 — legacy list; no nested max-height scroll */
   display: grid;
   gap: 8px;
   text-align: left;
-  max-height: 42vh;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding: 4px;
   margin-bottom: 10px;
 }
@@ -2899,13 +2900,14 @@ select {
 }
 
 .msg-thread .bubble {
-  /* updated: 2026-11-24T14:05:00-08:00 — real bubble size; wrap words, don't shatter letters */
+  /* updated: 2026-11-24T13:55:00-08:00 — no in-bubble scroll; thread list scrolls */
   align-self: flex-start;
+  flex: 0 0 auto;
   width: fit-content;
   min-width: min(100%, 11rem);
   max-width: min(85%, 420px);
-  overflow-x: auto;
-  overflow-y: visible;
+  max-height: none;
+  overflow: visible;
   overflow-wrap: break-word;
   word-break: normal;
 }
@@ -2919,19 +2921,19 @@ select {
   display: grid;
   gap: 6px;
   max-width: 100%;
+  max-height: none;
+  overflow: visible;
 }
 
 .msg-thread .chat-msg-text {
-  /* updated: 2026-11-24T14:05:00-08:00 — readable wrap; long pastes scroll in-bubble */
+  /* updated: 2026-11-24T13:55:00-08:00 — expand with content; never nest a scrollbar */
   display: block;
   max-width: 100%;
+  max-height: none;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: normal;
-  max-height: min(45vh, 360px);
-  overflow-x: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .msg-thread .bubble-meta {
@@ -2946,10 +2948,12 @@ select {
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
+  max-height: none;
+  overflow: visible;
 }
 
 .msg-thread .chat-media {
-  max-height: min(45vh, 360px);
+  max-height: min(52vh, 420px);
 }
 
 .msg-thread .share-card {
@@ -3121,11 +3125,13 @@ select {
   }
 }
 /* created: 2026-11-24T14:10:00-08:00 — ChatPanel v2: one scroll, clean bubbles, no nested bars */
+/* updated: 2026-11-24T13:55:00-08:00 — lock height; bubbles must not become scrollers */
 .chat2 {
   display: grid;
   grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
   height: min(70vh, 640px);
   min-height: 360px;
+  max-height: min(70vh, 640px);
   border: 2px solid var(--card-border, #9ed0ff);
   border-radius: 18px;
   overflow: hidden;
@@ -3280,24 +3286,53 @@ select {
   white-space: nowrap;
 }
 
-/* ONLY scroll surface in the thread */
+/* updated: 2026-11-24T13:55:00-08:00 — ONLY scroll surface in the thread */
 .chat2-stream {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: auto;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   background: #fff;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #8ec8f5 transparent;
+}
+
+.chat2-stream::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat2-stream::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a8d8ff, #6eb8f0);
+  border-radius: 999px;
+}
+
+.chat2-stream::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+/* updated: 2026-11-24T13:55:00-08:00 — never shrink, never nest scrollbars */
+.chat2-stream > * {
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .chat2-bubble {
   align-self: flex-start;
+  flex: 0 0 auto;
   width: fit-content;
   max-width: min(78%, 440px);
   min-width: 8rem;
+  max-height: none !important;
+  overflow: visible !important;
   padding: 10px 12px;
   border-radius: 16px;
   border: 2px solid #9ed0ff;
@@ -3309,6 +3344,14 @@ select {
   align-self: flex-end;
   background: #e3f2ff;
   border-color: #7ec4f5;
+}
+
+.chat2-meta,
+.chat2-text,
+.chat2-share,
+.chat2-like {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .chat2-meta {
@@ -3324,7 +3367,7 @@ select {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  word-break: normal;
+  word-break: break-word;
   line-height: 1.35;
   max-width: 100%;
 }
@@ -3338,16 +3381,17 @@ select {
   background: transparent;
   cursor: zoom-in;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: clip;
+  max-height: none !important;
 }
 
 .chat2-pic img,
 .chat2-vid {
   display: block;
   width: 100%;
-  max-height: 320px;
+  max-height: min(52vh, 420px);
   height: auto;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 12px;
   background: #0f1a24;
 }
