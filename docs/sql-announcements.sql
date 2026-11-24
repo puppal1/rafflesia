@@ -48,6 +48,10 @@ begin
 end;
 $$;
 
+-- updated: 2026-11-24T13:05:00-08:00 — drop 2-arg overload first (PostgREST ambiguity)
+drop function if exists public.send_chat_message(uuid, text);
+drop function if exists public.send_chat_message(uuid, text, text);
+
 -- Wrap send so announcements is write-locked to @rafflesiaonline
 create or replace function public.send_chat_message(p_chat_id uuid, p_body text, p_video_url text default null)
 returns public.messages

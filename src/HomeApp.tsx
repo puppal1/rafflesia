@@ -993,9 +993,11 @@ export function HomeApp({ userId, onLogout }: Props) {
         setError('Messaging is restricted by a teacher right now.')
         return
       }
+      // updated: 2026-11-24T13:05:00-08:00 — always pass p_video_url (overload ambiguity)
       const { data, error: err } = await supabase.rpc('send_chat_message', {
         p_chat_id: activeChat.id,
         p_body: body,
+        p_video_url: null,
       })
       if (err) throw err
       setDraft('')
@@ -1187,9 +1189,11 @@ export function HomeApp({ userId, onLogout }: Props) {
   async function deliverSharedPost(targetChatId: string, post: PostRow, note?: string) {
     // created: 2026-11-24T12:35:00-08:00
     const body = encodePostShare(post.id, note)
+    // updated: 2026-11-24T13:05:00-08:00 — always pass p_video_url (overload ambiguity)
     const { error: err } = await supabase.rpc('send_chat_message', {
       p_chat_id: targetChatId,
       p_body: body,
+      p_video_url: null,
     })
     if (err) throw err
   }

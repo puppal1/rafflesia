@@ -152,11 +152,19 @@ export function PostCard({
 
       {post.body ? <p className="post-card-body">{post.body}</p> : null}
 
-      {post.kind === 'picture' && post.media_url ? (
-        <img className="post-media" src={post.media_url} alt="" />
+      {post.kind === 'picture' ? (
+        post.media_url ? (
+          <img className="post-media" src={post.media_url} alt="" loading="lazy" />
+        ) : (
+          <p className="post-card-missing-media">Picture missing a link.</p>
+        )
       ) : null}
-      {post.kind === 'video' && post.media_url ? (
-        <video className="post-media" src={post.media_url} controls playsInline />
+      {post.kind === 'video' ? (
+        post.media_url ? (
+          <video className="post-media" src={post.media_url} controls playsInline />
+        ) : (
+          <p className="post-card-missing-media">Video missing a link.</p>
+        )
       ) : null}
       {post.kind === 'link' && post.media_url ? (
         <p className="post-card-link">
