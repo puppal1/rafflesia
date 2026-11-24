@@ -1057,8 +1057,40 @@ export function HomeApp({ userId, onLogout }: Props) {
     )
   }
 
+  const mainNav = (
+    // created: 2026-11-23T21:10:00-08:00 — A6 nav shell
+    // updated: 2026-11-23T23:45:00-08:00 — right-hand rail
+    <nav className="nav nav-shell nav-rail" aria-label="Main">
+      {(
+        [
+          ['home', 'Home'],
+          ['post', 'Post'],
+          ['chats', 'Messages'],
+          ['lounge', 'Lounge'],
+          ['people', 'People'],
+          ['me', 'Me'],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          className={tab === id && !viewProfile ? 'active' : ''}
+          onClick={() => {
+            closeFollowProfile()
+            setActiveChat(null)
+            setTab(id)
+            if (id === 'home') loadPosts()
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </nav>
+  )
+
   return (
-    <div>
+    <div className="app-with-rail">
+      <div className="app-main-col">
       <div className="header-bar">
         <div>
           <img className="logo-sm" src={logoSrc} alt="" />
@@ -1071,34 +1103,6 @@ export function HomeApp({ userId, onLogout }: Props) {
         <button className="ghost" type="button" onClick={onLogout}>
           Log out
         </button>
-      </div>
-
-      {/* created: 2026-11-23T21:10:00-08:00 — A6 nav shell */}
-      <div className="nav nav-shell">
-        {(
-          [
-            ['home', 'Home'],
-            ['post', 'Post'],
-            ['chats', 'Messages'],
-            ['lounge', 'Lounge'],
-            ['people', 'People'],
-            ['me', 'Me'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={tab === id && !viewProfile ? 'active' : ''}
-            onClick={() => {
-              closeFollowProfile()
-              setActiveChat(null)
-              setTab(id)
-              if (id === 'home') loadPosts()
-            }}
-          >
-            {label}
-          </button>
-        ))}
       </div>
 
       {error ? <p className="error">{error}</p> : null}
@@ -1938,6 +1942,8 @@ export function HomeApp({ userId, onLogout }: Props) {
           </form>
         </div>
       )}
+      </div>
+      {mainNav}
     </div>
   )
 }

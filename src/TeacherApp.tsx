@@ -401,7 +401,8 @@ export function TeacherApp({ onExit }: Props) {
   }
 
   return (
-    <div className="teacher-console">
+    <div className="teacher-console app-with-rail">
+      <div className="app-main-col">
       <div className="header-bar">
         <div>
           <h1 className="brand">Teacher console</h1>
@@ -411,30 +412,6 @@ export function TeacherApp({ onExit }: Props) {
         </div>
         <button className="ghost" type="button" onClick={onExit}>
           Exit
-        </button>
-      </div>
-      <div className="nav">
-        <button type="button" className={tab === 'flags' ? 'active' : ''} onClick={() => setTab('flags')}>
-          Flagged
-        </button>
-        <button type="button" className={tab === 'restrict' ? 'active' : ''} onClick={() => setTab('restrict')}>
-          Restrict
-        </button>
-        <button type="button" className={tab === 'posts' ? 'active' : ''} onClick={() => setTab('posts')}>
-          Posts
-        </button>
-        <button type="button" className={tab === 'verify' ? 'active' : ''} onClick={() => setTab('verify')}>
-          Verify
-        </button>
-        <button type="button" className={tab === 'words' ? 'active' : ''} onClick={() => setTab('words')}>
-          Words
-        </button>
-        <button
-          type="button"
-          className={tab === 'overview' ? 'active' : ''}
-          onClick={() => setTab('overview')}
-        >
-          Overview
         </button>
       </div>
       {error ? <p className="error">{error}</p> : null}
@@ -743,6 +720,36 @@ export function TeacherApp({ onExit }: Props) {
           <p className="muted">Blocked phrases: {words.length}</p>
         </div>
       )}
+      </div>
+      {/* created: 2026-11-23T23:45:00-08:00 — teacher tabs on right */}
+      <nav className="nav nav-shell nav-rail" aria-label="Teacher">
+        <button type="button" className={tab === 'flags' ? 'active' : ''} onClick={() => setTab('flags')}>
+          Flagged
+        </button>
+        <button
+          type="button"
+          className={tab === 'restrict' ? 'active' : ''}
+          onClick={() => setTab('restrict')}
+        >
+          Restrict
+        </button>
+        <button type="button" className={tab === 'posts' ? 'active' : ''} onClick={() => setTab('posts')}>
+          Posts
+        </button>
+        <button type="button" className={tab === 'verify' ? 'active' : ''} onClick={() => setTab('verify')}>
+          Verify
+        </button>
+        <button type="button" className={tab === 'words' ? 'active' : ''} onClick={() => setTab('words')}>
+          Words
+        </button>
+        <button
+          type="button"
+          className={tab === 'overview' ? 'active' : ''}
+          onClick={() => setTab('overview')}
+        >
+          Overview
+        </button>
+      </nav>
     </div>
   )
 }

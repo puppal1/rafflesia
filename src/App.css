@@ -763,6 +763,21 @@
 }
 
 /* created: 2026-11-23T21:10:00-08:00 — phase5: nav, icons, text block, teacher */
+/* updated: 2026-11-23T23:45:00-08:00 — right-hand nav rail */
+.app-with-rail {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+.app-main-col {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
 .nav-shell {
   flex-wrap: wrap;
   gap: 4px;
@@ -771,6 +786,46 @@
 .nav-shell button {
   font-size: 0.78rem;
   padding: 8px 10px;
+}
+
+.nav-rail {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  width: 132px;
+  position: sticky;
+  top: 8px;
+  margin: 0;
+  padding: 10px 8px;
+  border-radius: 18px;
+  background: rgba(227, 242, 255, 0.95);
+  border: 2px solid #7ec4f5;
+  box-shadow: 0 8px 20px rgba(77, 163, 232, 0.18);
+  gap: 8px;
+}
+
+.nav-rail button {
+  flex: none;
+  width: 100%;
+  font-size: 0.88rem;
+  padding: 12px 10px;
+}
+
+@media (max-width: 820px) {
+  .app-with-rail {
+    flex-direction: column;
+  }
+  .nav-rail {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+    order: -1;
+  }
+  .nav-rail button {
+    flex: 1 1 calc(33% - 8px);
+    width: auto;
+  }
 }
 
 .icon-picker {
