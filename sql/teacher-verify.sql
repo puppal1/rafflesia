@@ -1,4 +1,5 @@
 -- created: 2026-11-23T23:35:00-08:00
+-- updated: 2026-11-23T23:40:00-08:00 — DROP teacher_search_users before return-type change
 -- Teacher-only verification badges: pink | gold | blue
 
 alter table public.profiles
@@ -73,7 +74,9 @@ begin
 end;
 $$;
 
--- Refresh search to include verify_tier
+-- Refresh search to include verify_tier (must DROP — OUT row type changed)
+drop function if exists public.teacher_search_users(text, text);
+
 create or replace function public.teacher_search_users(p_password text, p_query text)
 returns table (
   id uuid,
