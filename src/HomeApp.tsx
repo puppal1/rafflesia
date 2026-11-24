@@ -289,18 +289,13 @@ export function HomeApp({ userId, onLogout }: Props) {
       })
       if (err) throw err
       const result = String(data || '')
+      // Do not reload follows from table here — RLS SELECT returns [] and wiped Unfollow.
       setFollowingIds((prev) => {
         const next = new Set(prev)
         if (result === 'unfollowed') next.delete(targetId)
         else next.add(targetId)
         return next
       })
-      // Refresh list; ignore follow-load errors so button state stays correct
-      try {
-        await loadPeople()
-      } catch {
-        /* keep optimistic followingIds */
-      }
     } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
