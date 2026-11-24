@@ -3429,12 +3429,16 @@ select {
 }
 
 .chat2-composer {
+  /* updated: 2026-11-24T14:12:00-08:00 — min-width 0 so attach row can shrink */
   flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
   border-top: 1px solid #d7e6f5;
   background: #f7fbff;
   padding: 8px 10px 10px;
   display: grid;
   gap: 6px;
+  box-sizing: border-box;
 }
 
 .chat2-emojis {
@@ -3452,26 +3456,61 @@ select {
 }
 
 .chat2-attach-preview {
-  /* updated: 2026-11-24T14:10:00-08:00 — no overlap: ellipsis name + separate Remove pill */
+  /* updated: 2026-11-24T14:12:00-08:00 — thumb with corner ✕; short label only */
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
+  max-width: 100%;
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid #d7e6f5;
   background: #fff;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  overflow: hidden;
 }
 
-.chat2-attach-preview img {
-  width: 48px;
-  height: 48px;
+.chat2-attach-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+}
+
+.chat2-attach-thumb img {
+  display: block;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
-  border-radius: 8px;
-  flex-shrink: 0;
+  border-radius: 10px;
+  background: #0f1a24;
+}
+
+.chat2-attach-x {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #c0392b;
+  color: #fff;
+  font: 700 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.chat2-attach-x:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chat2-attach-name {
@@ -3480,26 +3519,8 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text, #1a3a5c);
-}
-
-.chat2-attach-remove {
-  flex-shrink: 0;
-  border: 1px solid #cfe4f8;
-  background: #f4f9ff;
-  color: var(--text, #1a3a5c);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 0.78rem;
+  color: var(--muted, #4d7382);
   font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.chat2-attach-remove:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .chat2-link {

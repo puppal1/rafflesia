@@ -261,23 +261,25 @@ export function ChatThread({
             </div>
           ) : null}
           {mediaUrl ? (
-            <div className="chat2-attach-preview">
-              {/* updated: 2026-11-24T14:10:00-08:00 — name truncates; Remove is its own pill */}
-              <img src={mediaUrl} alt="" />
-              <span className="chat2-attach-name" title={mediaName || 'Photo ready'}>
-                {mediaName || 'Photo ready'}
-              </span>
-              <button
-                type="button"
-                className="chat2-attach-remove"
-                disabled={locked}
-                onClick={() => {
-                  setMediaUrl(null)
-                  setMediaName('')
-                }}
-              >
-                Remove
-              </button>
+            <div className="chat2-attach-preview" title={mediaName || 'Photo ready'}>
+              {/* updated: 2026-11-24T14:12:00-08:00 — thumb + ✕ only; no long name overlap */}
+              <div className="chat2-attach-thumb">
+                <img src={mediaUrl} alt={mediaName || 'Attached photo'} />
+                <button
+                  type="button"
+                  className="chat2-attach-x"
+                  disabled={locked}
+                  aria-label="Remove photo"
+                  title="Remove"
+                  onClick={() => {
+                    setMediaUrl(null)
+                    setMediaName('')
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <span className="chat2-attach-name">Photo ready</span>
             </div>
           ) : null}
           {linkOpen ? (
