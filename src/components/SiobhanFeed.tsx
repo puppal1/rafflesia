@@ -122,8 +122,9 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
         <div className="siobhan-hero-copy">
           <h2 className="panel-title">Siobhan Daily</h2>
           <p className="siobhan-tagline">
-            Live scroll · Oak Park · L.A. · Ventura · SF Valley · science · music
+            Local weather & alerts · animals · nature & science
           </p>
+          {/* updated: 2026-11-24T14:42:00-08:00 — Refresh sits with Live status, not school link */}
           <p className="siobhan-live-meta">
             {busy ? (
               <span className="siobhan-live-pill warming">Loading…</span>
@@ -135,19 +136,25 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
             {fetchedAt && !busy ? (
               <span className="muted"> Updated {new Date(fetchedAt).toLocaleTimeString()}</span>
             ) : null}
+            <button
+              className="ghost btn-compact siobhan-refresh-feed"
+              type="button"
+              disabled={busy}
+              title="Reload these 10 news stories"
+              onClick={() => refresh()}
+            >
+              {busy ? 'Refreshing feed…' : 'Refresh feed'}
+            </button>
           </p>
         </div>
         <div className="siobhan-hero-actions">
-          <button className="ghost btn-compact" type="button" disabled={busy} onClick={() => refresh()}>
-            {busy ? 'Refreshing…' : 'Refresh'}
-          </button>
           <a
-            className="primary btn-compact siobhan-school-btn"
+            className="ghost btn-compact siobhan-school-btn"
             href={SCHOOL_URL}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Open school site
+            School paper ↗
           </a>
         </div>
       </header>

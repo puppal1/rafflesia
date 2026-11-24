@@ -2181,21 +2181,31 @@ select {
   font-weight: 600;
 }
 .siobhan-school-btn {
+  /* updated: 2026-11-24T14:42:00-08:00 — alone on the right; not grouped with Refresh */
   flex-shrink: 0;
+  font-size: 0.82rem;
 }
 .siobhan-hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  margin-left: auto;
 }
 .siobhan-live-meta {
   margin: 6px 0 0;
   font-size: 0.78rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 6px 8px;
   align-items: center;
+}
+.siobhan-refresh-feed {
+  /* created: 2026-11-24T14:42:00-08:00 — next to Live / Updated, labeled as feed */
+  margin-left: 2px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 .siobhan-live-pill {
   display: inline-block;
