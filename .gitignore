@@ -24,9 +24,11 @@ dist-ssr
 *.sw?
 
 # created: 2026-11-23T18:28:00-08:00
+# updated: 2026-11-23T19:03:00-08:00 — allow .env.production (publishable client key for Pages CI)
 .env
 .env.*
 !.env.example
+!.env.production
 network-check.log
 rafflesia-keys.txt
 

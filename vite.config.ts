@@ -1,9 +1,11 @@
 // created: 2026-11-23T12:04:00-08:00
-// updated: 2026-11-23T12:09:00-08:00 — LAN alias webname + phone-safe HMR
+// updated: 2026-11-23T19:02:00-08:00 — GitHub Pages base path (school allows *.github.io)
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  // updated: 2026-11-23T19:02:00-08:00 — Pages path only in CI; local stays /
+  base: process.env.GITHUB_ACTIONS ? '/rafflesia-online/' : '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
