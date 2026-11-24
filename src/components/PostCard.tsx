@@ -1,6 +1,7 @@
 // created: 2026-11-24T12:35:00-08:00 — post card: media, comments, delete, send/share
 // updated: 2026-11-24T12:55:00-08:00 — stacked layout (no action overlap)
 // updated: 2026-11-24T13:35:00-08:00 — emoji likes, comment emoji + photo
+// updated: 2026-11-24T13:58:00-08:00 — larger post images + tap-to-enlarge lightbox
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
@@ -8,6 +9,7 @@ import type { ReactionRow, ReactionTarget } from '../lib/reactions'
 import { NameWithBadge } from './VerifiedBadge'
 import { ReactionBar } from './ReactionBar'
 import { CommentComposer } from './CommentComposer'
+import { MediaLightbox } from './MediaLightbox'
 import type { PostRow, Profile } from '../types'
 
 export type PostComment = {
@@ -37,7 +39,7 @@ type Props = {
 }
 
 /** created: 2026-11-24T12:35:00-08:00 */
-/** updated: 2026-11-24T13:35:00-08:00 */
+/** updated: 2026-11-24T13:58:00-08:00 */
 export function PostCard({
   post,
   userId,
@@ -56,6 +58,7 @@ export function PostCard({
   const [localBusy, setLocalBusy] = useState(false)
   const [err, setErr] = useState('')
   const [reactions, setReactions] = useState<ReactionRow[]>([])
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const mine = post.author_id === userId
 
   const loadComments = useCallback(async () => {
@@ -184,14 +187,22 @@ export function PostCard({
 
       {post.kind === 'picture' ? (
         post.media_url ? (
-          <img className="post-media" src={post.media_url} alt="" loading="lazy" />
+          <button
+            type="button"
+            className="post-media-btn"
+            onClick={() => setLightboxUrl(post.media_url!)}
+            aria-label="Enlarge picture"
+          >
+            <img className="post-media" src={post.media_url} alt="" loading="lazy" />
+            <span className="chat-media-hint">Tap to enlarge</span>
+          </button>
         ) : (
           <p className="post-card-missing-media">Picture missing a link.</p>
         )
       ) : null}
       {post.kind === 'video' ? (
         post.media_url ? (
-          <video className="post-media" src={post.media_url} controls playsInline />
+          <video className="post-media post-media-video" src={post.media_url} controls playsInline />
         ) : (
           <p className="post-card-missing-media">Video missing a link.</p>
         )
@@ -248,7 +259,17 @@ export function PostCard({
                     />
                   </p>
                   <p className="profile-bio">{c.body}</p>
-                  {c.media_url ? <img className="comment-media" src={c.media_url} alt="" /> : null}
+                  {c.media_url ? (
+                    <button
+                      type="button"
+                      className="post-media-btn comment-media-btn"
+                      onClick={() => setLightboxUrl(c.media_url!)}
+                      aria-label="Enlarge comment picture"
+                    >
+                      <img className="comment-media" src={c.media_url} alt="" />
+                      <span className="chat-media-hint">Tap to enlarge</span>
+                    </button>
+                  ) : null}
                   {(c.body.match(/https?:\/\/\S+/gi) || []).length > 0 ? (
                     <p className="chat-msg-links">
                       {(c.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
@@ -306,6 +327,8 @@ export function PostCard({
           />
         </div>
       ) : null}
+
+      <MediaLightbox src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </article>
   )
 }

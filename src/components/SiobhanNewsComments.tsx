@@ -1,10 +1,12 @@
 // created: 2026-11-24T13:25:00-08:00 — comments on Siobhan news cards
 // updated: 2026-11-24T14:05:00-08:00 — standard CommentComposer (emoji / link / photo)
+// updated: 2026-11-24T13:58:00-08:00 — tap-to-enlarge comment photos
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
 import { NameWithBadge } from './VerifiedBadge'
 import { CommentComposer } from './CommentComposer'
+import { MediaLightbox } from './MediaLightbox'
 import type { Profile } from '../types'
 
 export type NewsComment = {
@@ -39,6 +41,7 @@ export function SiobhanNewsComments({
   const [comments, setComments] = useState<NewsComment[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   const loadComments = useCallback(async () => {
     const { data, error } = await supabase
@@ -104,7 +107,17 @@ export function SiobhanNewsComments({
                     />
                   </p>
                   <p className="profile-bio">{c.body}</p>
-                  {c.media_url ? <img className="comment-media" src={c.media_url} alt="" /> : null}
+                  {c.media_url ? (
+                    <button
+                      type="button"
+                      className="post-media-btn comment-media-btn"
+                      onClick={() => setLightboxUrl(c.media_url!)}
+                      aria-label="Enlarge comment picture"
+                    >
+                      <img className="comment-media" src={c.media_url} alt="" />
+                      <span className="chat-media-hint">Tap to enlarge</span>
+                    </button>
+                  ) : null}
                   {links.length > 0 ? (
                     <p className="chat-msg-links">
                       {links.map((u) => (
@@ -149,6 +162,7 @@ export function SiobhanNewsComments({
           {err ? <p className="error">{err}</p> : null}
         </div>
       ) : null}
+      <MediaLightbox src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </div>
   )
 }
