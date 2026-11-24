@@ -2058,6 +2058,59 @@ select {
 .siobhan-school-btn {
   flex-shrink: 0;
 }
+.siobhan-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.siobhan-live-meta {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.siobhan-live-pill {
+  display: inline-block;
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 2px solid #1a3a5c;
+}
+.siobhan-live-pill.on {
+  background: #7dffb0;
+  color: #0a3a20;
+}
+.siobhan-live-pill.off {
+  background: #e8eef4;
+  color: #4a6080;
+}
+.siobhan-live-pill.warming {
+  background: #ffe566;
+  color: #1a3a5c;
+}
+.siobhan-chip.live {
+  background: #7dffb0;
+}
+.siobhan-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+.siobhan-when {
+  font-size: 0.75rem;
+}
+.siobhan-status {
+  margin: 0;
+  font-size: 0.82rem;
+}
 .siobhan-scroll-hint {
   margin: 0;
   font-size: 0.8rem;
