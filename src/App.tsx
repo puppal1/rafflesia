@@ -43,9 +43,9 @@ function App() {
   // updated: 2026-11-23T21:55:00-08:00 — emoji picker closed by default
   const [showSignupEmoji, setShowSignupEmoji] = useState(false)
   // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
-  // updated: 2026-11-24T11:30:00-08:00 — muted autoplay; corner Skip/Unmute only
+  // updated: 2026-11-24T11:40:00-08:00 — unmuted by default; mute only if browser blocks
   const [showIntro, setShowIntro] = useState(true)
-  const [introMuted, setIntroMuted] = useState(true)
+  const [introMuted, setIntroMuted] = useState(false)
   const [introPaused, setIntroPaused] = useState(false)
   const introVideoRef = useRef<HTMLVideoElement | null>(null)
   const introStartedRef = useRef(false)
@@ -65,33 +65,41 @@ function App() {
   }, [])
 
   useEffect(() => {
-    // created: 2026-11-24T11:30:00-08:00 — stay muted (auto-unmute was pausing Chromebooks)
+    // created: 2026-11-24T11:30:00-08:00
+    // updated: 2026-11-24T11:40:00-08:00 — prefer unmuted; fallback mute if autoplay blocked
     if (!showIntro || user) return
     const el = introVideoRef.current
     if (!el) return
     let cancelled = false
-    el.defaultMuted = true
-    el.muted = true
     el.volume = 1
-    const tryPlay = () => {
+    const tryPlay = (withSound: boolean) => {
       if (cancelled || !el) return
+      el.defaultMuted = !withSound
+      el.muted = !withSound
       const p = el.play()
       if (p && typeof p.then === 'function') {
         p.then(() => {
           if (cancelled) return
           introStartedRef.current = true
+          setIntroMuted(!withSound)
           setIntroPaused(false)
         }).catch(() => {
           if (cancelled) return
-          setIntroPaused(true)
+          if (withSound) {
+            // browser blocked sound autoplay — keep playing muted
+            tryPlay(false)
+          } else {
+            setIntroPaused(true)
+          }
         })
       }
     }
-    if (el.readyState >= 2) tryPlay()
-    else el.addEventListener('loadeddata', tryPlay, { once: true })
+    const start = () => tryPlay(true)
+    if (el.readyState >= 2) start()
+    else el.addEventListener('loadeddata', start, { once: true })
     return () => {
       cancelled = true
-      el.removeEventListener('loadeddata', tryPlay)
+      el.removeEventListener('loadeddata', start)
     }
   }, [showIntro, user])
 
@@ -231,7 +239,6 @@ function App() {
           className="intro-video"
           src={introSrc}
           playsInline
-          muted
           autoPlay
           preload="auto"
           onEnded={finishIntro}
