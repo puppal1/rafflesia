@@ -1,9 +1,10 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:34:00-08:00 — emoji bars for group name, bio, display name
+// updated: 2026-11-23T20:40:00-08:00 — re-engineer follow counts + toggle reliability
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
+import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/follows'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, Profile, Tab } from './types'
@@ -50,6 +51,8 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [showGroupEmoji, setShowGroupEmoji] = useState(true)
   const [showNameEmoji, setShowNameEmoji] = useState(true)
   const [showBioEmoji, setShowBioEmoji] = useState(true)
+  // created: 2026-11-23T20:40:00-08:00 — prevent stuck / double-tap Follow
+  const [followBusyId, setFollowBusyId] = useState<string | null>(null)
 
   const loadMe = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -79,48 +82,17 @@ export function HomeApp({ userId, onLogout }: Props) {
   }, [userId])
 
   const loadFollowGraph = useCallback(async (allProfiles: Profile[]) => {
-    // created: 2026-11-23T20:28:00-08:00 — counts for Me + People (needs follows SELECT or RPCs)
+    // created: 2026-11-23T20:28:00-08:00
+    // updated: 2026-11-23T20:40:00-08:00 — do not treat empty RLS [] as zero follows
     const ids = allProfiles.map((p) => p.id)
-    const followers: Record<string, number> = {}
-    const following: Record<string, number> = {}
-    for (const id of ids) {
-      followers[id] = 0
-      following[id] = 0
-    }
-
-    const edges = await supabase.from('follows').select('follower_id, following_id')
-    if (!edges.error && edges.data) {
-      for (const row of edges.data) {
-        const a = String(row.follower_id)
-        const b = String(row.following_id)
-        if (following[a] !== undefined) following[a] += 1
-        else following[a] = 1
-        if (followers[b] !== undefined) followers[b] += 1
-        else followers[b] = 1
-      }
-      setFollowerCountById(followers)
-      setFollowingCountById(following)
-      return
-    }
-
-    // Fallback: RPC per profile (after sql/fix-follows-rls.sql)
-    await Promise.all(
-      ids.map(async (id) => {
-        const [fol, fing] = await Promise.all([
-          supabase.rpc('list_user_followers', { p_user_id: id }),
-          supabase.rpc('list_user_following', { p_user_id: id }),
-        ])
-        followers[id] = Array.isArray(fol.data) ? fol.data.length : 0
-        following[id] = Array.isArray(fing.data) ? fing.data.length : 0
-      }),
-    )
-    setFollowerCountById(followers)
-    setFollowingCountById(following)
+    const counts = await fetchFollowCounts(supabase, ids)
+    setFollowerCountById(counts.followers)
+    setFollowingCountById(counts.following)
   }, [])
 
   const loadPeople = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:28:00-08:00 — load my following + everyone's follow counts
+    // updated: 2026-11-23T20:40:00-08:00 — reliable followingIds + counts
     const peopleRes = await supabase
       .from('profiles')
       .select('*')
@@ -133,20 +105,12 @@ export function HomeApp({ userId, onLogout }: Props) {
     const meRes = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     const meRow = (meRes.data as Profile | null) || null
     const graphProfiles = meRow ? [meRow, ...others] : others
-    await loadFollowGraph(graphProfiles)
 
-    const rpcRes = await supabase.rpc('list_my_following')
-    if (!rpcRes.error && Array.isArray(rpcRes.data)) {
-      setFollowingIds(new Set((rpcRes.data as string[]).map(String)))
-      return
-    }
-
-    const followsRes = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', userId)
-    if (followsRes.error) throw followsRes.error
-    setFollowingIds(new Set((followsRes.data || []).map((f) => f.following_id as string)))
+    const [myFollowing] = await Promise.all([
+      fetchMyFollowingIds(supabase, userId),
+      loadFollowGraph(graphProfiles),
+    ])
+    setFollowingIds(myFollowing)
   }, [userId, loadFollowGraph])
 
   const loadChats = useCallback(async () => {
@@ -498,40 +462,72 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function toggleFollow(targetId: string) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:28:00-08:00 — update counts + refresh open list
+    // updated: 2026-11-23T20:40:00-08:00 — busy lock + refresh counts from server
+    if (followBusyId) return
     setError('')
+    setFollowBusyId(targetId)
+    const wasFollowing = followingIds.has(targetId)
+    // Optimistic UI so the button never feels stuck
+    setFollowingIds((prev) => {
+      const next = new Set(prev)
+      if (wasFollowing) next.delete(targetId)
+      else next.add(targetId)
+      return next
+    })
+    setFollowerCountById((prev) => ({
+      ...prev,
+      [targetId]: Math.max(0, (prev[targetId] || 0) + (wasFollowing ? -1 : 1)),
+    }))
+    setFollowingCountById((prev) => ({
+      ...prev,
+      [userId]: Math.max(0, (prev[userId] || 0) + (wasFollowing ? -1 : 1)),
+    }))
     try {
-      const { data, error: err } = await supabase.rpc('toggle_follow', {
-        p_other_user_id: targetId,
-      })
-      if (err) throw err
-      const result = String(data || '')
-      const followed = result !== 'unfollowed'
+      const result = await toggleFollowRpc(supabase, targetId)
+      const followed = result === 'followed'
       setFollowingIds((prev) => {
         const next = new Set(prev)
         if (followed) next.add(targetId)
         else next.delete(targetId)
         return next
       })
+      // Reconcile counts for everyone (cross-user)
+      const meRow = me
+      const graph = meRow ? [meRow, ...people] : people
+      if (viewProfile && !graph.some((p) => p.id === viewProfile.id)) {
+        graph.push(viewProfile)
+      }
+      await loadFollowGraph(graph.length ? graph : [{ id: userId } as Profile, { id: targetId } as Profile])
+      if (viewProfile && followListKind) {
+        await loadFollowListFor(viewProfile.id, followListKind)
+      }
+    } catch (err) {
+      // Roll back optimistic flip
+      setFollowingIds((prev) => {
+        const next = new Set(prev)
+        if (wasFollowing) next.add(targetId)
+        else next.delete(targetId)
+        return next
+      })
       setFollowerCountById((prev) => ({
         ...prev,
-        [targetId]: Math.max(0, (prev[targetId] || 0) + (followed ? 1 : -1)),
+        [targetId]: Math.max(0, (prev[targetId] || 0) + (wasFollowing ? 1 : -1)),
       }))
       setFollowingCountById((prev) => ({
         ...prev,
-        [userId]: Math.max(0, (prev[userId] || 0) + (followed ? 1 : -1)),
+        [userId]: Math.max(0, (prev[userId] || 0) + (wasFollowing ? 1 : -1)),
       }))
-      if (viewProfile && followListKind) {
-        await openFollowList(viewProfile, followListKind)
-      }
-    } catch (err) {
       const msg =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: string }).message)
           : err instanceof Error
             ? err.message
             : 'Follow failed.'
-      setError(`Follow failed: ${msg}`)
+      setError(
+        `Follow failed: ${msg}. If counts stay at 0, run sql/fix-follows-rls.sql in Supabase.`,
+      )
+    } finally {
+      setFollowBusyId(null)
     }
   }
 
@@ -764,8 +760,17 @@ export function HomeApp({ userId, onLogout }: Props) {
 
           {viewProfile.id !== userId ? (
             <div className="row-actions" style={{ marginBottom: 12 }}>
-              <button className="ghost" type="button" onClick={() => toggleFollow(viewProfile.id)}>
-                {followingIds.has(viewProfile.id) ? 'Unfollow' : 'Follow'}
+              <button
+                className="ghost"
+                type="button"
+                disabled={followBusyId === viewProfile.id}
+                onClick={() => toggleFollow(viewProfile.id)}
+              >
+                {followBusyId === viewProfile.id
+                  ? '…'
+                  : followingIds.has(viewProfile.id)
+                    ? 'Unfollow'
+                    : 'Follow'}
               </button>
               <button className="primary" type="button" disabled={busy} onClick={() => startDm(viewProfile)}>
                 Message
@@ -822,8 +827,17 @@ export function HomeApp({ userId, onLogout }: Props) {
                       </button>
                       {p.id !== userId ? (
                         <div className="row-actions">
-                          <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
-                            {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
+                          <button
+                            className="ghost"
+                            type="button"
+                            disabled={followBusyId === p.id}
+                            onClick={() => toggleFollow(p.id)}
+                          >
+                            {followBusyId === p.id
+                              ? '…'
+                              : followingIds.has(p.id)
+                                ? 'Unfollow'
+                                : 'Follow'}
                           </button>
                         </div>
                       ) : null}
@@ -953,8 +967,17 @@ export function HomeApp({ userId, onLogout }: Props) {
                   </button>
                   {/* updated: 2026-11-23T19:55:00-08:00 — fixed action column so long names wrap */}
                   <div className="row-actions">
-                    <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
-                      {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
+                    <button
+                      className="ghost"
+                      type="button"
+                      disabled={followBusyId === p.id}
+                      onClick={() => toggleFollow(p.id)}
+                    >
+                      {followBusyId === p.id
+                        ? '…'
+                        : followingIds.has(p.id)
+                          ? 'Unfollow'
+                          : 'Follow'}
                     </button>
                     <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
                       Message
