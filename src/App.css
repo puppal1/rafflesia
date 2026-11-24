@@ -1,5 +1,5 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T21:45:00-08:00 — tablet/Chromebook width + brighter Chrome pastels */
+/* updated: 2026-11-23T22:45:00-08:00 — bright popping coral/mint/sky (less navy) */
 
 .app-shell {
   min-height: 100svh;
@@ -11,18 +11,19 @@
 }
 
 .glass-card {
-  /* updated: 2026-11-23T22:25:00-08:00 — near-full Chromebook width + deep blue chrome */
+  /* updated: 2026-11-23T22:45:00-08:00 — sunny card + candy border */
   width: calc(100vw - 20px);
   max-width: 1800px;
   max-height: calc(100svh - 20px);
   overflow: auto;
   padding: 32px 40px 40px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #f4f8ff 0%, #d7e8ff 42%, #bfd8ff 100%);
-  border: 5px solid #0a3a7a;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff4e8 38%, #ffe8f5 100%);
+  border: 5px solid #ff5c8a;
   box-shadow:
     inset 0 2px 0 #ffffff,
-    0 22px 52px rgba(8, 35, 80, 0.5);
+    0 18px 40px rgba(255, 90, 120, 0.28),
+    0 0 0 6px rgba(255, 210, 63, 0.35);
   text-align: center;
   color-scheme: only light;
   forced-color-adjust: none;
@@ -77,12 +78,13 @@
   margin: 0 0 4px;
   font-size: clamp(1.55rem, 2.4vw, 2.1rem);
   font-weight: 800;
-  color: #0b2348;
+  color: #c2185b;
+  text-shadow: 0 2px 0 #ffe566;
 }
 
 .tag {
   margin: 0 0 14px;
-  color: #1e3f6e;
+  color: #5a4a6a;
   font-size: 1rem;
 }
 
@@ -95,9 +97,9 @@
 .tabs button,
 .nav button {
   flex: 1;
-  border: 2px solid #0d4a9a;
-  background: #c5dcff;
-  color: #0b2348;
+  border: 2px solid #ff8c1a;
+  background: #fff3c4;
+  color: #5a2d00;
   border-radius: 999px;
   padding: 12px 14px;
   cursor: pointer;
@@ -107,10 +109,10 @@
 
 .tabs button.active,
 .nav button.active {
-  background: linear-gradient(180deg, #1f5fc4 0%, #0a3a7a 100%);
-  border-color: #072a5c;
+  background: linear-gradient(180deg, #ff6b9d 0%, #ff4d6d 55%, #ff8c1a 100%);
+  border-color: #e91e63;
   color: #fff;
-  box-shadow: 0 5px 16px rgba(10, 58, 122, 0.5);
+  box-shadow: 0 6px 18px rgba(255, 77, 109, 0.45);
 }
 
 .nav {
@@ -129,7 +131,7 @@
 .field {
   display: grid;
   gap: 4px;
-  color: #2f4570;
+  color: #5a4a6a;
   font-size: 0.9rem;
   text-align: left;
 }
@@ -140,9 +142,9 @@
 .field textarea,
 .composer input {
   border-radius: 12px;
-  border: 2px solid #3da8f0;
+  border: 2px solid #ff8c1a;
   background: #ffffff;
-  color: #1e2f52;
+  color: #2a1f3d;
   padding: 12px 14px;
   font: inherit;
   width: 100%;
@@ -165,10 +167,10 @@
 
 .primary {
   border: 0;
-  background: linear-gradient(180deg, #1f5fc4 0%, #0a3a7a 100%);
+  background: linear-gradient(180deg, #ff6b9d 0%, #ff4d6d 50%, #ff8c1a 100%);
   color: #fff;
   font-weight: 800;
-  box-shadow: 0 7px 20px rgba(10, 58, 122, 0.5);
+  box-shadow: 0 7px 20px rgba(255, 77, 109, 0.4);
   padding: 12px 16px;
 }
 
@@ -178,9 +180,9 @@
 }
 
 .ghost {
-  border: 2px solid #1fa887;
-  background: #c5fff0;
-  color: #0f5c4a;
+  border: 2px solid #00c9a7;
+  background: #c8fff4;
+  color: #007a66;
   font-weight: 700;
 }
 
@@ -197,7 +199,7 @@
 }
 
 .muted {
-  color: #1e3f6e;
+  color: #6b5a7a;
   font-size: 0.9rem;
   margin: 6px 0;
 }
@@ -209,15 +211,15 @@
 }
 
 .row {
-  /* updated: 2026-11-23T19:55:00-08:00 — name wraps; Follow/Message stay aligned */
+  /* updated: 2026-11-23T22:45:00-08:00 — bright list rows */
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(238, 246, 255, 0.9);
-  border: 1px solid #cfe4f8;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid #ffd0e0;
 }
 
 .row-actions {
@@ -273,19 +275,19 @@
 
 .bubble {
   padding: 8px 10px;
-  border-radius: 12px;
-  background: #eef6ff;
-  border: 1px solid #cfe4f8;
+  border-radius: 14px;
+  background: #fff8e8;
+  border: 2px solid #ffd23f;
 }
 
 .bubble.mine {
-  background: #e0ecff;
-  border-color: #b8d9f5;
+  background: #ffe8f3;
+  border-color: #ff7eb6;
 }
 
 .bubble-meta {
   font-size: 0.75rem;
-  color: #6b7a99;
+  color: #7a6a8a;
   margin-bottom: 4px;
 }
 
@@ -339,7 +341,7 @@
   height: 110px;
   object-fit: cover;
   border-radius: 12px;
-  border: 2px solid #b8d9f5;
+  border: 2px solid #ffc0d4;
   margin-bottom: 10px;
 }
 
@@ -377,7 +379,7 @@
 }
 
 .count-btn {
-  border: 1px solid #b8d9f5;
+  border: 1px solid #ffc0d4;
   background: #eef6ff;
   color: #2f3a55;
   border-radius: 999px;
@@ -429,7 +431,7 @@
   gap: 4px;
   padding: 8px;
   border-radius: 12px;
-  border: 1px solid #cfe4f8;
+  border: 1px solid #ffd0e0;
   background: rgba(238, 246, 255, 0.95);
   max-height: 96px;
   overflow-y: auto;
@@ -470,7 +472,7 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: 12px;
-  border: 1px solid #cfe4f8;
+  border: 1px solid #ffd0e0;
   background: rgba(255, 255, 255, 0.7);
   font-size: 0.88rem;
   color: #2f3a55;
@@ -482,14 +484,14 @@
   height: 18px;
   margin: 0;
   flex-shrink: 0;
-  accent-color: #2f8fff;
+  accent-color: #00c9a7;
 }
 
 .group-create-card {
   margin: 8px 0 16px;
   padding: 14px;
   border-radius: 16px;
-  border: 2px solid #7ec4f5;
+  border: 2px solid #ff8c1a;
   background: rgba(255, 255, 255, 0.72);
   text-align: left;
 }
@@ -520,16 +522,17 @@
 }
 
 /* created: 2026-11-23T22:40:00-08:00 — Everyone lounge room (not a group chat row) */
+/* updated: 2026-11-23T22:45:00-08:00 — candy lounge highlight */
 .lounge-main-room {
-  border: 3px solid #0d4a9a !important;
-  background: linear-gradient(180deg, #dcecff 0%, #c5dcff 100%) !important;
-  box-shadow: 0 8px 20px rgba(10, 58, 122, 0.22);
+  border: 3px solid #ff4d8d !important;
+  background: linear-gradient(180deg, #fff6a8 0%, #ffd0e8 55%, #c8fff4 100%) !important;
+  box-shadow: 0 8px 22px rgba(255, 77, 141, 0.28);
 }
 
 .friend-pick-heading {
   margin: 8px 0 6px;
   font-weight: 700;
-  color: #243556;
+  color: #5a2d00;
   font-size: 0.92rem;
   text-align: left;
 }
@@ -541,18 +544,18 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 14px;
-  border: 2px solid #cfe4f8;
+  border: 2px solid #ffd0e0;
   background: #fff;
   cursor: pointer;
   text-align: left;
   font: inherit;
-  color: #243556;
+  color: #2a1f3d;
 }
 
 .friend-pick-row.on {
-  border-color: #2f8fff;
-  background: #e3f2ff;
-  box-shadow: 0 4px 12px rgba(47, 143, 255, 0.18);
+  border-color: #ff4d8d;
+  background: #ffe8f3;
+  box-shadow: 0 4px 12px rgba(255, 77, 141, 0.2);
 }
 
 .friend-pick-text {
@@ -567,7 +570,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid #b8d9f5;
+  border: 2px solid #ffc0d4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -578,16 +581,16 @@
 }
 
 .friend-pick-check.on {
-  background: #2f8fff;
-  border-color: #2f8fff;
+  background: #ff4d8d;
+  border-color: #ff4d8d;
 }
 
 .face-avatar {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 2px solid #7ec4f5;
-  background: #e8f5ff;
+  border: 2px solid #ff8c1a;
+  background: #fff3c4;
 }
 
 .face-avatar.face-icon {
@@ -672,7 +675,7 @@
   margin: 0 0 12px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid #b8d9f5;
+  border: 1px solid #ffc0d4;
   background: rgba(238, 246, 255, 0.85);
   text-align: left;
 }
@@ -715,7 +718,7 @@
   gap: 4px;
   padding: 10px 6px;
   border-radius: 14px;
-  border: 2px solid #cfe4f8;
+  border: 2px solid #ffd0e0;
   background: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
@@ -779,7 +782,7 @@
 }
 
 .chip {
-  border: 1px solid #cfe4f8;
+  border: 1px solid #ffd0e0;
   background: rgba(238, 246, 255, 0.95);
   border-radius: 999px;
   padding: 6px 10px;
@@ -815,7 +818,7 @@ select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #cfe4f8;
+  border: 1px solid #ffd0e0;
   background: rgba(255, 255, 255, 0.9);
   color: #2f3a55;
   font: inherit;
@@ -837,7 +840,7 @@ select {
   max-height: 200px;
   overflow-y: auto;
   border-radius: 12px;
-  border: 1px solid #cfe4f8;
+  border: 1px solid #ffd0e0;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 8px 24px rgba(60, 120, 180, 0.18);
 }
@@ -864,7 +867,7 @@ select {
   margin: 10px 0 14px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid #b8d9f5;
+  border: 1px solid #ffc0d4;
   background: rgba(238, 246, 255, 0.9);
   text-align: left;
 }
@@ -890,15 +893,15 @@ select {
   gap: 6px;
   padding: 14px 8px;
   border-radius: 16px;
-  border: 2px solid #7ec4f5;
+  border: 2px solid #ff8c1a;
   background: #eef7ff;
   cursor: pointer;
   font: inherit;
-  color: #243556;
+  color: #2a1f3d;
 }
 
 .post-mode-tile.sel {
-  border-color: #2f8fff;
+  border-color: #ff4d8d;
   background: linear-gradient(180deg, #dff0ff 0%, #c8e4ff 100%);
   box-shadow: 0 6px 16px rgba(47, 143, 255, 0.28);
 }
@@ -922,7 +925,7 @@ select {
 .post-source-chip {
   flex: 1;
   border-radius: 999px;
-  border: 2px solid #7ec4f5;
+  border: 2px solid #ff8c1a;
   background: #fff;
   padding: 10px 12px;
   font: inherit;
@@ -948,7 +951,7 @@ select {
   object-fit: contain;
   border-radius: 12px;
   margin-top: 8px;
-  background: #e8f4ff;
+  background: #fff3c4;
 }
 
 /* created: 2026-11-23T22:25:00-08:00 */
@@ -977,11 +980,11 @@ select {
   text-align: left;
   padding: 14px;
   border-radius: 16px;
-  border: 2px solid #1a6fc4;
-  background: #e8f4ff;
+  border: 2px solid #ff5c8a;
+  background: #fff3c4;
   cursor: pointer;
   font: inherit;
-  color: #12315c;
+  color: #c2185b;
 }
 
 .game-pick-tile:hover {
@@ -1014,7 +1017,7 @@ select {
   font-size: 0.85rem;
   font-weight: 700;
   background: #cfe8ff;
-  color: #12315c;
+  color: #c2185b;
   border: 2px solid #1f7ed0;
 }
 
@@ -1043,7 +1046,7 @@ select {
   gap: 6px;
   align-items: baseline;
   margin-bottom: 4px;
-  color: #12315c;
+  color: #c2185b;
 }
 
 .score-val {
@@ -1062,7 +1065,7 @@ select {
 .match-card {
   aspect-ratio: 1;
   border-radius: 12px;
-  border: 2px solid #1a6fc4;
+  border: 2px solid #ff5c8a;
   background: #1f4fd0;
   color: #fff;
   font-size: 1.4rem;
@@ -1071,8 +1074,8 @@ select {
 
 .match-card.open,
 .match-card.done {
-  background: #e8f4ff;
-  color: #12315c;
+  background: #fff3c4;
+  color: #c2185b;
 }
 
 .match-card img {
@@ -1084,9 +1087,9 @@ select {
 .snake-board {
   position: relative;
   margin: 10px auto;
-  background: #12315c;
+  background: #c2185b;
   border-radius: 12px;
-  border: 3px solid #1a6fc4;
+  border: 3px solid #ff5c8a;
 }
 
 .snake-cell {
@@ -1107,10 +1110,10 @@ select {
 
 .blocks-board {
   display: inline-block;
-  background: #12315c;
+  background: #c2185b;
   padding: 4px;
   border-radius: 10px;
-  border: 3px solid #1a6fc4;
+  border: 3px solid #ff5c8a;
 }
 
 .blocks-row {
@@ -1149,11 +1152,11 @@ select {
   border-radius: 10px;
   font-weight: 800;
   background: #cfe8ff;
-  color: #12315c;
-  border: 2px solid #1a6fc4;
+  color: #c2185b;
+  border: 2px solid #ff5c8a;
 }
 
-.g2048-cell.n2 { background: #e8f4ff; }
+.g2048-cell.n2 { background: #fff3c4; }
 .g2048-cell.n4 { background: #b8dfff; }
 .g2048-cell.n8 { background: #6eb4ef; color: #fff; }
 .g2048-cell.n16 { background: #3d8fff; color: #fff; }
@@ -1163,13 +1166,13 @@ select {
 .g2048-cell.n256,
 .g2048-cell.n512,
 .g2048-cell.n1024,
-.g2048-cell.n2048 { background: #12315c; color: #fff; }
+.g2048-cell.n2048 { background: #c2185b; color: #fff; }
 
 .tap-arena {
   position: relative;
   height: 220px;
   border-radius: 16px;
-  border: 3px solid #1a6fc4;
+  border: 3px solid #ff5c8a;
   background: linear-gradient(180deg, #d5ebff, #9fd0f5);
   margin: 10px 0;
 }
