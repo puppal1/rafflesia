@@ -34,9 +34,11 @@ jobs:
         run: npm ci
       - name: Build
         # created: 2026-11-23T19:02:00-08:00
-        # updated: 2026-11-23T19:14:00-08:00 — base path = /{repo}/ for project Pages
+        # updated: 2026-11-23T21:25:00-08:00 — Supabase via Actions secrets (no .env in repo)
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
       - name: Upload Pages artifact
         # created: 2026-11-23T19:02:00-08:00
