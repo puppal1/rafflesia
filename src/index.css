@@ -1,5 +1,5 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T22:55:00-08:00 — rainbow-balanced: coral + sky blue + green */
+/* updated: 2026-11-23T23:00:00-08:00 — simple all light-blue theme */
 :root {
   color-scheme: only light;
   supported-color-schemes: light;
@@ -7,31 +7,20 @@
   line-height: 1.45;
   font-weight: 400;
   font-size: 20px;
-  color: #2a1f3d;
-  background: #ff9a5c;
+  color: #1a3a5c;
+  background: #b8ddff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --bg-wash-top: #ffb347;
-  --bg-wash-mid: #ff7a59;
-  --bg-wash-edge: #4ecbff;
-  --text: #2a1f3d;
-  --muted: #5a4a6a;
-  --card-bg: #fff8f0;
-  --card-border: #ff5c8a;
-  --btn-primary: #ff4d6d;
-  --btn-active: #ff8c1a;
-  --btn-ghost-border: #22c55e;
-  --btn-ghost-bg: #d8ffe6;
-  --btn-ghost-text: #166534;
-  --pop-pink: #ff4d8d;
-  --pop-orange: #ff8c1a;
-  --pop-yellow: #ffd23f;
-  --pop-mint: #2ee6a8;
-  --pop-green: #22c55e;
-  --pop-sky: #4ecbff;
-  --pop-blue: #3b9eff;
-  --pop-lilac: #b388ff;
+  --text: #1a3a5c;
+  --muted: #4a6f94;
+  --card-bg: #f2f8ff;
+  --card-border: #7ec4f5;
+  --btn-primary: #4da3e8;
+  --btn-active: #2f8fd6;
+  --btn-ghost-border: #7ec4f5;
+  --btn-ghost-bg: #e3f2ff;
+  --btn-ghost-text: #1a5a8a;
 }
 
 * {
@@ -48,21 +37,14 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  background-color: #ff9a5c;
+  background-color: #b8ddff;
   color: var(--text);
 }
 
 body {
   min-height: 100svh;
-  background-color: #ff9a5c;
-  /* yellow · coral · pink · green · sky — rainbow wash, still bright */
-  background-image:
-    radial-gradient(circle at 6% 0%, #ffe566 0%, transparent 34%),
-    radial-gradient(circle at 28% 8%, #ff7eb6 0%, transparent 36%),
-    radial-gradient(circle at 72% 0%, #4ecbff 0%, transparent 40%),
-    radial-gradient(circle at 94% 18%, #3dde7a 0%, transparent 38%),
-    radial-gradient(circle at 50% 100%, #7ec8ff 0%, transparent 48%),
-    linear-gradient(155deg, #ffb347 0%, #ff7a59 32%, #5ee0c5 68%, #4ecbff 100%);
+  background-color: #b8ddff;
+  background-image: linear-gradient(165deg, #dff0ff 0%, #b8ddff 45%, #9ed0ff 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
   forced-color-adjust: none;
