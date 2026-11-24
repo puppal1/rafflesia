@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // updated: 2026-11-23T19:02:00-08:00 — Pages path only in CI; local stays /
-  base: process.env.GITHUB_ACTIONS ? '/rafflesia-online/' : '/',
+  // updated: 2026-11-23T19:08:00-08:00 — short Pages path /rafflesia/
+  base: process.env.GITHUB_ACTIONS ? '/rafflesia/' : '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
