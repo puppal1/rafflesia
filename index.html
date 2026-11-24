@@ -8,10 +8,14 @@
     <!-- updated: 2026-11-23T23:00:00-08:00 — light blue theme-color -->
     <meta name="color-scheme" content="only light" />
     <meta name="supported-color-schemes" content="light" />
+    <!-- updated: 2026-11-24T08:58:00-08:00 — inline bg so blank loads aren't pure white -->
     <meta name="theme-color" content="#b8ddff" />
     <link rel="icon" type="image/jpeg" href="%BASE_URL%logo.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rafflesia Online</title>
+    <style>
+      html, body, #root { margin: 0; min-height: 100%; background: #b8ddff; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

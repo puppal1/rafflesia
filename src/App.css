@@ -33,6 +33,16 @@
   min-width: 180px;
 }
 
+/* created: 2026-11-24T08:58:00-08:00 — always visible escape from intro */
+.intro-continue {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 3;
+  min-width: 200px;
+}
+
 /* created: 2026-11-23T23:35:00-08:00 — teacher verify badges */
 .name-with-badge {
   display: inline-flex;

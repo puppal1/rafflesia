@@ -63,15 +63,34 @@ function App() {
 
   useEffect(() => {
     // created: 2026-11-23T23:05:00-08:00
-    // updated: 2026-11-23T23:10:00-08:00 — always prefer audio; tap if browser blocks
+    // updated: 2026-11-24T08:58:00-08:00 — Camarillo/school: fail open to login fast
     if (!showIntro || user) return
     const el = introVideoRef.current
-    if (!el) return
-    el.muted = false
+    if (!el) {
+      setShowIntro(false)
+      return
+    }
+    // muted first so Chromebook autoplay is allowed, then try sound
+    el.muted = true
     el.volume = 1
     const play = el.play()
     if (play && typeof play.then === 'function') {
-      play.catch(() => setIntroNeedsTap(true))
+      play
+        .then(() => {
+          el.muted = false
+        })
+        .catch(() => setIntroNeedsTap(true))
+    }
+    const stall = window.setTimeout(() => {
+      if (el.readyState < 2 || el.paused) setIntroNeedsTap(true)
+    }, 1500)
+    const hardCap = window.setTimeout(() => {
+      setShowIntro(false)
+      setIntroNeedsTap(false)
+    }, 6000)
+    return () => {
+      window.clearTimeout(stall)
+      window.clearTimeout(hardCap)
     }
   }, [showIntro, user])
 
@@ -184,7 +203,7 @@ function App() {
   }
 
   // created: 2026-11-23T23:05:00-08:00 — full-screen intro before login
-  // updated: 2026-11-23T23:10:00-08:00 — cropped + audio, no skip
+  // updated: 2026-11-24T08:55:00-08:00 — Continue so Chromebooks aren't stuck black
   if (showIntro && !user && !teacherMode) {
     return (
       <div className="intro-shell" onClick={introNeedsTap ? startIntroWithTap : undefined}>
@@ -197,12 +216,17 @@ function App() {
           preload="auto"
           onEnded={finishIntro}
           onError={finishIntro}
+          onStalled={() => setIntroNeedsTap(true)}
+          onWaiting={() => setIntroNeedsTap(true)}
         />
         {introNeedsTap ? (
           <button className="primary intro-tap" type="button" onClick={startIntroWithTap}>
-            Tap for sound
+            Tap to play
           </button>
         ) : null}
+        <button className="primary intro-continue" type="button" onClick={finishIntro}>
+          Continue to login
+        </button>
       </div>
     )
   }
