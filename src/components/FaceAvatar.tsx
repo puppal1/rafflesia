@@ -1,6 +1,6 @@
 // created: 2026-11-23T22:00:00-08:00
-// Avatar photo, else pack icon image, else emoji — used as face everywhere
-import { iconEmoji, iconSrcOrEmpty } from '../lib/iconPacks'
+// updated: 2026-11-23T23:55:00-08:00 — avatar photo or emoji (no AI icon images)
+import { iconEmoji } from '../lib/iconPacks'
 
 type Props = {
   // created: 2026-11-23T22:00:00-08:00
@@ -12,6 +12,7 @@ type Props = {
 }
 
 /** created: 2026-11-23T22:00:00-08:00 */
+/** updated: 2026-11-23T23:55:00-08:00 */
 export function FaceAvatar({
   avatarUrl,
   iconPack,
@@ -19,7 +20,6 @@ export function FaceAvatar({
   size = 'sm',
   className = '',
 }: Props) {
-  const iconSrc = iconSrcOrEmpty(iconPack, iconId)
   const dim = size === 'lg' ? 88 : size === 'md' ? 48 : 36
 
   if (avatarUrl) {
@@ -27,17 +27,6 @@ export function FaceAvatar({
       <img
         className={`face-avatar ${size} ${className}`.trim()}
         src={avatarUrl}
-        alt=""
-        width={dim}
-        height={dim}
-      />
-    )
-  }
-  if (iconSrc) {
-    return (
-      <img
-        className={`face-avatar face-icon ${size} ${className}`.trim()}
-        src={iconSrc}
         alt=""
         width={dim}
         height={dim}

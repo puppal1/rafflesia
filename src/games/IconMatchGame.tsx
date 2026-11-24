@@ -1,10 +1,11 @@
 // created: 2026-11-23T22:15:00-08:00
+// updated: 2026-11-23T23:55:00-08:00 — emoji cards only
 import { useMemo, useState } from 'react'
 import { allIcons } from '../lib/iconPacks'
 import { ScoreBoard } from './ScoreBoard'
 import { useGameScores } from './useGameScores'
 
-type Card = { id: number; key: string; emoji: string; src?: string; open: boolean; done: boolean }
+type Card = { id: number; key: string; emoji: string; open: boolean; done: boolean }
 
 /** created: 2026-11-23T22:15:00-08:00 — higher score = fewer moves */
 function buildDeck(): Card[] {
@@ -13,7 +14,6 @@ function buildDeck(): Card[] {
     id: i,
     key: icon.id,
     emoji: icon.emoji,
-    src: icon.src,
     open: false,
     done: false,
   }))
@@ -87,11 +87,7 @@ export function IconMatchGame() {
             onClick={() => flip(i)}
             disabled={lock || c.done}
           >
-            {c.open || c.done ? (
-              c.src ? <img src={c.src} alt="" /> : <span>{c.emoji}</span>
-            ) : (
-              <span>?</span>
-            )}
+            {c.open || c.done ? <span>{c.emoji}</span> : <span>?</span>}
           </button>
         ))}
       </div>
