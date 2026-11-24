@@ -1091,6 +1091,7 @@ export function HomeApp({ userId, onLogout }: Props) {
   return (
     <div className="app-with-rail">
       <div className="app-main-col">
+      {/* updated: 2026-11-23T23:59:00-08:00 — Log out lives on Me profile only */}
       <div className="header-bar">
         <div>
           <img className="logo-sm" src={logoSrc} alt="" />
@@ -1100,9 +1101,6 @@ export function HomeApp({ userId, onLogout }: Props) {
             <NameWithBadge name={niceName(me)} tier={me?.verify_tier} />
           </p>
         </div>
-        <button className="ghost" type="button" onClick={onLogout}>
-          Log out
-        </button>
       </div>
 
       {error ? <p className="error">{error}</p> : null}
@@ -1699,6 +1697,10 @@ export function HomeApp({ userId, onLogout }: Props) {
           />
           <button className="primary" type="submit" disabled={busy}>
             Save profile
+          </button>
+          {/* created: 2026-11-23T23:59:00-08:00 — Log out only on My profile */}
+          <button className="ghost" type="button" onClick={onLogout} style={{ marginTop: 10 }}>
+            Log out
           </button>
         </form>
       )}
