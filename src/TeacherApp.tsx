@@ -1,10 +1,11 @@
 // created: 2026-11-23T21:00:00-08:00
-// updated: 2026-11-23T21:35:00-08:00 — username typeahead + profile preview
+// updated: 2026-11-23T22:25:00-08:00 — soft-delete posts moderation tab
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { clearBlockedPhraseCache } from './lib/textChecker'
 import { iconEmoji } from './lib/iconPacks'
+import type { PostRow } from './types'
 
 type FlagRow = {
   // created: 2026-11-23T21:00:00-08:00
@@ -49,7 +50,7 @@ export function TeacherApp({ onExit }: Props) {
   const [restrictUser, setRestrictUser] = useState('')
   const [blockPost, setBlockPost] = useState(true)
   const [blockMsg, setBlockMsg] = useState(true)
-  const [tab, setTab] = useState<'flags' | 'words' | 'restrict' | 'overview'>('flags')
+  const [tab, setTab] = useState<'flags' | 'words' | 'restrict' | 'posts' | 'overview'>('flags')
   const [overview, setOverview] = useState<{ posts: number; chats: number; flags: number }>({
     posts: 0,
     chats: 0,
@@ -60,6 +61,9 @@ export function TeacherApp({ onExit }: Props) {
   const [picked, setPicked] = useState<SearchHit | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const searchTimer = useRef<number | null>(null)
+  // created: 2026-11-23T22:25:00-08:00
+  const [userPosts, setUserPosts] = useState<PostRow[]>([])
+  const [postsBusy, setPostsBusy] = useState(false)
 
   const loadAll = useCallback(async (pw: string) => {
     const [f, w, o] = await Promise.all([
@@ -110,8 +114,30 @@ export function TeacherApp({ onExit }: Props) {
     }, 220)
   }
 
+  const loadUserPosts = useCallback(
+    async (userId: string) => {
+      // created: 2026-11-23T22:25:00-08:00
+      const { data, error: err } = await supabase.rpc('teacher_list_user_posts', {
+        p_password: sessionPw,
+        p_user_id: userId,
+      })
+      if (err) {
+        setError(
+          err.message.includes('teacher_list_user_posts')
+            ? 'Post moderation needs sql-teacher-moderation-posts.sql — run in Supabase.'
+            : err.message,
+        )
+        setUserPosts([])
+        return
+      }
+      setUserPosts((data || []) as PostRow[])
+    },
+    [sessionPw],
+  )
+
   function pickHit(hit: SearchHit) {
     // created: 2026-11-23T21:35:00-08:00
+    // updated: 2026-11-23T22:25:00-08:00 — also load posts for moderation
     setPicked(hit)
     setRestrictUser(hit.username)
     setHits([])
@@ -119,6 +145,65 @@ export function TeacherApp({ onExit }: Props) {
     setBlockPost(hit.block_post)
     setBlockMsg(hit.block_message)
     setStatus(`Selected @${hit.username}`)
+    loadUserPosts(hit.id).catch(() => undefined)
+  }
+
+  async function softDeletePost(postId: string) {
+    setPostsBusy(true)
+    setError('')
+    try {
+      const { error: err } = await supabase.rpc('teacher_soft_delete_post', {
+        p_password: sessionPw,
+        p_post_id: postId,
+        p_reason: 'teacher moderation',
+      })
+      if (err) throw err
+      setStatus('Post hidden from Home (soft delete).')
+      if (picked) await loadUserPosts(picked.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not hide post.')
+    } finally {
+      setPostsBusy(false)
+    }
+  }
+
+  async function restorePost(postId: string) {
+    setPostsBusy(true)
+    setError('')
+    try {
+      const { error: err } = await supabase.rpc('teacher_restore_post', {
+        p_password: sessionPw,
+        p_post_id: postId,
+      })
+      if (err) throw err
+      setStatus('Post restored to Home.')
+      if (picked) await loadUserPosts(picked.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not restore post.')
+    } finally {
+      setPostsBusy(false)
+    }
+  }
+
+  async function softDeleteAllPosts() {
+    if (!picked) return
+    if (!window.confirm(`Hide ALL visible posts from @${picked.username}?`)) return
+    setPostsBusy(true)
+    setError('')
+    try {
+      const { data, error: err } = await supabase.rpc('teacher_soft_delete_user_posts', {
+        p_password: sessionPw,
+        p_user_id: picked.id,
+        p_reason: 'teacher moderation',
+      })
+      if (err) throw err
+      setStatus(`Hidden ${data ?? 0} posts from @${picked.username}.`)
+      await loadUserPosts(picked.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not hide posts.')
+    } finally {
+      setPostsBusy(false)
+    }
   }
 
   async function onLogin(e: FormEvent) {
@@ -283,6 +368,9 @@ export function TeacherApp({ onExit }: Props) {
         <button type="button" className={tab === 'restrict' ? 'active' : ''} onClick={() => setTab('restrict')}>
           Restrict
         </button>
+        <button type="button" className={tab === 'posts' ? 'active' : ''} onClick={() => setTab('posts')}>
+          Posts
+        </button>
         <button type="button" className={tab === 'words' ? 'active' : ''} onClick={() => setTab('words')}>
           Words
         </button>
@@ -394,7 +482,94 @@ export function TeacherApp({ onExit }: Props) {
               Unlock
             </button>
           </div>
+          {picked ? (
+            <button
+              className="ghost"
+              type="button"
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                setTab('posts')
+                loadUserPosts(picked.id).catch(() => undefined)
+              }}
+            >
+              Review / hide @{picked.username}&apos;s posts →
+            </button>
+          ) : null}
         </form>
+      )}
+
+      {tab === 'posts' && (
+        <div>
+          <h2 className="panel-title">Moderate posts</h2>
+          <p className="muted">
+            Soft-delete hides a post from Home. Restrict alone does not remove old posts.
+          </p>
+          {!picked ? (
+            <p className="muted">First pick a student under Restrict (search), then come back here.</p>
+          ) : (
+            <>
+              <p className="row-title">
+                @{picked.username} · {userPosts.filter((p) => !p.deleted_at).length} visible ·{' '}
+                {userPosts.filter((p) => p.deleted_at).length} hidden
+              </p>
+              <button
+                className="danger"
+                type="button"
+                disabled={postsBusy || userPosts.every((p) => p.deleted_at)}
+                onClick={softDeleteAllPosts}
+                style={{ marginBottom: 12 }}
+              >
+                Hide all visible posts
+              </button>
+              <div className="list soft-scroll" style={{ maxHeight: 420 }}>
+                {userPosts.length === 0 ? (
+                  <p className="muted">No posts from this user.</p>
+                ) : (
+                  userPosts.map((p) => (
+                    <div className={p.deleted_at ? 'row post-mod hidden' : 'row post-mod'} key={p.id}>
+                      <div className="row-main">
+                        <p className="row-title">
+                          {p.kind}
+                          {p.deleted_at ? ' · HIDDEN' : ''}
+                        </p>
+                        <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
+                        {p.body ? <p className="profile-bio">{p.body}</p> : null}
+                        {p.media_url ? (
+                          <p className="row-sub">
+                            <a href={p.media_url} target="_blank" rel="noreferrer">
+                              Media link
+                            </a>
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="row-actions">
+                        {p.deleted_at ? (
+                          <button
+                            className="ghost"
+                            type="button"
+                            disabled={postsBusy}
+                            onClick={() => restorePost(p.id)}
+                          >
+                            Restore
+                          </button>
+                        ) : (
+                          <button
+                            className="danger"
+                            type="button"
+                            disabled={postsBusy}
+                            onClick={() => softDeletePost(p.id)}
+                          >
+                            Hide
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {tab === 'words' && (

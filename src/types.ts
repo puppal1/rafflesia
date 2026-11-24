@@ -32,6 +32,7 @@ export type MessageRow = {
 }
 
 /** created: 2026-11-23T21:05:00-08:00 */
+/** updated: 2026-11-23T22:25:00-08:00 — soft-delete fields */
 export type PostRow = {
   id: string
   author_id: string
@@ -39,6 +40,8 @@ export type PostRow = {
   body: string | null
   media_url: string | null
   created_at: string
+  deleted_at?: string | null
+  deleted_reason?: string | null
 }
 
 /** created: 2026-11-23T21:05:00-08:00 — A6 nav shell */

@@ -1,26 +1,26 @@
 /* created: 2026-11-23T11:59:00-08:00 */
-/* updated: 2026-11-23T21:55:00-08:00 — solid opaque pastels (Chrome was washing translucent) */
+/* updated: 2026-11-23T22:25:00-08:00 — Chromebook-large + deep blue theme */
 :root {
   color-scheme: only light;
   supported-color-schemes: light;
   font-family: "Segoe UI", system-ui, sans-serif;
   line-height: 1.45;
   font-weight: 400;
-  color: #12315c;
-  background: #7ec4f5;
+  font-size: 20px;
+  color: #0b2348;
+  background: #0f3d7a;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  /* updated: 2026-11-23T22:15:00-08:00 — deeper blue UX for Chromebook */
-  --bg-wash-top: #b8e0ff;
-  --bg-wash-mid: #6eb4ef;
-  --bg-wash-edge: #8eb8e8;
-  --text: #12315c;
-  --muted: #2a4a78;
-  --card-bg: #eef7ff;
-  --card-border: #1a6fc4;
-  --btn-primary: #1560d0;
-  --btn-active: #1f4fd0;
+  --bg-wash-top: #1a5aad;
+  --bg-wash-mid: #0f3d7a;
+  --bg-wash-edge: #0a2f5e;
+  --text: #0b2348;
+  --muted: #1e3f6e;
+  --card-bg: #eaf3ff;
+  --card-border: #0d4a9a;
+  --btn-primary: #0d4a9a;
+  --btn-active: #0a3a7a;
   --btn-ghost-border: #1fa887;
   --btn-ghost-bg: #c5fff0;
   --btn-ghost-text: #0f5c4a;
@@ -32,6 +32,7 @@
 
 html {
   color-scheme: only light;
+  font-size: 20px;
 }
 
 html,
@@ -39,21 +40,32 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  background-color: #b8e0ff;
+  background-color: #0f3d7a;
   color: var(--text);
 }
 
 body {
   min-height: 100svh;
-  /* updated: 2026-11-23T21:55:00-08:00 — opaque sky (no see-through muddy Chrome blur) */
-  background-color: #6eb4ef;
+  background-color: #0f3d7a;
   background-image:
-    radial-gradient(circle at 15% 0%, #e8f6ff 0%, #7ec4f5 45%),
-    radial-gradient(circle at 90% 10%, #3d9eef 0%, #6eb4ef 50%),
-    linear-gradient(165deg, #b8e0ff 0%, #5aa8e8 55%, #7a9fd4 100%);
+    radial-gradient(circle at 12% 0%, #3d7ec8 0%, transparent 42%),
+    radial-gradient(circle at 90% 8%, #1a5aad 0%, transparent 48%),
+    linear-gradient(165deg, #1a5aad 0%, #0f3d7a 50%, #0a2f5e 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
   forced-color-adjust: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+@media (min-width: 1100px) {
+  html {
+    font-size: 22px;
+  }
+}
+
+@media (min-width: 1400px) {
+  html {
+    font-size: 24px;
+  }
 }

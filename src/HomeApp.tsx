@@ -196,13 +196,21 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   const loadPosts = useCallback(async () => {
     // created: 2026-11-23T21:10:00-08:00
+    // updated: 2026-11-23T22:25:00-08:00 — hide teacher soft-deleted posts
     const { data, error: err } = await supabase
       .from('posts')
       .select('*')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(40)
     if (err) {
-      setPosts([])
+      // older DBs without deleted_at column
+      const fallback = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(40)
+      setPosts(((fallback.data || []) as PostRow[]).filter((p) => !p.deleted_at))
       return
     }
     setPosts((data || []) as PostRow[])
