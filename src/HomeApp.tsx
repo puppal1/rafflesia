@@ -1,13 +1,17 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T20:45:00-08:00 — group create member picker + add friends (WF-G1/G3)
+// updated: 2026-11-23T21:10:00-08:00 — phase5: text check, icons, home/post/play nav
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/follows'
+import { checkKidText, reportBlockedText } from './lib/textChecker'
+import { iconEmoji, type IconDef } from './lib/iconPacks'
+import { IconPicker } from './components/IconPicker'
+import { TextBlocked } from './components/TextBlocked'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
-import type { ChatRow, FollowListKind, MessageRow, Profile, Tab } from './types'
+import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
 
 type Props = {
   userId: string
@@ -16,7 +20,8 @@ type Props = {
 
 export function HomeApp({ userId, onLogout }: Props) {
   // created: 2026-11-23T12:14:00-08:00
-  const [tab, setTab] = useState<Tab>('chats')
+  // updated: 2026-11-23T21:10:00-08:00 — default Home tab
+  const [tab, setTab] = useState<Tab>('home')
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -58,6 +63,13 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [showAddFriends, setShowAddFriends] = useState(false)
   const [addPickIds, setAddPickIds] = useState<Set<string>>(new Set())
   const [groupMemberIds, setGroupMemberIds] = useState<Set<string>>(new Set())
+  // created: 2026-11-23T21:10:00-08:00 — phase5 UI state
+  const [textBlockMsg, setTextBlockMsg] = useState<string | null>(null)
+  const [posts, setPosts] = useState<PostRow[]>([])
+  const [postKind, setPostKind] = useState<'text' | 'link' | 'picture' | 'video'>('text')
+  const [postBody, setPostBody] = useState('')
+  const [postMedia, setPostMedia] = useState('')
+  const [pickIconMode, setPickIconMode] = useState(false)
 
   const loadMe = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
@@ -139,6 +151,20 @@ export function HomeApp({ userId, onLogout }: Props) {
     setChats((data || []) as ChatRow[])
   }, [userId])
 
+  const loadPosts = useCallback(async () => {
+    // created: 2026-11-23T21:10:00-08:00
+    const { data, error: err } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(40)
+    if (err) {
+      setPosts([])
+      return
+    }
+    setPosts((data || []) as PostRow[])
+  }, [])
+
   const refreshAll = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
     // updated: 2026-11-23T12:25:00-08:00 — load each part separately so one failure does not hide people
@@ -159,8 +185,13 @@ export function HomeApp({ userId, onLogout }: Props) {
     } catch (err) {
       problems.push(err instanceof Error ? err.message : 'Chats load failed.')
     }
+    try {
+      await loadPosts()
+    } catch {
+      /* posts table may not exist until phase5 SQL */
+    }
     if (problems.length) setError(problems.join(' | '))
-  }, [loadMe, loadPeople, loadChats])
+  }, [loadMe, loadPeople, loadChats, loadPosts])
 
   useEffect(() => {
     refreshAll()
@@ -275,11 +306,18 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function saveProfile(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
+    // updated: 2026-11-23T21:10:00-08:00 — text checker on bio
     e.preventDefault()
     setBusy(true)
     setError('')
     setStatus('')
     try {
+      const check = await checkKidText(editBio)
+      if (!check.ok) {
+        await reportBlockedText('bio', editBio, check.matched)
+        setTextBlockMsg(check.message)
+        return
+      }
       const { error: err } = await supabase
         .from('profiles')
         .update({
@@ -292,6 +330,62 @@ export function HomeApp({ userId, onLogout }: Props) {
       await loadMe()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save profile.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveIcon(icon: IconDef) {
+    // created: 2026-11-23T21:10:00-08:00
+    setBusy(true)
+    setError('')
+    try {
+      const { data, error: err } = await supabase.rpc('set_my_icon', {
+        p_pack: icon.pack,
+        p_icon: icon.id,
+      })
+      if (err) throw err
+      if (data) setMe(data as Profile)
+      else await loadMe()
+      setPickIconMode(false)
+      setStatus('Icon saved.')
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not save icon. Run sql/phase5-first-cut.sql in Supabase.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitPost(e: FormEvent) {
+    // created: 2026-11-23T21:10:00-08:00
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    setStatus('')
+    try {
+      const check = await checkKidText(postBody)
+      if (!check.ok) {
+        await reportBlockedText('post', postBody, check.matched)
+        setTextBlockMsg(check.message)
+        return
+      }
+      const { error: err } = await supabase.rpc('create_post', {
+        p_kind: postKind,
+        p_body: postBody.trim() || null,
+        p_media_url: postMedia.trim() || null,
+      })
+      if (err) throw err
+      setPostBody('')
+      setPostMedia('')
+      setStatus('Posted!')
+      setTab('home')
+      await loadPosts()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not post.')
     } finally {
       setBusy(false)
     }
@@ -690,13 +784,24 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function sendMessage(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T20:30:00-08:00 — show sent message immediately
+    // updated: 2026-11-23T21:10:00-08:00 — calm text block before send
     e.preventDefault()
     if (!activeChat || !draft.trim()) return
     setBusy(true)
     setError('')
     const body = draft.trim()
     try {
+      const check = await checkKidText(body)
+      if (!check.ok) {
+        await reportBlockedText('message', body, check.matched)
+        setTextBlockMsg(check.message)
+        return
+      }
+      const restr = await supabase.rpc('my_restrictions')
+      if (!restr.error && restr.data && (restr.data as { block_message?: boolean }).block_message) {
+        setError('Messaging is restricted by a teacher right now.')
+        return
+      }
       const { data, error: err } = await supabase.rpc('send_chat_message', {
         p_chat_id: activeChat.id,
         p_body: body,
@@ -708,7 +813,16 @@ export function HomeApp({ userId, onLogout }: Props) {
         setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
         setProfilesById((prev) => ({
           ...prev,
-          [userId]: prev[userId] || me || { id: userId, username: 'me', display_name: 'You', bio: '', avatar_url: null, banner_url: null },
+          [userId]:
+            prev[userId] ||
+            me || {
+              id: userId,
+              username: 'me',
+              display_name: 'You',
+              bio: '',
+              avatar_url: null,
+              banner_url: null,
+            },
         }))
       }
       await loadMessages(activeChat.id)
@@ -753,6 +867,46 @@ export function HomeApp({ userId, onLogout }: Props) {
     return 'Direct message'
   }, [activeChat])
 
+  const needsIcon = Boolean(me && !me.icon_id)
+  const showIconPicker = needsIcon || pickIconMode
+
+  const matchFriends = useMemo(() => {
+    // created: 2026-11-23T21:10:00-08:00
+    if (!me?.icon_pack) return []
+    return people.filter((p) => p.icon_pack && p.icon_pack === me.icon_pack)
+  }, [me, people])
+
+  const authorName = (authorId: string) => {
+    // created: 2026-11-23T21:10:00-08:00
+    if (authorId === userId) return niceName(me)
+    const p = people.find((x) => x.id === authorId) || profilesById[authorId]
+    return niceName(p)
+  }
+
+  if (showIconPicker && me) {
+    return (
+      <div>
+        <div className="header-bar">
+          <div>
+            <img className="logo-sm" src={logoSrc} alt="" />
+            <h1 className="brand">Pick your icon</h1>
+          </div>
+          {pickIconMode && me.icon_id ? (
+            <button className="ghost" type="button" onClick={() => setPickIconMode(false)}>
+              Cancel
+            </button>
+          ) : (
+            <button className="ghost" type="button" onClick={onLogout}>
+              Log out
+            </button>
+          )}
+        </div>
+        {error ? <p className="error">{error}</p> : null}
+        <IconPicker onPick={saveIcon} busy={busy} />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="header-bar">
@@ -760,7 +914,7 @@ export function HomeApp({ userId, onLogout }: Props) {
           <img className="logo-sm" src={logoSrc} alt="" />
           <h1 className="brand">Rafflesia Online</h1>
           <p className="tag" style={{ marginBottom: 0 }}>
-            Hi {niceName(me)}
+            {iconEmoji(me?.icon_pack, me?.icon_id)} Hi {niceName(me)}
           </p>
         </div>
         <button className="ghost" type="button" onClick={onLogout}>
@@ -768,41 +922,44 @@ export function HomeApp({ userId, onLogout }: Props) {
         </button>
       </div>
 
-      <div className="nav">
-        <button
-          type="button"
-          className={tab === 'chats' && !viewProfile ? 'active' : ''}
-          onClick={() => {
-            closeFollowProfile()
-            setTab('chats')
-          }}
-        >
-          Chats
-        </button>
-        <button
-          type="button"
-          className={tab === 'people' && !viewProfile ? 'active' : ''}
-          onClick={() => {
-            closeFollowProfile()
-            setTab('people')
-          }}
-        >
-          People
-        </button>
-        <button
-          type="button"
-          className={tab === 'me' && !viewProfile ? 'active' : ''}
-          onClick={() => {
-            closeFollowProfile()
-            setTab('me')
-          }}
-        >
-          Me
-        </button>
+      {/* created: 2026-11-23T21:10:00-08:00 — A6 nav shell */}
+      <div className="nav nav-shell">
+        {(
+          [
+            ['home', 'Home'],
+            ['post', 'Post'],
+            ['chats', 'Messages'],
+            ['play', 'Play'],
+            ['people', 'People'],
+            ['me', 'Me'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={tab === id && !viewProfile ? 'active' : ''}
+            onClick={() => {
+              closeFollowProfile()
+              setActiveChat(null)
+              setTab(id)
+              if (id === 'home') loadPosts()
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {error ? <p className="error">{error}</p> : null}
       {status ? <p className="muted">{status}</p> : null}
+
+      {textBlockMsg ? (
+        <TextBlocked
+          message={textBlockMsg}
+          onEdit={() => setTextBlockMsg(null)}
+          onOk={() => setTextBlockMsg(null)}
+        />
+      ) : null}
 
       {viewProfile && (
         <div className="follow-panel">
@@ -827,7 +984,7 @@ export function HomeApp({ userId, onLogout }: Props) {
           )}
 
           <h2 className="panel-title" style={{ marginTop: 8 }}>
-            {niceName(viewProfile)}
+            {iconEmoji(viewProfile.icon_pack, viewProfile.icon_id)} {niceName(viewProfile)}
           </h2>
           <p className="muted">@{viewProfile.username}</p>
           <p className="profile-bio">
@@ -945,10 +1102,124 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && tab === 'me' && (
+      {!viewProfile && !textBlockMsg && tab === 'home' && (
+        <div>
+          {/* created: 2026-11-23T21:10:00-08:00 */}
+          <h2 className="panel-title">Home</h2>
+          <p className="muted">Club posts from everyone</p>
+          <div className="list">
+            {posts.length === 0 ? (
+              <p className="muted">No posts yet. Tap Post to share something.</p>
+            ) : (
+              posts.map((p) => (
+                <div className="row post-row" key={p.id}>
+                  <div className="row-main">
+                    <p className="row-title">
+                      {authorName(p.author_id)} · {p.kind}
+                    </p>
+                    <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
+                    {p.body ? <p className="profile-bio">{p.body}</p> : null}
+                    {p.media_url ? (
+                      <p className="row-sub">
+                        <a href={p.media_url} target="_blank" rel="noreferrer">
+                          Open link / media
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {!viewProfile && !textBlockMsg && tab === 'post' && (
+        <form className="form" onSubmit={submitPost}>
+          {/* created: 2026-11-23T21:10:00-08:00 */}
+          <h2 className="panel-title">New post</h2>
+          <label>
+            Type
+            <select
+              value={postKind}
+              onChange={(e) => setPostKind(e.target.value as typeof postKind)}
+            >
+              <option value="text">Text</option>
+              <option value="link">Link</option>
+              <option value="picture">Picture URL</option>
+              <option value="video">Video URL</option>
+            </select>
+          </label>
+          <label>
+            Caption / text
+            <textarea
+              value={postBody}
+              onChange={(e) => setPostBody(e.target.value)}
+              placeholder="Say something kind…"
+            />
+          </label>
+          {postKind !== 'text' ? (
+            <label>
+              URL
+              <input
+                value={postMedia}
+                onChange={(e) => setPostMedia(e.target.value)}
+                placeholder="https://…"
+              />
+            </label>
+          ) : null}
+          <button className="primary" type="submit" disabled={busy || (!postBody.trim() && !postMedia.trim())}>
+            Share
+          </button>
+        </form>
+      )}
+
+      {!viewProfile && !textBlockMsg && tab === 'play' && (
+        <div>
+          {/* created: 2026-11-23T21:10:00-08:00 */}
+          <h2 className="panel-title">Play · Matches</h2>
+          <p className="muted">
+            Friends who picked the same icon pack as you
+            {me?.icon_pack ? ` (${me.icon_pack})` : ''}
+          </p>
+          <div className="list">
+            {matchFriends.length === 0 ? (
+              <p className="muted">No matches yet. Ask friends to pick the same pack!</p>
+            ) : (
+              matchFriends.map((p) => (
+                <div className="row" key={p.id}>
+                  <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
+                    <p className="row-title">
+                      {iconEmoji(p.icon_pack, p.icon_id)} {niceName(p)}
+                    </p>
+                    <p className="row-sub">@{p.username}</p>
+                  </button>
+                  <div className="row-actions">
+                    <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
+                      Message
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {!viewProfile && !textBlockMsg && tab === 'me' && (
         <form className="form" onSubmit={saveProfile}>
           <h2 className="panel-title">My profile</h2>
-          <p className="muted">@{me?.username}</p>
+          <p className="muted">
+            {iconEmoji(me?.icon_pack, me?.icon_id)} @{me?.username}
+          </p>
+          <button
+            className="ghost"
+            type="button"
+            style={{ marginBottom: 10 }}
+            onClick={() => setPickIconMode(true)}
+          >
+            Change icon
+          </button>
           <div className="follow-counts">
             <button
               type="button"
@@ -1041,7 +1312,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </form>
       )}
 
-      {!viewProfile && tab === 'people' && (
+      {!viewProfile && !textBlockMsg && tab === 'people' && (
         <div>
           <h2 className="panel-title">People</h2>
           <p className="muted">Follow friends or start a chat. Tap a name to see their lists.</p>
@@ -1052,7 +1323,9 @@ export function HomeApp({ userId, onLogout }: Props) {
               people.map((p) => (
                 <div className="row" key={p.id}>
                   <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
-                    <p className="row-title">{niceName(p)}</p>
+                    <p className="row-title">
+                      {iconEmoji(p.icon_pack, p.icon_id)} {niceName(p)}
+                    </p>
                     <p className="row-sub">
                       @{p.username} · {followerCountById[p.id] || 0} followers · {followingCountById[p.id] || 0}{' '}
                       following
@@ -1083,7 +1356,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && tab === 'chats' && !activeChat && (
+      {!viewProfile && !textBlockMsg && tab === 'chats' && !activeChat && (
         <div>
           <h2 className="panel-title">Chats</h2>
           <form className="form" onSubmit={createGroup} style={{ marginBottom: 12 }}>
@@ -1161,7 +1434,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && tab === 'chats' && activeChat && (
+      {!viewProfile && !textBlockMsg && tab === 'chats' && activeChat && (
         <div>
           <div className="toolbar">
             <button

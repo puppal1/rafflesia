@@ -1,9 +1,10 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T20:34:00-08:00 — emoji bar on signup display name
+// updated: 2026-11-23T21:05:00-08:00 — teacher entry + emoji on signup
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
+import { TeacherApp } from './TeacherApp'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { supabase } from './lib/supabase'
 import {
@@ -26,8 +27,10 @@ function toAuthEmail(username: string) {
 
 function App() {
   // created: 2026-11-23T11:59:00-08:00
+  // updated: 2026-11-23T21:05:00-08:00 — teacherMode
   const [mode, setMode] = useState<Mode>('signup')
   const [user, setUser] = useState<User | null>(null)
+  const [teacherMode, setTeacherMode] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -124,7 +127,9 @@ function App() {
   return (
     <div className="app-shell">
       <div className="glass-card">
-        {user ? (
+        {teacherMode ? (
+          <TeacherApp onExit={() => setTeacherMode(false)} />
+        ) : user ? (
           <HomeApp userId={user.id} onLogout={onLogout} />
         ) : (
           <>
@@ -203,6 +208,15 @@ function App() {
               </button>
             </form>
             {error ? <p className="error">{error}</p> : null}
+            {/* created: 2026-11-23T21:05:00-08:00 */}
+            <button
+              className="ghost teacher-link"
+              type="button"
+              onClick={() => setTeacherMode(true)}
+              style={{ marginTop: 14 }}
+            >
+              Teacher access
+            </button>
           </>
         )}
       </div>
