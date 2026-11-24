@@ -1,13 +1,20 @@
 // created: 2026-11-23T11:59:00-08:00
-// updated: 2026-11-23T19:33:00-08:00 — logo uses BASE_URL for GitHub Pages
+// updated: 2026-11-23T19:55:00-08:00 — username max/vulgar/duplicate/similarity checks
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-
-const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { supabase } from './lib/supabase'
+import {
+  DISPLAY_NAME_MAX,
+  USERNAME_MAX,
+  findUsernameConflict,
+  validateDisplayName,
+  validateUsernameShape,
+} from './lib/usernameRules'
 import './App.css'
+
+const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 
 type Mode = 'login' | 'signup'
 
@@ -43,19 +50,32 @@ function App() {
     setError('')
     setBusy(true)
 
-    const cleanUser = username.trim().toLowerCase()
-    const cleanDisplay = displayName.trim() || cleanUser
-    const email = toAuthEmail(cleanUser)
-
     try {
-      if (!cleanUser || !password) {
+      if (!password) {
         throw new Error('Please enter a username and password.')
       }
-      if (cleanUser.includes(' ') || cleanUser.includes('@')) {
-        throw new Error('Username cannot have spaces or @.')
-      }
+
+      const shape = validateUsernameShape(username)
+      if (!shape.ok) throw new Error(shape.message)
+      const cleanUser = shape.username
+      const cleanDisplay = displayName.trim() || cleanUser
+      const displayErr = validateDisplayName(cleanDisplay)
+      if (displayErr) throw new Error(displayErr.message)
+
+      const email = toAuthEmail(cleanUser)
 
       if (mode === 'signup') {
+        // created: 2026-11-23T19:55:00-08:00 — duplicate + ≥85% similarity vs existing usernames
+        const { data: existingRows, error: listError } = await supabase
+          .from('profiles')
+          .select('username')
+        if (listError) throw listError
+        const conflict = findUsernameConflict(
+          cleanUser,
+          (existingRows || []).map((r) => String(r.username || '')),
+        )
+        if (conflict) throw new Error(conflict.message)
+
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -66,10 +86,16 @@ function App() {
         const { error: profileError } = await supabase.from('profiles').insert({
           id: data.user.id,
           username: cleanUser,
-          display_name: cleanDisplay,
+          display_name: cleanDisplay.slice(0, DISPLAY_NAME_MAX),
           bio: '',
         })
-        if (profileError) throw profileError
+        if (profileError) {
+          const msg = profileError.message || ''
+          if (/duplicate|unique/i.test(msg)) {
+            throw new Error('That username is already taken. Please choose a new one.')
+          }
+          throw profileError
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -124,9 +150,10 @@ function App() {
                   Display name
                   <input
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e) => setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))}
                     placeholder="What friends see"
                     autoComplete="nickname"
+                    maxLength={DISPLAY_NAME_MAX}
                   />
                 </label>
               )}
@@ -134,9 +161,10 @@ function App() {
                 Username
                 <input
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.slice(0, USERNAME_MAX))}
                   placeholder="yourname"
                   autoComplete="username"
+                  maxLength={USERNAME_MAX}
                   required
                 />
               </label>

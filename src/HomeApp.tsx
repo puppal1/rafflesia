@@ -508,12 +508,15 @@ export function HomeApp({ userId, onLogout }: Props) {
                     <p className="row-title">{niceName(p)}</p>
                     <p className="row-sub">@{p.username}</p>
                   </div>
-                  <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
-                    {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
-                  </button>
-                  <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
-                    Message
-                  </button>
+                  {/* updated: 2026-11-23T19:55:00-08:00 — fixed action column so long names wrap */}
+                  <div className="row-actions">
+                    <button className="ghost" type="button" onClick={() => toggleFollow(p.id)}>
+                      {followingIds.has(p.id) ? 'Unfollow' : 'Follow'}
+                    </button>
+                    <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
+                      Message
+                    </button>
+                  </div>
                 </div>
               ))
             )}
