@@ -1,6 +1,12 @@
 // created: 2026-11-23T12:14:00-08:00
-// updated: 2026-11-23T23:35:00-08:00 — teacher verify tiers
+// updated: 2026-11-24T00:05:00-08:00 — website_links on profiles
 export type VerifyTier = 'pink' | 'gold' | 'blue' | null
+
+/** created: 2026-11-24T00:05:00-08:00 */
+export type WebsiteLink = {
+  title: string
+  url: string
+}
 
 export type Profile = {
   id: string
@@ -14,6 +20,8 @@ export type Profile = {
   icon_id?: string | null
   /** created: 2026-11-23T23:35:00-08:00 — teacher-only: pink | gold | blue */
   verify_tier?: VerifyTier | string | null
+  /** created: 2026-11-24T00:05:00-08:00 */
+  website_links?: WebsiteLink[] | null
 }
 
 /** created: 2026-11-23T20:28:00-08:00 — which list is open on a profile */

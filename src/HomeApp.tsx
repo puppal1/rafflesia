@@ -11,9 +11,14 @@ import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
+import {
+  WEBSITE_LINKS_MAX,
+  cleanWebsiteLinksForSave,
+  parseWebsiteLinks,
+} from './lib/websiteLinks'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
-import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
+import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab, WebsiteLink } from './types'
 
 type Props = {
   userId: string
@@ -45,6 +50,8 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [groupTitle, setGroupTitle] = useState('')
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
+  // created: 2026-11-24T00:05:00-08:00 — profile website links editor
+  const [editLinks, setEditLinks] = useState<WebsiteLink[]>([])
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -100,11 +107,13 @@ export function HomeApp({ userId, onLogout }: Props) {
       setMe(row)
       setEditName(row.display_name)
       setEditBio(row.bio || '')
+      setEditLinks(parseWebsiteLinks(row.website_links))
       return
     }
     setMe(data as Profile)
     setEditName(data.display_name)
     setEditBio(data.bio || '')
+    setEditLinks(parseWebsiteLinks((data as Profile).website_links))
   }, [userId])
 
   const loadFollowGraph = useCallback(async (allProfiles: Profile[]) => {
@@ -362,7 +371,7 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function saveProfile(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T21:10:00-08:00 — text checker on bio
+    // updated: 2026-11-24T00:05:00-08:00 — save website_links
     e.preventDefault()
     setBusy(true)
     setError('')
@@ -374,14 +383,32 @@ export function HomeApp({ userId, onLogout }: Props) {
         setTextBlockMsg(check.message)
         return
       }
+      for (const link of editLinks) {
+        const titleCheck = await checkKidText(link.title)
+        if (!titleCheck.ok) {
+          await reportBlockedText('website_title', link.title, titleCheck.matched)
+          setTextBlockMsg(titleCheck.message)
+          return
+        }
+      }
+      const links = cleanWebsiteLinksForSave(editLinks)
+      if (editLinks.some((l) => l.url.trim()) && links.length === 0) {
+        throw new Error('Website links must start with http:// or https:// (or a normal site name).')
+      }
       const { error: err } = await supabase
         .from('profiles')
         .update({
           display_name: editName.trim() || me?.username || 'Friend',
           bio: editBio,
+          website_links: links,
         })
         .eq('id', userId)
-      if (err) throw err
+      if (err) {
+        if (/website_links|column/i.test(err.message)) {
+          throw new Error('Website links need sql-profile-website-links.sql — run in Supabase.')
+        }
+        throw err
+      }
       setStatus('Profile saved.')
       await loadMe()
     } catch (err) {
@@ -389,6 +416,23 @@ export function HomeApp({ userId, onLogout }: Props) {
     } finally {
       setBusy(false)
     }
+  }
+
+  function updateEditLink(index: number, patch: Partial<WebsiteLink>) {
+    // created: 2026-11-24T00:05:00-08:00
+    setEditLinks((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+  }
+
+  function addEditLink() {
+    // created: 2026-11-24T00:05:00-08:00
+    setEditLinks((prev) =>
+      prev.length >= WEBSITE_LINKS_MAX ? prev : [...prev, { title: '', url: '' }],
+    )
+  }
+
+  function removeEditLink(index: number) {
+    // created: 2026-11-24T00:05:00-08:00
+    setEditLinks((prev) => prev.filter((_, i) => i !== index))
   }
 
   async function saveIcon(icon: IconDef) {
@@ -1171,6 +1215,21 @@ export function HomeApp({ userId, onLogout }: Props) {
             {(viewProfile.bio || '').trim() ? viewProfile.bio : 'No bio yet.'}
           </p>
 
+          {parseWebsiteLinks(viewProfile.website_links).length > 0 ? (
+            <div className="profile-links">
+              <p className="friend-pick-heading">Websites</p>
+              <ul className="profile-link-list">
+                {parseWebsiteLinks(viewProfile.website_links).map((link) => (
+                  <li key={`${link.title}-${link.url}`}>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      {link.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="follow-counts">
             <button
               type="button"
@@ -1715,6 +1774,44 @@ export function HomeApp({ userId, onLogout }: Props) {
             onToggle={() => setShowBioEmoji((v) => !v)}
             onPick={(emoji) => insertEmojiAtCursor(editBioRef.current, editBio, setEditBio, emoji)}
           />
+
+          {/* created: 2026-11-24T00:05:00-08:00 — own website links */}
+          <div className="profile-links-edit">
+            <p className="friend-pick-heading">Your websites</p>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Add links friends can open from your profile (up to {WEBSITE_LINKS_MAX}).
+            </p>
+            {editLinks.map((link, i) => (
+              <div className="profile-link-edit-row" key={`link-${i}`}>
+                <label>
+                  Title
+                  <input
+                    value={link.title}
+                    onChange={(e) => updateEditLink(i, { title: e.target.value.slice(0, 40) })}
+                    placeholder="My site"
+                  />
+                </label>
+                <label>
+                  Link
+                  <input
+                    value={link.url}
+                    onChange={(e) => updateEditLink(i, { url: e.target.value })}
+                    placeholder="https://example.com"
+                    inputMode="url"
+                  />
+                </label>
+                <button className="ghost" type="button" onClick={() => removeEditLink(i)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            {editLinks.length < WEBSITE_LINKS_MAX ? (
+              <button className="ghost" type="button" onClick={addEditLink}>
+                + Add website link
+              </button>
+            ) : null}
+          </div>
+
           <button className="primary" type="submit" disabled={busy}>
             Save profile
           </button>
