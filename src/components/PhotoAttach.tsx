@@ -1,4 +1,5 @@
 // created: 2026-11-24T13:50:00-08:00 — modern photo attach (no native Choose File chrome)
+// updated: 2026-11-24T13:40:00-08:00 — compact toolbar chip for chat composer
 import { useRef } from 'react'
 
 type Props = {
@@ -8,24 +9,28 @@ type Props = {
   previewUrl?: string | null
   fileName?: string
   busy?: boolean
+  /** created: 2026-11-24T13:40:00-08:00 — drop zone vs icon button */
+  variant?: 'drop' | 'compact'
   onPick: (file: File) => void
   onClear?: () => void
 }
 
 /** created: 2026-11-24T13:50:00-08:00 */
+/** updated: 2026-11-24T13:40:00-08:00 */
 export function PhotoAttach({
   label = 'Add photo',
   hint = 'Tap to attach a picture with your message',
   previewUrl,
   fileName,
   busy,
+  variant = 'drop',
   onPick,
   onClear,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   return (
-    <div className="photo-attach">
+    <div className={variant === 'compact' ? 'photo-attach photo-attach-compact' : 'photo-attach'}>
       <input
         ref={inputRef}
         className="photo-attach-input"
@@ -60,6 +65,17 @@ export function PhotoAttach({
             </div>
           </div>
         </div>
+      ) : variant === 'compact' ? (
+        <button
+          type="button"
+          className="photo-attach-icon-btn"
+          disabled={busy}
+          title={label}
+          aria-label={label}
+          onClick={() => inputRef.current?.click()}
+        >
+          📷
+        </button>
       ) : (
         <button
           type="button"

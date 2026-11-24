@@ -1,10 +1,11 @@
 // created: 2026-11-23T12:14:00-08:00
 // updated: 2026-11-23T23:35:00-08:00 — show teacher verify badges
 // updated: 2026-11-24T12:35:00-08:00 — PRD v2: FYP, comments, share, Siobhan, delete account
+// updated: 2026-11-24T13:40:00-08:00 — Gotcha-style messaging + expandable photos
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
-import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
+import { CHAT_EMOJIS, EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/follows'
 import { checkKidText, reportBlockedText } from './lib/textChecker'
 import { iconEmoji, type IconDef } from './lib/iconPacks'
@@ -16,6 +17,7 @@ import { PostCard } from './components/PostCard'
 import { SiobhanFeed } from './components/SiobhanFeed'
 import { PhotoAttach } from './components/PhotoAttach'
 import { PeoplePickGrid } from './components/PeoplePickGrid'
+import { MediaLightbox } from './components/MediaLightbox'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -62,9 +64,14 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({})
   const [draft, setDraft] = useState('')
   // created: 2026-11-24T13:35:00-08:00 — chat photo + link attach
+  // updated: 2026-11-24T13:40:00-08:00 — compact composer toggles + lightbox
   const [chatMediaUrl, setChatMediaUrl] = useState<string | null>(null)
   const [chatMediaName, setChatMediaName] = useState('')
   const [chatLink, setChatLink] = useState('')
+  const [chatLinkOpen, setChatLinkOpen] = useState(false)
+  const [inboxQuery, setInboxQuery] = useState('')
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const [groupTitle, setGroupTitle] = useState('')
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
@@ -1021,8 +1028,10 @@ export function HomeApp({ userId, onLogout }: Props) {
       if (err) throw err
       setDraft('')
       setChatLink('')
+      setChatLinkOpen(false)
       setChatMediaUrl(null)
       setChatMediaName('')
+      setShowEmojiBar(false)
       if (data && typeof data === 'object' && 'id' in data) {
         const row = data as MessageRow
         setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
@@ -1105,9 +1114,28 @@ export function HomeApp({ userId, onLogout }: Props) {
   const needsIcon = Boolean(me && !me.icon_id)
   const showIconPicker = needsIcon || pickIconMode
 
+  // created: 2026-11-24T13:40:00-08:00 — keep newest messages in view
+  useEffect(() => {
+    if (!activeChat) return
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [activeChat, messages.length])
+
   // created: 2026-11-23T22:35:00-08:00 — Messages = DMs; Lounge = club room + groups
   // updated: 2026-11-23T22:40:00-08:00 — Everyone is the Lounge room, not a group chat
   const dmChats = useMemo(() => chats.filter((c) => !c.is_group), [chats])
+  // created: 2026-11-24T13:40:00-08:00 — inbox search for big follower lists
+  const filteredDmChats = useMemo(() => {
+    const q = inboxQuery.trim().toLowerCase()
+    if (!q) return dmChats
+    return dmChats.filter((c) => {
+      const peer = dmPeerByChatId[c.id]
+      if (!peer) return false
+      return (
+        peer.username.toLowerCase().includes(q) ||
+        (peer.display_name || '').toLowerCase().includes(q)
+      )
+    })
+  }, [dmChats, dmPeerByChatId, inboxQuery])
   const everyoneRoom = useMemo(
     () => chats.find((c) => c.lounge_key === 'everyone') || null,
     [chats],
@@ -2130,69 +2158,304 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'chats' && !activeChat && (
-        <div>
-          {/* updated: 2026-11-23T22:35:00-08:00 — Messages = private DMs only */}
-          <div className="messages-header-row">
-            <div>
+      {/* created: 2026-11-24T13:40:00-08:00 — Gotcha-style Messages split inbox */}
+      {!viewProfile && !textBlockMsg && tab === 'chats' && (
+        <div className={`msg-shell ${activeChat && !activeChat.is_group ? 'has-thread' : ''}`}>
+          <aside className="msg-inbox" aria-label="Message inbox">
+            <div className="msg-inbox-head">
               <h2 className="panel-title" style={{ marginBottom: 2 }}>
                 Messages
               </h2>
-              <p className="muted" style={{ marginTop: 0 }}>
-                Private 1:1 chats. Group chats live in <strong>Lounge</strong>.
-              </p>
+              <p className="muted msg-inbox-sub">Private chats · groups are in Lounge</p>
+              {dmChats.length > 4 ? (
+                <input
+                  className="msg-inbox-search"
+                  value={inboxQuery}
+                  onChange={(e) => setInboxQuery(e.target.value)}
+                  placeholder="Search people…"
+                  aria-label="Search messages"
+                />
+              ) : null}
             </div>
-          </div>
+            <div className="msg-inbox-list">
+              {dmChats.length === 0 ? (
+                <p className="muted msg-inbox-empty">
+                  No chats yet. Go to <strong>People</strong> → Message.
+                </p>
+              ) : filteredDmChats.length === 0 ? (
+                <p className="muted msg-inbox-empty">No matches for “{inboxQuery.trim()}”.</p>
+              ) : (
+                filteredDmChats.map((c) => {
+                  const peer = dmPeerByChatId[c.id]
+                  const on = activeChat?.id === c.id
+                  return (
+                    <button
+                      key={c.id}
+                      className={on ? 'msg-inbox-row on' : 'msg-inbox-row'}
+                      type="button"
+                      onClick={() => setActiveChat(c)}
+                    >
+                      <FaceAvatar
+                        avatarUrl={peer?.avatar_url}
+                        iconPack={peer?.icon_pack}
+                        iconId={peer?.icon_id}
+                        size="sm"
+                      />
+                      <div className="msg-inbox-row-main">
+                        <p className="msg-inbox-name">
+                          {peer ? (
+                            <NameWithBadge name={niceName(peer)} tier={peer.verify_tier} />
+                          ) : (
+                            'Private chat'
+                          )}
+                        </p>
+                        <p className="msg-inbox-snippet">
+                          {peer ? `Tap to chat · @${peer.username}` : 'Private 1:1 chat'}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </aside>
 
-          <div className="list">
-            {dmChats.length === 0 ? (
-              <p className="muted">
-                No private chats yet. Go to <strong>People</strong> → Message someone.
-              </p>
-            ) : (
-              dmChats.map((c) => {
-                const peer = dmPeerByChatId[c.id]
-                return (
+          <section className="msg-thread" aria-label="Conversation">
+            {activeChat && !activeChat.is_group ? (
+              <>
+                <div className="msg-thread-head">
                   <button
-                    key={c.id}
-                    className="row chat-list-row"
+                    className="ghost btn-compact msg-back"
                     type="button"
-                    onClick={() => setActiveChat(c)}
+                    onClick={() => setActiveChat(null)}
                   >
+                    ← Inbox
+                  </button>
+                  <div className="msg-thread-peer">
                     <FaceAvatar
-                      avatarUrl={peer?.avatar_url}
-                      iconPack={peer?.icon_pack}
-                      iconId={peer?.icon_id}
+                      avatarUrl={dmPeerByChatId[activeChat.id]?.avatar_url}
+                      iconPack={dmPeerByChatId[activeChat.id]?.icon_pack}
+                      iconId={dmPeerByChatId[activeChat.id]?.icon_id}
                       size="sm"
                     />
-                    <div className="row-main">
-                      <p className="row-title">
-                        {peer ? (
-                          <NameWithBadge name={niceName(peer)} tier={peer.verify_tier} />
-                        ) : (
-                          'Private chat'
-                        )}
-                      </p>
-                      <p className="row-sub">
-                        {peer ? `Private chat with @${peer.username}` : 'Private 1:1 chat'}
-                      </p>
+                    <strong className="chat-title">{chatLabel}</strong>
+                  </div>
+                </div>
+                <div className="messages msg-thread-scroll">
+                  {messages.length === 0 ? (
+                    <div className="msg-empty">
+                      No messages yet. Say hi to {chatLabel}!
                     </div>
-                  </button>
-                )
-              })
+                  ) : (
+                    messages.map((m) => {
+                      const sender = profilesById[m.sender_id]
+                      const mine = m.sender_id === userId
+                      const shared = parsePostShare(m.body)
+                      const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
+                      const media = m.video_url
+                      const isImage =
+                        !!media &&
+                        (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(media) ||
+                          media.includes('/storage/v1/object/public/posts/'))
+                      return (
+                        <div className={`bubble ${mine ? 'mine' : ''}`} key={m.id}>
+                          <div className="bubble-meta">
+                            <NameWithBadge
+                              name={niceName(mine ? me : sender)}
+                              tier={(mine ? me : sender)?.verify_tier}
+                            />{' '}
+                            · {new Date(m.created_at).toLocaleTimeString()}
+                          </div>
+                          {shared ? (
+                            <div className="share-card">
+                              <p className="friend-pick-heading">Shared post</p>
+                              {sharedPost ? (
+                                <>
+                                  <p className="row-sub">
+                                    {sharedPost.kind} · {authorName(sharedPost.author_id)}
+                                  </p>
+                                  {sharedPost.body ? (
+                                    <p className="profile-bio">{sharedPost.body}</p>
+                                  ) : null}
+                                  {sharedPost.kind === 'picture' && sharedPost.media_url ? (
+                                    <button
+                                      type="button"
+                                      className="chat-media-btn"
+                                      onClick={() => setLightboxUrl(sharedPost.media_url)}
+                                    >
+                                      <img
+                                        className="chat-media"
+                                        src={sharedPost.media_url}
+                                        alt=""
+                                      />
+                                      <span className="chat-media-hint">Tap to enlarge</span>
+                                    </button>
+                                  ) : null}
+                                  {sharedPost.kind === 'link' && sharedPost.media_url ? (
+                                    <a
+                                      href={sharedPost.media_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      Open link
+                                    </a>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <p className="muted">
+                                  Post preview (id {shared.postId.slice(0, 8)}…)
+                                </p>
+                              )}
+                              {shared.note ? <p className="profile-bio">{shared.note}</p> : null}
+                            </div>
+                          ) : (
+                            <div className="chat-msg-body">
+                              {m.body && m.body !== '📷' ? (
+                                <div className="chat-msg-text">{m.body}</div>
+                              ) : null}
+                              {media ? (
+                                isImage ? (
+                                  <button
+                                    type="button"
+                                    className="chat-media-btn"
+                                    onClick={() => setLightboxUrl(media)}
+                                  >
+                                    <img className="chat-media" src={media} alt="" />
+                                    <span className="chat-media-hint">Tap to enlarge</span>
+                                  </button>
+                                ) : (
+                                  <video
+                                    className="chat-media"
+                                    src={media}
+                                    controls
+                                    playsInline
+                                  />
+                                )
+                              ) : null}
+                              {m.body && /https?:\/\/\S+/i.test(m.body) && !media ? (
+                                <p className="chat-msg-links">
+                                  {(m.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
+                                    <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                                      Open link
+                                    </a>
+                                  ))}
+                                </p>
+                              ) : null}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            className={`like-btn ${myLiked.has(m.id) ? 'on' : ''}`}
+                            onClick={() => toggleLike(m.id)}
+                          >
+                            ♥ {likes[m.id] || 0}
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+                <div className="msg-composer">
+                  {showEmojiBar ? (
+                    <div className="emoji-bar" role="listbox" aria-label="Emoji">
+                      {CHAT_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          className="emoji-btn"
+                          onClick={() => insertEmoji(emoji)}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {chatMediaUrl ? (
+                    <PhotoAttach
+                      variant="drop"
+                      label="Add photo"
+                      hint="Photo attached"
+                      previewUrl={chatMediaUrl}
+                      fileName={chatMediaName}
+                      busy={busy}
+                      onPick={(file) => onChatPhoto(file)}
+                      onClear={() => {
+                        setChatMediaUrl(null)
+                        setChatMediaName('')
+                      }}
+                    />
+                  ) : null}
+                  {chatLinkOpen ? (
+                    <label className="composer-link">
+                      Link
+                      <input
+                        value={chatLink}
+                        onChange={(e) => setChatLink(e.target.value)}
+                        placeholder="https://…"
+                        inputMode="url"
+                      />
+                    </label>
+                  ) : null}
+                  <form className="composer msg-composer-row" onSubmit={sendMessage}>
+                    <button
+                      type="button"
+                      className="ghost btn-compact msg-tool"
+                      onClick={() => setShowEmojiBar((v) => !v)}
+                      aria-pressed={showEmojiBar}
+                      title="Emoji"
+                    >
+                      😊
+                    </button>
+                    <PhotoAttach
+                      variant="compact"
+                      label="Add photo"
+                      busy={busy}
+                      onPick={(file) => onChatPhoto(file)}
+                    />
+                    <button
+                      type="button"
+                      className={chatLinkOpen ? 'ghost btn-compact msg-tool on' : 'ghost btn-compact msg-tool'}
+                      onClick={() => setChatLinkOpen((v) => !v)}
+                      aria-pressed={chatLinkOpen}
+                      title="Add link"
+                    >
+                      🔗
+                    </button>
+                    <input
+                      ref={draftInputRef}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      placeholder="Write a message…"
+                      aria-label="Message"
+                    />
+                    <button
+                      className="primary"
+                      type="submit"
+                      disabled={busy || (!draft.trim() && !chatMediaUrl && !chatLink.trim())}
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              <div className="msg-thread-empty">
+                <p className="panel-title" style={{ marginBottom: 6 }}>
+                  Pick a chat
+                </p>
+                <p className="muted">Choose someone on the left — or Message them from People.</p>
+              </div>
             )}
-          </div>
+          </section>
         </div>
       )}
 
-      {!viewProfile &&
-        !textBlockMsg &&
-        ((tab === 'chats' && activeChat && !activeChat.is_group) ||
-          (tab === 'lounge' && activeChat && activeChat.is_group)) && (
-        <div>
-          <div className="toolbar">
+      {!viewProfile && !textBlockMsg && tab === 'lounge' && activeChat && activeChat.is_group && (
+        <div className="msg-thread msg-thread-solo">
+          <div className="msg-thread-head">
             <button
-              className="ghost"
+              className="ghost btn-compact msg-back"
               type="button"
               onClick={() => {
                 setActiveChat(null)
@@ -2200,12 +2463,12 @@ export function HomeApp({ userId, onLogout }: Props) {
                 setAddPickIds(new Set())
               }}
             >
-              ← Back
+              ← Lounge
             </button>
             <strong className="chat-title">{chatLabel}</strong>
             {activeChat.is_group && !isEveryoneChat && !isAnnouncementsChat ? (
               <button
-                className="ghost"
+                className="ghost btn-compact"
                 type="button"
                 onClick={() => {
                   setShowAddFriends((v) => !v)
@@ -2216,16 +2479,13 @@ export function HomeApp({ userId, onLogout }: Props) {
               </button>
             ) : null}
           </div>
-          {activeChat.is_group ? (
-            <p className="muted" style={{ textAlign: 'left' }}>
-              {isEveryoneChat
-                ? 'Club lounge room · anybody who signed up can talk here'
-                : isAnnouncementsChat
-                  ? 'Official board · only @rafflesiaonline can post'
-                  : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
-            </p>
-          ) : null}
-          {/* created: 2026-11-23T20:45:00-08:00 — WF-G3 Add friends */}
+          <p className="muted" style={{ textAlign: 'left', marginTop: 0 }}>
+            {isEveryoneChat
+              ? 'Club lounge room · anybody who signed up can talk here'
+              : isAnnouncementsChat
+                ? 'Official board · only @rafflesiaonline can post'
+                : `${groupMemberIds.size || 1} member${(groupMemberIds.size || 1) === 1 ? '' : 's'}`}
+          </p>
           {activeChat.is_group && !isEveryoneChat && !isAnnouncementsChat && showAddFriends ? (
             <div className="add-friends-panel">
               <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
@@ -2249,108 +2509,109 @@ export function HomeApp({ userId, onLogout }: Props) {
               </button>
             </div>
           ) : null}
-          <div className="messages">
-            {messages.map((m) => {
-              const sender = profilesById[m.sender_id]
-              const mine = m.sender_id === userId
-              const shared = parsePostShare(m.body)
-              const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
-              return (
-                <div className={`bubble ${mine ? 'mine' : ''}`} key={m.id}>
-                  <div className="bubble-meta">
-                    <NameWithBadge
-                      name={niceName(mine ? me : sender)}
-                      tier={(mine ? me : sender)?.verify_tier}
-                    />{' '}
-                    · {new Date(m.created_at).toLocaleTimeString()}
-                  </div>
-                  {shared ? (
-                    <div className="share-card">
-                      <p className="friend-pick-heading">Shared post</p>
-                      {sharedPost ? (
-                        <>
-                          <p className="row-sub">
-                            {sharedPost.kind} · {authorName(sharedPost.author_id)}
-                          </p>
-                          {sharedPost.body ? <p className="profile-bio">{sharedPost.body}</p> : null}
-                          {sharedPost.kind === 'picture' && sharedPost.media_url ? (
-                            <img className="post-media" src={sharedPost.media_url} alt="" />
-                          ) : null}
-                          {sharedPost.kind === 'link' && sharedPost.media_url ? (
-                            <a href={sharedPost.media_url} target="_blank" rel="noreferrer">
-                              Open link
-                            </a>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="muted">Post preview (id {shared.postId.slice(0, 8)}…)</p>
-                      )}
-                      {shared.note ? <p className="profile-bio">{shared.note}</p> : null}
+          <div className="messages msg-thread-scroll">
+            {messages.length === 0 ? (
+              <div className="msg-empty">No messages yet. Be the first to say hi!</div>
+            ) : (
+              messages.map((m) => {
+                const sender = profilesById[m.sender_id]
+                const mine = m.sender_id === userId
+                const shared = parsePostShare(m.body)
+                const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
+                const media = m.video_url
+                const isImage =
+                  !!media &&
+                  (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(media) ||
+                    media.includes('/storage/v1/object/public/posts/'))
+                return (
+                  <div className={`bubble ${mine ? 'mine' : ''}`} key={m.id}>
+                    <div className="bubble-meta">
+                      <NameWithBadge
+                        name={niceName(mine ? me : sender)}
+                        tier={(mine ? me : sender)?.verify_tier}
+                      />{' '}
+                      · {new Date(m.created_at).toLocaleTimeString()}
                     </div>
-                  ) : (
-                    <div className="chat-msg-body">
-                      {m.body ? <div className="chat-msg-text">{m.body}</div> : null}
-                      {m.video_url ? (
-                        /\.(png|jpe?g|gif|webp)(\?|$)/i.test(m.video_url) ||
-                        m.video_url.includes('/storage/v1/object/public/posts/') ? (
-                          <img className="chat-media" src={m.video_url} alt="" />
+                    {shared ? (
+                      <div className="share-card">
+                        <p className="friend-pick-heading">Shared post</p>
+                        {sharedPost ? (
+                          <>
+                            <p className="row-sub">
+                              {sharedPost.kind} · {authorName(sharedPost.author_id)}
+                            </p>
+                            {sharedPost.body ? <p className="profile-bio">{sharedPost.body}</p> : null}
+                            {sharedPost.kind === 'picture' && sharedPost.media_url ? (
+                              <button
+                                type="button"
+                                className="chat-media-btn"
+                                onClick={() => setLightboxUrl(sharedPost.media_url)}
+                              >
+                                <img className="chat-media" src={sharedPost.media_url} alt="" />
+                                <span className="chat-media-hint">Tap to enlarge</span>
+                              </button>
+                            ) : null}
+                          </>
                         ) : (
-                          <video className="chat-media" src={m.video_url} controls playsInline />
-                        )
-                      ) : null}
-                      {m.body &&
-                      /https?:\/\/\S+/i.test(m.body) &&
-                      !m.video_url ? (
-                        <p className="chat-msg-links">
-                          {(m.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
-                            <a key={u} href={u} target="_blank" rel="noopener noreferrer">
-                              Open link
-                            </a>
-                          ))}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    className={`like-btn ${myLiked.has(m.id) ? 'on' : ''}`}
-                    onClick={() => toggleLike(m.id)}
-                  >
-                    ♥ {likes[m.id] || 0}
-                  </button>
-                </div>
-              )
-            })}
+                          <p className="muted">Post preview (id {shared.postId.slice(0, 8)}…)</p>
+                        )}
+                        {shared.note ? <p className="profile-bio">{shared.note}</p> : null}
+                      </div>
+                    ) : (
+                      <div className="chat-msg-body">
+                        {m.body && m.body !== '📷' ? (
+                          <div className="chat-msg-text">{m.body}</div>
+                        ) : null}
+                        {media ? (
+                          isImage ? (
+                            <button
+                              type="button"
+                              className="chat-media-btn"
+                              onClick={() => setLightboxUrl(media)}
+                            >
+                              <img className="chat-media" src={media} alt="" />
+                              <span className="chat-media-hint">Tap to enlarge</span>
+                            </button>
+                          ) : (
+                            <video className="chat-media" src={media} controls playsInline />
+                          )
+                        ) : null}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className={`like-btn ${myLiked.has(m.id) ? 'on' : ''}`}
+                      onClick={() => toggleLike(m.id)}
+                    >
+                      ♥ {likes[m.id] || 0}
+                    </button>
+                  </div>
+                )
+              })
+            )}
+            <div ref={messagesEndRef} />
           </div>
           {isAnnouncementsChat && me?.username !== 'rafflesiaonline' ? (
             <p className="muted">Read-only — only @rafflesiaonline can post here.</p>
           ) : (
-            <>
-              <EmojiBar
-                label="Emoji"
-                open={showEmojiBar}
-                onToggle={() => setShowEmojiBar((v) => !v)}
-                onPick={insertEmoji}
-              />
-              <form className="composer composer-rich" onSubmit={sendMessage}>
-                <input
-                  ref={draftInputRef}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Type a message"
-                />
-                <label className="composer-link">
-                  Link (optional)
-                  <input
-                    value={chatLink}
-                    onChange={(e) => setChatLink(e.target.value)}
-                    placeholder="https://…"
-                    inputMode="url"
-                  />
-                </label>
+            <div className="msg-composer">
+              {showEmojiBar ? (
+                <div className="emoji-bar" role="listbox" aria-label="Emoji">
+                  {CHAT_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="emoji-btn"
+                      onClick={() => insertEmoji(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {chatMediaUrl ? (
                 <PhotoAttach
-                  label="Add photo"
-                  hint="Send a picture with your message"
+                  variant="drop"
                   previewUrl={chatMediaUrl}
                   fileName={chatMediaName}
                   busy={busy}
@@ -2360,6 +2621,42 @@ export function HomeApp({ userId, onLogout }: Props) {
                     setChatMediaName('')
                   }}
                 />
+              ) : null}
+              {chatLinkOpen ? (
+                <label className="composer-link">
+                  Link
+                  <input
+                    value={chatLink}
+                    onChange={(e) => setChatLink(e.target.value)}
+                    placeholder="https://…"
+                    inputMode="url"
+                  />
+                </label>
+              ) : null}
+              <form className="composer msg-composer-row" onSubmit={sendMessage}>
+                <button
+                  type="button"
+                  className="ghost btn-compact msg-tool"
+                  onClick={() => setShowEmojiBar((v) => !v)}
+                  title="Emoji"
+                >
+                  😊
+                </button>
+                <PhotoAttach variant="compact" label="Add photo" busy={busy} onPick={(file) => onChatPhoto(file)} />
+                <button
+                  type="button"
+                  className={chatLinkOpen ? 'ghost btn-compact msg-tool on' : 'ghost btn-compact msg-tool'}
+                  onClick={() => setChatLinkOpen((v) => !v)}
+                  title="Add link"
+                >
+                  🔗
+                </button>
+                <input
+                  ref={draftInputRef}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Write a message…"
+                />
                 <button
                   className="primary"
                   type="submit"
@@ -2368,10 +2665,12 @@ export function HomeApp({ userId, onLogout }: Props) {
                   Send
                 </button>
               </form>
-            </>
+            </div>
           )}
         </div>
       )}
+
+      <MediaLightbox src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
       {sharePost && shareMode ? (
         <div className="share-picker-overlay">
