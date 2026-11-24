@@ -2222,6 +2222,94 @@ select {
   margin: 0;
   text-align: left;
 }
+
+/* created: 2026-11-24T13:50:00-08:00 — modern photo attach */
+.photo-attach {
+  width: 100%;
+  text-align: left;
+}
+.photo-attach-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+.photo-attach-drop {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 2px dashed var(--card-border, #7ec4f5);
+  background: color-mix(in srgb, var(--card-bg, #f4faff) 88%, #fff);
+  cursor: pointer;
+  font: inherit;
+  color: var(--text, #1a3a5c);
+}
+.photo-attach-drop:hover:not(:disabled) {
+  border-style: solid;
+  background: #e8f4ff;
+}
+.photo-attach-drop:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.photo-attach-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.photo-attach-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.photo-attach-copy strong {
+  font-size: 0.95rem;
+}
+.photo-attach-copy .muted {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.photo-attach-preview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 16px;
+  border: 2px solid var(--card-border, #7ec4f5);
+  background: #fff;
+}
+.photo-attach-preview img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: #e3f2ff;
+}
+.photo-attach-preview-meta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.photo-attach-ready {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text, #1a3a5c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.theme-bg-char {
+  object-fit: cover;
+  border-radius: 50%;
+}
 .chat-msg-links a {
   display: inline-block;
   margin-right: 8px;

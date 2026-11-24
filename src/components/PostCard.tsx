@@ -9,6 +9,7 @@ import { EmojiBar, insertEmojiAtCursor } from '../lib/emojiBar'
 import type { ReactionRow, ReactionTarget } from '../lib/reactions'
 import { NameWithBadge } from './VerifiedBadge'
 import { ReactionBar } from './ReactionBar'
+import { PhotoAttach } from './PhotoAttach'
 import type { PostRow, Profile } from '../types'
 
 export type PostComment = {
@@ -361,40 +362,28 @@ export function PostCard({
               onPick={(emoji) => insertEmojiAtCursor(draftRef.current, draft, setDraft, emoji)}
             />
             <label>
-              Add a comment
+              Comment
               <input
                 ref={draftRef}
                 value={draft}
                 maxLength={500}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Type or tap Emoji…"
+                placeholder="Say hi… add emoji or a photo"
               />
             </label>
             {uploadPicture ? (
-              <label className="post-file-label">
-                Picture (optional)
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={localBusy}
-                  onChange={(e) => onPickCommentPhoto(e.target.files?.[0] || null)}
-                />
-              </label>
-            ) : null}
-            {commentMedia ? (
-              <p className="muted">
-                Photo ready{commentFileName ? `: ${commentFileName}` : ''}{' '}
-                <button
-                  type="button"
-                  className="ghost btn-compact"
-                  onClick={() => {
-                    setCommentMedia(null)
-                    setCommentFileName('')
-                  }}
-                >
-                  Remove
-                </button>
-              </p>
+              <PhotoAttach
+                label="Add photo to comment"
+                hint="Optional · tap to attach a picture"
+                previewUrl={commentMedia}
+                fileName={commentFileName}
+                busy={localBusy}
+                onPick={(file) => onPickCommentPhoto(file)}
+                onClear={() => {
+                  setCommentMedia(null)
+                  setCommentFileName('')
+                }}
+              />
             ) : null}
             <div className="action-row">
               <button

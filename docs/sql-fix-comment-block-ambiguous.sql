@@ -1,9 +1,18 @@
 -- created: 2026-11-24T13:35:00-08:00
--- Fix: column reference "block_post" is ambiguous in create_post_comment
+-- updated: 2026-11-24T13:50:00-08:00 — never query missing posts.deleted_at; add column if absent
+-- Fix comments: "block_post is ambiguous" + "column p.deleted_at does not exist"
 -- Also adds comment media_url for picture comments
+
+alter table public.posts
+  add column if not exists deleted_at timestamptz;
+alter table public.posts
+  add column if not exists deleted_reason text;
 
 alter table public.post_comments
   add column if not exists media_url text;
+
+drop function if exists public.create_post_comment(uuid, text);
+drop function if exists public.create_post_comment(uuid, text, text);
 
 create or replace function public.create_post_comment(
   p_post_id uuid,
@@ -38,13 +47,14 @@ begin
     raise exception 'Commenting is restricted by a teacher';
   end if;
 
-  select exists(select 1 from public.posts p where p.id = p_post_id and p.deleted_at is null)
-    into post_ok;
-  if not coalesce(post_ok, false) then
-    -- older DBs without deleted_at
-    select exists(select 1 from public.posts p where p.id = p_post_id) into post_ok;
-  end if;
-  if not post_ok then raise exception 'Post not found.'; end if;
+  -- Only touch deleted_at after ensuring the column exists (added above)
+  select exists(
+    select 1 from public.posts p
+    where p.id = p_post_id
+      and p.deleted_at is null
+  ) into post_ok;
+
+  if not coalesce(post_ok, false) then raise exception 'Post not found.'; end if;
 
   insert into public.post_comments (post_id, author_id, body, media_url)
   values (p_post_id, uid, case when body = '' then '📷' else body end, media)
@@ -53,7 +63,5 @@ begin
 end;
 $$;
 
-revoke all on function public.create_post_comment(uuid, text) from public;
 revoke all on function public.create_post_comment(uuid, text, text) from public;
-drop function if exists public.create_post_comment(uuid, text);
 grant execute on function public.create_post_comment(uuid, text, text) to authenticated;

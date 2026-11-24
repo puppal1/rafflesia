@@ -76,19 +76,24 @@ export function applyTheme(theme: ThemeDef) {
   const picked = mangaBgById(getMangaBgId())
   const file = picked.file || theme.bgImage || ''
   if (file) {
-    const url = `${baseUrl}theme-bgs/${file}`
+    // updated: 2026-11-24T13:50:00-08:00 — theme-bgs or manga-icons characters
+    const folder = picked.file ? picked.folder : 'theme-bgs'
+    const url = `${baseUrl}${folder}/${file}`
+    const washStrength = picked.group === 'character' ? 58 : 72
     document.body.style.backgroundImage = [
-      `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} 72%, transparent), color-mix(in srgb, ${theme.washMid} 68%, transparent), color-mix(in srgb, ${theme.washEdge} 70%, transparent))`,
+      `linear-gradient(165deg, color-mix(in srgb, ${theme.washTop} ${washStrength}%, transparent), color-mix(in srgb, ${theme.washMid} ${washStrength - 4}%, transparent), color-mix(in srgb, ${theme.washEdge} ${washStrength - 2}%, transparent))`,
       `url("${url}")`,
     ].join(', ')
-    document.body.style.backgroundSize = 'cover, cover'
+    document.body.style.backgroundSize = picked.group === 'character' ? 'cover, contain' : 'cover, cover'
     document.body.style.backgroundPosition = 'center, center'
     document.body.style.backgroundAttachment = 'fixed, fixed'
+    document.body.style.backgroundRepeat = 'no-repeat, no-repeat'
   } else {
     document.body.style.backgroundImage = ''
     document.body.style.backgroundSize = ''
     document.body.style.backgroundPosition = ''
     document.body.style.backgroundAttachment = ''
+    document.body.style.backgroundRepeat = ''
   }
 }
 

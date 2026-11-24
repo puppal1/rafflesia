@@ -14,6 +14,7 @@ import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
 import { PostCard } from './components/PostCard'
 import { SiobhanFeed } from './components/SiobhanFeed'
+import { PhotoAttach } from './components/PhotoAttach'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -2394,30 +2395,18 @@ export function HomeApp({ userId, onLogout }: Props) {
                     inputMode="url"
                   />
                 </label>
-                <label className="post-file-label composer-photo">
-                  Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={busy}
-                    onChange={(e) => onChatPhoto(e.target.files?.[0] || null)}
-                  />
-                </label>
-                {chatMediaUrl ? (
-                  <p className="muted composer-attach">
-                    Photo ready{chatMediaName ? `: ${chatMediaName}` : ''}{' '}
-                    <button
-                      type="button"
-                      className="ghost btn-compact"
-                      onClick={() => {
-                        setChatMediaUrl(null)
-                        setChatMediaName('')
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </p>
-                ) : null}
+                <PhotoAttach
+                  label="Add photo"
+                  hint="Send a picture with your message"
+                  previewUrl={chatMediaUrl}
+                  fileName={chatMediaName}
+                  busy={busy}
+                  onPick={(file) => onChatPhoto(file)}
+                  onClear={() => {
+                    setChatMediaUrl(null)
+                    setChatMediaName('')
+                  }}
+                />
                 <button
                   className="primary"
                   type="submit"
