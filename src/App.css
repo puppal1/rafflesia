@@ -345,7 +345,7 @@
   object-fit: cover;
   border-radius: 50%;
   border: 3px solid #4d9fff;
-  margin: 0 auto 12px;
+  margin: 0 0 12px;
   display: block;
 }
 
@@ -446,20 +446,24 @@
 }
 
 /* created: 2026-11-23T20:47:00-08:00 — group member pickers (WF-G1 / G3) */
+/* updated: 2026-11-23T22:00:00-08:00 — friend rows + soft scroll */
 .member-pick-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 180px;
+  gap: 8px;
+  max-height: 220px;
   overflow-y: auto;
   margin: 0 0 12px;
   text-align: left;
+  padding-right: 4px;
 }
 
+.form label.member-check,
 .member-check {
-  display: flex;
+  display: flex !important;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid #cfe4f8;
@@ -470,9 +474,162 @@
 }
 
 .member-check input {
-  width: auto;
+  width: 18px !important;
+  height: 18px;
   margin: 0;
-  accent-color: #4d9fff;
+  flex-shrink: 0;
+  accent-color: #2f8fff;
+}
+
+.group-create-card {
+  margin: 8px 0 16px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 2px solid #7ec4f5;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+}
+
+.friend-pick-heading {
+  margin: 8px 0 6px;
+  font-weight: 700;
+  color: #243556;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.friend-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 2px solid #cfe4f8;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: #243556;
+}
+
+.friend-pick-row.on {
+  border-color: #2f8fff;
+  background: #e3f2ff;
+  box-shadow: 0 4px 12px rgba(47, 143, 255, 0.18);
+}
+
+.friend-pick-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friend-pick-check {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #b8d9f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-weight: 700;
+  background: #fff;
+}
+
+.friend-pick-check.on {
+  background: #2f8fff;
+  border-color: #2f8fff;
+}
+
+.face-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #7ec4f5;
+  background: #e8f5ff;
+}
+
+.face-avatar.face-icon {
+  object-fit: contain;
+  padding: 2px;
+}
+
+.face-avatar.face-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.face-avatar.lg {
+  width: 88px;
+  height: 88px;
+  border-width: 3px;
+  font-size: 2.2rem;
+}
+
+.face-avatar.md {
+  width: 48px;
+  height: 48px;
+}
+
+.face-avatar.sm {
+  width: 36px;
+  height: 36px;
+}
+
+.profile-face-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 14px;
+  text-align: left;
+}
+
+.people-row {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+/* Soft pastel scrollbars (Chromebook / Chrome) */
+.soft-scroll,
+.glass-card {
+  scrollbar-width: thin;
+  scrollbar-color: #8ec8f5 transparent;
+}
+
+.soft-scroll::-webkit-scrollbar,
+.glass-card::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.soft-scroll::-webkit-scrollbar-track,
+.glass-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb,
+.glass-card::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a8d8ff, #6eb8f0);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.soft-scroll::-webkit-scrollbar-button,
+.glass-card::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .add-friends-panel {

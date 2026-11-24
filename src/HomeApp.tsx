@@ -9,6 +9,7 @@ import { checkKidText, reportBlockedText } from './lib/textChecker'
 import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
+import { FaceAvatar } from './components/FaceAvatar'
 
 const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`
 import type { ChatRow, FollowListKind, MessageRow, PostRow, Profile, Tab } from './types'
@@ -777,10 +778,13 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function createGroup(e: FormEvent) {
     // created: 2026-11-23T12:14:00-08:00
-    // updated: 2026-11-23T21:40:00-08:00 — text check on group title
+    // updated: 2026-11-23T22:00:00-08:00 — always clickable; clear empty-name error
     e.preventDefault()
     const title = groupTitle.trim()
-    if (!title) return
+    if (!title) {
+      setError('Type a group chat name first, then tap Create group chat.')
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -1054,16 +1058,26 @@ export function HomeApp({ userId, onLogout }: Props) {
           ) : (
             <div className="banner-preview placeholder">No banner yet</div>
           )}
-          {viewProfile.avatar_url ? (
-            <img className="avatar-preview" src={viewProfile.avatar_url} alt="Profile" />
-          ) : (
-            <div className="avatar-preview placeholder">No picture</div>
-          )}
+          <div className="profile-face-row">
+            <FaceAvatar
+              avatarUrl={viewProfile.avatar_url}
+              iconPack={viewProfile.icon_pack}
+              iconId={viewProfile.icon_id}
+              size="lg"
+            />
+            <div>
+              <h2 className="panel-title" style={{ marginTop: 0, marginBottom: 2 }}>
+                {niceName(viewProfile)}
+              </h2>
+              <p className="muted" style={{ margin: 0 }}>
+                @{viewProfile.username}
+              </p>
+            </div>
+          </div>
 
-          <h2 className="panel-title" style={{ marginTop: 8 }}>
+          <h2 className="panel-title" style={{ display: 'none' }}>
             {iconEmoji(viewProfile.icon_pack, viewProfile.icon_id)} {niceName(viewProfile)}
           </h2>
-          <p className="muted">@{viewProfile.username}</p>
           <p className="profile-bio">
             {(viewProfile.bio || '').trim() ? viewProfile.bio : 'No bio yet.'}
           </p>
@@ -1418,11 +1432,17 @@ export function HomeApp({ userId, onLogout }: Props) {
           ) : (
             <div className="banner-preview placeholder">No banner yet</div>
           )}
-          {me?.avatar_url ? (
-            <img className="avatar-preview" src={me.avatar_url} alt="Profile" />
-          ) : (
-            <div className="avatar-preview placeholder">No picture</div>
-          )}
+          <div className="profile-face-row">
+            <FaceAvatar
+              avatarUrl={me?.avatar_url}
+              iconPack={me?.icon_pack}
+              iconId={me?.icon_id}
+              size="lg"
+            />
+            <p className="muted" style={{ margin: 0 }}>
+              Your face = photo, or your icon if no photo yet
+            </p>
+          </div>
 
           <label>
             Profile picture
@@ -1498,14 +1518,20 @@ export function HomeApp({ userId, onLogout }: Props) {
             ) : (
               people.map((p) => (
                 <div className="row" key={p.id}>
-                  <button type="button" className="row-main linkish" onClick={() => openProfile(p)}>
-                    <p className="row-title">
-                      {iconEmoji(p.icon_pack, p.icon_id)} {niceName(p)}
-                    </p>
-                    <p className="row-sub">
-                      @{p.username} · {followerCountById[p.id] || 0} followers · {followingCountById[p.id] || 0}{' '}
-                      following
-                    </p>
+                  <button type="button" className="row-main linkish people-row" onClick={() => openProfile(p)}>
+                    <FaceAvatar
+                      avatarUrl={p.avatar_url}
+                      iconPack={p.icon_pack}
+                      iconId={p.icon_id}
+                      size="sm"
+                    />
+                    <span>
+                      <p className="row-title">{niceName(p)}</p>
+                      <p className="row-sub">
+                        @{p.username} · {followerCountById[p.id] || 0} followers ·{' '}
+                        {followingCountById[p.id] || 0} following
+                      </p>
+                    </span>
                   </button>
                   {/* updated: 2026-11-23T19:55:00-08:00 — fixed action column so long names wrap */}
                   <div className="row-actions">
@@ -1534,61 +1560,94 @@ export function HomeApp({ userId, onLogout }: Props) {
 
       {!viewProfile && !textBlockMsg && tab === 'chats' && !activeChat && (
         <div>
-          <h2 className="panel-title">Chats</h2>
-          <form className="form" onSubmit={createGroup} style={{ marginBottom: 12 }}>
-            <label>
-              New group name
-              <input
-                ref={groupTitleRef}
-                value={groupTitle}
-                onChange={(e) => setGroupTitle(e.target.value)}
-                placeholder="My group 🎉"
-              />
-            </label>
-            {/* created: 2026-11-23T20:34:00-08:00 — emoji for group titles */}
-            <EmojiBar
-              label="Emoji"
-              open={showGroupEmoji}
-              onToggle={() => setShowGroupEmoji((v) => !v)}
-              onPick={(emoji) =>
-                insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
-              }
-            />
-            {/* created: 2026-11-23T20:45:00-08:00 — WF-G1 member picker */}
-            <h3 className="panel-title" style={{ marginTop: 8, fontSize: '0.95rem' }}>
-              Add friends now
+          <h2 className="panel-title">Messages</h2>
+          <p className="muted">Your DMs and group chats</p>
+
+          {/* created: 2026-11-23T22:00:00-08:00 — clearer group-chat create UX */}
+          <div className="group-create-card">
+            <h3 className="panel-title" style={{ fontSize: '1.05rem', marginBottom: 4 }}>
+              Start a group chat
             </h3>
             <p className="muted" style={{ marginTop: 0 }}>
-              Invite-only — they will see this group in Chats. You can add more later.
+              1) Name the chat · 2) Tap friends to invite · 3) Create group chat
             </p>
-            <div className="member-pick-list">
-              {people.length === 0 ? (
-                <p className="muted">No other people yet. Create the group alone, then add friends later.</p>
-              ) : (
-                people.map((p) => (
-                  <label className="member-check" key={p.id}>
-                    <input
-                      type="checkbox"
-                      checked={createPickIds.has(p.id)}
-                      onChange={() => toggleCreatePick(p.id)}
-                    />
-                    <span>
-                      <strong>{niceName(p)}</strong>
-                      <span className="muted"> @{p.username}</span>
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-            <button className="primary" type="submit" disabled={busy || !groupTitle.trim()}>
-              Create group
-              {createPickIds.size ? ` (${createPickIds.size})` : ''}
-            </button>
-          </form>
+            <form className="form group-create-form" onSubmit={createGroup}>
+              <label>
+                Group chat name
+                <input
+                  ref={groupTitleRef}
+                  value={groupTitle}
+                  onChange={(e) => {
+                    setGroupTitle(e.target.value)
+                    if (error) setError('')
+                  }}
+                  placeholder="e.g. Lunch table 🎉"
+                />
+              </label>
+              <EmojiBar
+                label="Emoji"
+                open={showGroupEmoji}
+                onToggle={() => setShowGroupEmoji((v) => !v)}
+                onPick={(emoji) =>
+                  insertEmojiAtCursor(groupTitleRef.current, groupTitle, setGroupTitle, emoji)
+                }
+              />
+              <p className="friend-pick-heading">
+                Invite friends <span className="muted">(optional — you can add more later)</span>
+              </p>
+              <div className="member-pick-list soft-scroll">
+                {people.length === 0 ? (
+                  <p className="muted">No other people yet. Create the chat alone for now.</p>
+                ) : (
+                  people.map((p) => {
+                    const on = createPickIds.has(p.id)
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={on ? 'friend-pick-row on' : 'friend-pick-row'}
+                        onClick={() => toggleCreatePick(p.id)}
+                      >
+                        <FaceAvatar
+                          avatarUrl={p.avatar_url}
+                          iconPack={p.icon_pack}
+                          iconId={p.icon_id}
+                          size="sm"
+                        />
+                        <span className="friend-pick-text">
+                          <strong>{niceName(p)}</strong>
+                          <span className="muted">@{p.username}</span>
+                        </span>
+                        <span className={on ? 'friend-pick-check on' : 'friend-pick-check'} aria-hidden>
+                          {on ? '✓' : ''}
+                        </span>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+              <button className="primary" type="submit" disabled={busy}>
+                {busy
+                  ? 'Creating…'
+                  : createPickIds.size
+                    ? `Create group chat · ${createPickIds.size} friend${createPickIds.size === 1 ? '' : 's'}`
+                    : 'Create group chat'}
+              </button>
+              {!groupTitle.trim() ? (
+                <p className="muted" style={{ marginBottom: 0 }}>
+                  Tip: type a name above so friends know which chat it is.
+                </p>
+              ) : null}
+            </form>
+          </div>
+
+          <h3 className="panel-title" style={{ fontSize: '1rem', marginTop: 16 }}>
+            Your chats
+          </h3>
           <div className="list">
             {chats.length === 0 ? (
               <p className="muted">
-                No chats yet. Message someone in People for a DM, or create a group and add friends.
+                No chats yet. Message someone in People for a DM, or start a group chat above.
               </p>
             ) : (
               chats.map((c) => (
@@ -1600,7 +1659,9 @@ export function HomeApp({ userId, onLogout }: Props) {
                   onClick={() => setActiveChat(c)}
                 >
                   <div className="row-main">
-                    <p className="row-title">{c.is_group ? c.title || 'Group' : 'Direct message'}</p>
+                    <p className="row-title">
+                      {c.is_group ? `👥 ${c.title || 'Group chat'}` : '💬 Direct message'}
+                    </p>
                     <p className="row-sub">{c.is_group ? 'Group chat' : 'Private chat'}</p>
                   </div>
                 </button>
@@ -1647,27 +1708,39 @@ export function HomeApp({ userId, onLogout }: Props) {
           {activeChat.is_group && showAddFriends ? (
             <div className="add-friends-panel">
               <h3 className="panel-title" style={{ fontSize: '0.95rem' }}>
-                Add friends to group
+                Add friends to this group chat
               </h3>
-              <div className="member-pick-list">
+              <div className="member-pick-list soft-scroll">
                 {people.filter((p) => !groupMemberIds.has(p.id)).length === 0 ? (
                   <p className="muted">Everyone you know is already in this group.</p>
                 ) : (
                   people
                     .filter((p) => !groupMemberIds.has(p.id))
-                    .map((p) => (
-                      <label className="member-check" key={p.id}>
-                        <input
-                          type="checkbox"
-                          checked={addPickIds.has(p.id)}
-                          onChange={() => toggleAddPick(p.id)}
-                        />
-                        <span>
-                          <strong>{niceName(p)}</strong>
-                          <span className="muted"> @{p.username}</span>
-                        </span>
-                      </label>
-                    ))
+                    .map((p) => {
+                      const on = addPickIds.has(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={on ? 'friend-pick-row on' : 'friend-pick-row'}
+                          onClick={() => toggleAddPick(p.id)}
+                        >
+                          <FaceAvatar
+                            avatarUrl={p.avatar_url}
+                            iconPack={p.icon_pack}
+                            iconId={p.icon_id}
+                            size="sm"
+                          />
+                          <span className="friend-pick-text">
+                            <strong>{niceName(p)}</strong>
+                            <span className="muted">@{p.username}</span>
+                          </span>
+                          <span className={on ? 'friend-pick-check on' : 'friend-pick-check'}>
+                            {on ? '✓' : ''}
+                          </span>
+                        </button>
+                      )
+                    })
                 )}
               </div>
               <button
@@ -1676,7 +1749,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                 disabled={busy || addPickIds.size === 0}
                 onClick={submitAddFriends}
               >
-                Add{addPickIds.size ? ` (${addPickIds.size})` : ''}
+                Add to group chat{addPickIds.size ? ` (${addPickIds.size})` : ''}
               </button>
             </div>
           ) : null}
