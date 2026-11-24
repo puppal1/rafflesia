@@ -120,13 +120,18 @@
   /* updated: 2026-11-23T23:00:00-08:00 — simple light blue card */
   /* updated: 2026-11-23T23:58:00-08:00 — full-height side rail when logged in */
   /* updated: 2026-11-24T11:50:00-08:00 — theme CSS vars */
+  /* updated: 2026-11-24T14:00:00-08:00 — manga BG layers on the panel */
   width: calc(100vw - 20px);
   max-width: 1800px;
   max-height: calc(100svh - 20px);
   overflow: auto;
   padding: 32px 40px 40px;
   border-radius: 26px;
-  background: var(--card-bg);
+  background-color: var(--card-bg);
+  background-image: var(--panel-manga-wash, none), var(--panel-manga-image, none);
+  background-size: var(--panel-manga-size, cover);
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   border: 4px solid var(--card-border);
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.85),
@@ -137,7 +142,7 @@
   forced-color-adjust: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-  transition: background 0.45s ease, border-color 0.45s ease;
+  transition: background-color 0.45s ease, border-color 0.45s ease;
 }
 
 .glass-card:has(.app-with-rail) {
@@ -146,6 +151,13 @@
   align-items: stretch;
   overflow: hidden;
   padding: 0;
+  /* rail layout: keep card chrome, paint manga in main column */
+  background-color: color-mix(in srgb, var(--card-bg) 88%, transparent);
+  background-image: none;
+}
+
+html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
+  background-color: color-mix(in srgb, var(--card-bg) 55%, transparent);
 }
 
 @media (max-width: 700px) {
@@ -1046,12 +1058,28 @@
 }
 
 .app-main-col {
+  /* updated: 2026-11-24T14:00:00-08:00 — manga image lives here as panel BG */
   flex: 1;
   min-width: 0;
   text-align: center;
   box-sizing: border-box;
   overflow: auto;
   padding: 28px 28px 32px;
+  background-color: color-mix(in srgb, var(--card-bg) 72%, transparent);
+  background-image: var(--panel-manga-wash, none), var(--panel-manga-image, none);
+  background-size: var(--panel-manga-size, cover);
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: local, local;
+}
+
+html[data-manga-bg='on'] .app-main-col {
+  background-color: color-mix(in srgb, var(--card-bg) 42%, transparent);
+}
+
+html[data-manga-bg='off'] .app-main-col {
+  background-image: none;
+  background-color: transparent;
 }
 
 .nav-shell {
