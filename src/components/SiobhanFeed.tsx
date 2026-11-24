@@ -124,10 +124,23 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                   </div>
                   <h3 className="siobhan-title">{a.title}</h3>
                   <p className="siobhan-blurb">{a.blurb}</p>
-                  <div className="siobhan-bubble">
-                    <span className="siobhan-bubble-label">{a.live ? 'Why it fits' : 'Fun fact'}</span>
-                    <p>{a.funFact}</p>
-                  </div>
+                  {/* updated: 2026-11-24T14:22:00-08:00 — live: match chips; offline: real fun fact */}
+                  {a.live ? (
+                    <div className="siobhan-fit-row" aria-label="Why this story is here">
+                      <span className="siobhan-fit-label">Why here</span>
+                      {(a.fitChips?.length ? a.fitChips : [a.tag]).map((chip) => (
+                        <span className="siobhan-fit-chip" key={chip}>
+                          {chip}
+                        </span>
+                      ))}
+                      {a.source ? <span className="siobhan-fit-source">{a.source}</span> : null}
+                    </div>
+                  ) : a.funFact ? (
+                    <div className="siobhan-bubble">
+                      <span className="siobhan-bubble-label">Fun fact</span>
+                      <p>{a.funFact}</p>
+                    </div>
+                  ) : null}
                   <div className="siobhan-card-actions">
                     {a.url ? (
                       <a

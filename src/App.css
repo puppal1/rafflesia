@@ -2850,6 +2850,35 @@ select {
   line-height: 1.4;
   color: #2a3a50;
 }
+.siobhan-fit-row {
+  /* created: 2026-11-24T14:22:00-08:00 — compact why-here chips (no static prose) */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+.siobhan-fit-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #c03070;
+}
+.siobhan-fit-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #1a3a5c;
+  background: #fff;
+  color: #1a3a5c;
+}
+.siobhan-fit-source {
+  font-size: 0.72rem;
+  color: #4a6080;
+  margin-left: 2px;
+}
 .siobhan-bubble {
   /* updated: 2026-11-24T14:15:00-08:00 — less empty padding */
   margin-top: 2px;

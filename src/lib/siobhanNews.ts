@@ -1,9 +1,11 @@
 // created: 2026-11-24T13:15:00-08:00 — live kid-safe local/science/kindness news for Siobhan Daily
 // updated: 2026-11-24T13:20:00-08:00 — drop kindness; add music
+// updated: 2026-11-24T14:22:00-08:00 — live cards use match chips instead of static why-it-fits copy
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
   // created: 2026-11-24T13:15:00-08:00
+  // updated: 2026-11-24T14:22:00-08:00 — fitChips for live “why here”
   id: string
   tag: string
   emoji: string
@@ -11,6 +13,7 @@ export type LiveNewsItem = {
   blurb: string
   place: string
   funFact: string
+  fitChips: string[]
   url: string
   publishedAt: string | null
   source: string
@@ -231,12 +234,73 @@ function boostScore(text: string): number {
   return score
 }
 
-/** created: 2026-11-24T13:15:00-08:00 */
-function funFactFor(tag: string): string {
-  if (tag === 'Music') return 'Rhythm and melody are science you can hear — clap a beat and invent a tune.'
-  if (tag === 'Space' || tag === 'Science') return 'Scientists learn by asking questions — you can too.'
-  if (tag === 'Oak Park') return 'Your town is part of a bigger science story every day.'
-  return 'Stay curious · keep scrolling for more discoveries.'
+/** created: 2026-11-24T14:22:00-08:00 — readable labels for matched themes */
+const CHIP_LABEL: Record<string, string> = {
+  science: 'Science',
+  stem: 'STEM',
+  space: 'Space',
+  nasa: 'NASA',
+  student: 'Students',
+  students: 'Students',
+  school: 'School',
+  classroom: 'Classroom',
+  teacher: 'Teachers',
+  music: 'Music',
+  musical: 'Music',
+  orchestra: 'Orchestra',
+  choir: 'Choir',
+  band: 'Band',
+  concert: 'Concert',
+  song: 'Songs',
+  piano: 'Piano',
+  guitar: 'Guitar',
+  violin: 'Violin',
+  community: 'Community',
+  wildlife: 'Wildlife',
+  animal: 'Animals',
+  nature: 'Nature',
+  garden: 'Garden',
+  planet: 'Planet',
+  astronomy: 'Astronomy',
+  ocean: 'Ocean',
+  climate: 'Climate',
+  discovery: 'Discovery',
+  invention: 'Invention',
+  robot: 'Robots',
+  coding: 'Coding',
+  library: 'Library',
+  museum: 'Museum',
+  park: 'Parks',
+  kids: 'Kids',
+  children: 'Kids',
+  youth: 'Youth',
+  education: 'Learning',
+  'oak park': 'Oak Park',
+  ventura: 'Ventura',
+  'san fernando': 'SF Valley',
+  'los angeles': 'L.A.',
+  'la county': 'L.A.',
+  california: 'California',
+}
+
+/** created: 2026-11-24T14:22:00-08:00 — per-article chips from real headline/blurb matches */
+function fitChipsFor(text: string, tag: string, place: string): string[] {
+  const t = text.toLowerCase()
+  const chips: string[] = []
+  const seen = new Set<string>()
+  const add = (label: string) => {
+    if (!label || seen.has(label)) return
+    seen.add(label)
+    chips.push(label)
+  }
+  add(tag)
+  if (place && place !== tag) add(place)
+  for (const w of BOOST) {
+    if (!t.includes(w)) continue
+    add(CHIP_LABEL[w] || w)
+    if (chips.length >= 5) break
+  }
+  return chips.slice(0, 5)
 }
 
 /** created: 2026-11-24T13:15:00-08:00 — rss2json free endpoint (browser-safe) */
@@ -274,7 +338,8 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
       title,
       blurb,
       place: spec.place,
-      funFact: funFactFor(spec.tag),
+      funFact: '',
+      fitChips: fitChipsFor(hay, spec.tag, spec.place),
       url: link,
       publishedAt: item.pubDate || null,
       source: data.feed?.title || spec.tag,
@@ -285,9 +350,11 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
 }
 
 /** created: 2026-11-24T13:15:00-08:00 */
+/** updated: 2026-11-24T14:22:00-08:00 — offline club cards keep real fun facts */
 function staticAsLive(): LiveNewsItem[] {
   return SIOBHAN_FEED.map((a: SiobhanArticle) => ({
     ...a,
+    fitChips: [a.tag, a.place].filter(Boolean),
     url: '',
     publishedAt: null,
     source: 'Siobhan club notes',
