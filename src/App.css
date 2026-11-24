@@ -1077,9 +1077,14 @@ html[data-manga-bg='on'] .app-main-col {
   background-color: color-mix(in srgb, var(--card-bg) 42%, transparent);
 }
 
+/* updated: 2026-11-24T13:30:00-08:00 — None: kill manga on panel + rail */
 html[data-manga-bg='off'] .app-main-col {
-  background-image: none;
+  background-image: none !important;
   background-color: transparent;
+}
+
+html[data-manga-bg='off'] .glass-card {
+  background-image: none !important;
 }
 
 .nav-shell {

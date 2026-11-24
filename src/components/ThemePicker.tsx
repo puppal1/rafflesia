@@ -2,6 +2,7 @@
 // updated: 2026-11-24T11:50:00-08:00 — lock note + Auto rotate unlock
 // updated: 2026-11-24T12:55:00-08:00 — color palettes + manga hero/villain BGs
 // updated: 2026-11-24T13:50:00-08:00 — character stickers as theme BGs
+// updated: 2026-11-24T13:30:00-08:00 — None clears manga for real (no villain-night default)
 import { useEffect, useState } from 'react'
 import { THEMES, type ThemeId } from '../lib/themes'
 import { MANGA_BGS, type MangaBgId } from '../lib/mangaBgs'
@@ -105,8 +106,8 @@ export function ThemePicker({ compact, onPicked }: Props) {
           <h3 className="theme-section-title">Manga picture</h3>
           <p className="theme-picker-hint">
             {bgId === 'none'
-              ? 'No picture — colors only. Pick a scene or character below.'
-              : 'Tap No picture to clear. Switch scenes/characters anytime.'}
+              ? 'No picture — colors only. Manga is off.'
+              : 'Tap No picture to remove manga completely (not Villain night).'}
           </p>
           <div className="theme-bg-grid">
             {scenes.map((b) => (
@@ -127,8 +128,16 @@ export function ThemePicker({ compact, onPicked }: Props) {
           </div>
 
           <h3 className="theme-section-title">Manga characters</h3>
-          <p className="theme-picker-hint">Same stickers as icons — full-screen background</p>
+          <p className="theme-picker-hint">Same stickers as icons — full-screen background. No picture clears.</p>
           <div className="theme-bg-grid">
+            <button
+              type="button"
+              className={bgId === 'none' ? 'theme-bg-tile on' : 'theme-bg-tile'}
+              onClick={() => pickBg('none')}
+            >
+              <span className="theme-bg-none">None</span>
+              <span className="theme-swatch-name">No picture</span>
+            </button>
             {characters.map((b) => (
               <button
                 key={b.id}

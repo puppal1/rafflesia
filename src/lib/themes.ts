@@ -1,5 +1,6 @@
 // created: 2026-11-24T11:45:00-08:00 — 12 pastel theme packs for hourly rotation
 // updated: 2026-11-24T12:35:00-08:00 — named colors + optional manga BG (PRD v2 C1/C2)
+// updated: 2026-11-24T13:30:00-08:00 — drop bgImage; None must not inherit villain-night
 
 export type ThemeId =
   | 'sky-mint'
@@ -45,8 +46,7 @@ export type ThemeDef = {
   accent: string
   inputBorder: string
   swatch: [string, string, string]
-  /** created: 2026-11-24T12:35:00-08:00 — public/theme-bgs filename */
-  bgImage?: string
+  // updated: 2026-11-24T13:30:00-08:00 — bgImage removed; manga only via mangaBgs/KEY_MANGA_BG
 }
 
 /** created: 2026-11-24T11:45:00-08:00 — pastel set, no dark navy */
@@ -69,7 +69,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#2aa897',
     inputBorder: '#9adceb',
     swatch: ['#d9f3ff', '#3db8d9', '#b7f0e2'],
-    bgImage: 'hero-sky.jpg',
   },
   {
     id: 'peach-cream',
@@ -279,7 +278,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#d8a878',
     inputBorder: '#d0c4e4',
     swatch: ['#ebe4f8', '#9888c8', '#f8ecd8'],
-    bgImage: 'neutral-garden.jpg',
   },
   // created: 2026-11-24T12:35:00-08:00 — named set (PRD v2 C1)
   {
@@ -300,7 +298,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#2f8fd6',
     inputBorder: '#7ec4f5',
     swatch: ['#d6ecff', '#4da3e8', '#9fd0f5'],
-    bgImage: 'hero-sky.jpg',
   },
   {
     id: 'named-pink',
@@ -320,7 +317,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#d05088',
     inputBorder: '#f0b0c8',
     swatch: ['#ffe4f0', '#e878a8', '#ffc0d8'],
-    bgImage: 'hero-sunset.jpg',
   },
   {
     id: 'rainbow',
@@ -340,7 +336,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#a878d8',
     inputBorder: '#d0c0e8',
     swatch: ['#ffe8d0', '#f07868', '#6898e0'],
-    bgImage: 'neutral-street.jpg',
   },
   {
     id: 'named-green',
@@ -379,7 +374,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#7850b8',
     inputBorder: '#c8b0e8',
     swatch: ['#eee0ff', '#9870d0', '#d0c0f0'],
-    bgImage: 'villain-shadow.jpg',
   },
   {
     id: 'named-red',
@@ -418,7 +412,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#d06818',
     inputBorder: '#f0c090',
     swatch: ['#ffe8d0', '#f08830', '#ffc890'],
-    bgImage: 'hero-sunset.jpg',
   },
   {
     id: 'named-yellow',
@@ -495,7 +488,6 @@ export const THEMES: ThemeDef[] = [
     accent: '#1a2030',
     inputBorder: '#8a90a0',
     swatch: ['#e8eaf0', '#3a4050', '#c8ccd8'],
-    bgImage: 'villain-night.jpg',
   },
 ]
 
