@@ -37,23 +37,34 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   const activeStory = items.find((a) => a.id.slice(0, 500) === activeKey) || null
 
   // created: 2026-11-24T14:25:00-08:00 — batch comment counts for Comments (n)
+  // updated: 2026-11-24T14:28:00-08:00 — chunk .in() (long article keys break one big query)
   const loadCommentCounts = useCallback(async (keys: string[]) => {
     if (!keys.length) {
       setCommentCounts({})
       return
     }
-    const { data, error } = await supabase
-      .from('news_comments')
-      .select('article_key')
-      .in('article_key', keys)
-      .is('deleted_at', null)
-    if (error) return
     const next: Record<string, number> = {}
-    for (const row of data || []) {
-      const k = (row as { article_key: string }).article_key
-      next[k] = (next[k] || 0) + 1
+    for (const k of keys) next[k] = 0
+    const chunkSize = 12
+    for (let i = 0; i < keys.length; i += chunkSize) {
+      const chunk = keys.slice(i, i + chunkSize)
+      const { data, error } = await supabase
+        .from('news_comments')
+        .select('article_key')
+        .in('article_key', chunk)
+        .is('deleted_at', null)
+      if (error) continue
+      for (const row of data || []) {
+        const k = (row as { article_key: string }).article_key
+        next[k] = (next[k] || 0) + 1
+      }
     }
     setCommentCounts(next)
+  }, [])
+
+  // created: 2026-11-24T14:28:00-08:00 — dock updates badge after post/delete
+  const bumpCommentCount = useCallback((articleKey: string, count: number) => {
+    setCommentCounts((prev) => ({ ...prev, [articleKey]: count }))
   }, [])
 
   const refresh = useCallback(async () => {
@@ -191,9 +202,8 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                       type="button"
                       onClick={() => setActiveKey(open ? null : key)}
                     >
-                      {open
-                        ? 'Comments open'
-                        : `Comments (${commentCounts[key] || 0})`}
+                      {/* updated: 2026-11-24T14:28:00-08:00 — count always visible */}
+                      {`Comments (${commentCounts[key] ?? 0})${open ? ' · open' : ''}`}
                     </button>
                     {a.publishedAt ? (
                       <span className="muted siobhan-when">
@@ -219,6 +229,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
               onProfiles={onProfiles}
               uploadPicture={uploadPicture}
               onClose={() => setActiveKey(null)}
+              onCountChange={bumpCommentCount}
             />
           </aside>
         ) : null}

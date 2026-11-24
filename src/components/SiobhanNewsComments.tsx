@@ -2,6 +2,7 @@
 // updated: 2026-11-24T14:05:00-08:00 — standard CommentComposer (emoji / link / photo)
 // updated: 2026-11-24T13:58:00-08:00 — tap-to-enlarge comment photos
 // updated: 2026-11-24T14:15:00-08:00 — dock UX + timestamps; feed stays readable
+// updated: 2026-11-24T14:28:00-08:00 — report comment count to parent for badge
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
@@ -30,10 +31,12 @@ type Props = {
   onProfiles?: (rows: Profile[]) => void
   uploadPicture?: (file: File) => Promise<string>
   onClose?: () => void
+  /** created: 2026-11-24T14:28:00-08:00 */
+  onCountChange?: (articleKey: string, count: number) => void
 }
 
 /** created: 2026-11-24T13:25:00-08:00 */
-/** updated: 2026-11-24T14:15:00-08:00 — compact dock: list + slim composer */
+/** updated: 2026-11-24T14:28:00-08:00 — compact dock + live count badge */
 export function SiobhanNewsComments({
   articleKey,
   storyTitle,
@@ -42,6 +45,7 @@ export function SiobhanNewsComments({
   onProfiles,
   uploadPicture,
   onClose,
+  onCountChange,
 }: Props) {
   const [comments, setComments] = useState<NewsComment[]>([])
   const [busy, setBusy] = useState(false)
@@ -65,12 +69,13 @@ export function SiobhanNewsComments({
     }
     const rows = (data || []) as NewsComment[]
     setComments(rows)
+    onCountChange?.(articleKey, rows.length)
     const missing = [...new Set(rows.map((c) => c.author_id))].filter((id) => !profilesById[id])
     if (missing.length && onProfiles) {
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', missing)
       if (profiles?.length) onProfiles(profiles as Profile[])
     }
-  }, [articleKey, onProfiles, profilesById])
+  }, [articleKey, onCountChange, onProfiles, profilesById])
 
   useEffect(() => {
     loadComments().catch(() => undefined)
@@ -94,7 +99,7 @@ export function SiobhanNewsComments({
     <div className="siobhan-comment-dock">
       <header className="siobhan-comment-dock-head">
         <div className="siobhan-comment-dock-titles">
-          <strong>Comments</strong>
+          <strong>Comments ({comments.length})</strong>
           {storyTitle ? <span className="siobhan-comment-dock-story">{storyTitle}</span> : null}
         </div>
         {onClose ? (
