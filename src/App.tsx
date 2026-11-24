@@ -62,17 +62,16 @@ function App() {
   }, [])
 
   useEffect(() => {
-    // created: 2026-11-23T23:05:00-08:00 — Chromebook may block autoplay with sound
+    // created: 2026-11-23T23:05:00-08:00
+    // updated: 2026-11-23T23:10:00-08:00 — always prefer audio; tap if browser blocks
     if (!showIntro || user) return
     const el = introVideoRef.current
     if (!el) return
     el.muted = false
+    el.volume = 1
     const play = el.play()
     if (play && typeof play.then === 'function') {
-      play.catch(() => {
-        el.muted = true
-        el.play().catch(() => setIntroNeedsTap(true))
-      })
+      play.catch(() => setIntroNeedsTap(true))
     }
   }, [showIntro, user])
 
@@ -83,7 +82,7 @@ function App() {
   }
 
   function startIntroWithTap() {
-    // created: 2026-11-23T23:05:00-08:00
+    // created: 2026-11-23T23:05:00-08:00 — unlock audio with a user gesture
     const el = introVideoRef.current
     if (!el) {
       finishIntro()
@@ -91,6 +90,8 @@ function App() {
     }
     setIntroNeedsTap(false)
     el.muted = false
+    el.volume = 1
+    el.currentTime = 0
     el.play().catch(() => finishIntro())
   }
 
@@ -183,9 +184,10 @@ function App() {
   }
 
   // created: 2026-11-23T23:05:00-08:00 — full-screen intro before login
+  // updated: 2026-11-23T23:10:00-08:00 — cropped + audio, no skip
   if (showIntro && !user && !teacherMode) {
     return (
-      <div className="intro-shell">
+      <div className="intro-shell" onClick={introNeedsTap ? startIntroWithTap : undefined}>
         <video
           ref={introVideoRef}
           className="intro-video"
@@ -198,12 +200,9 @@ function App() {
         />
         {introNeedsTap ? (
           <button className="primary intro-tap" type="button" onClick={startIntroWithTap}>
-            Tap to play
+            Tap for sound
           </button>
         ) : null}
-        <button className="ghost intro-skip" type="button" onClick={finishIntro}>
-          Skip
-        </button>
       </div>
     )
   }
