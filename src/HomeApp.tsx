@@ -2,6 +2,7 @@
 // updated: 2026-11-23T23:35:00-08:00 — show teacher verify badges
 // updated: 2026-11-24T12:35:00-08:00 — PRD v2: FYP, comments, share, Siobhan, delete account
 // updated: 2026-11-24T13:40:00-08:00 — Gotcha-style messaging + expandable photos
+// updated: 2026-11-24T13:45:00-08:00 — modern attach on Share + Me (no Choose File)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -1725,26 +1726,31 @@ export function HomeApp({ userId, onLogout }: Props) {
           ) : null}
 
           {(postKind === 'picture' || postKind === 'video') && postSource === 'upload' ? (
-            <label className="post-file-label">
-              {postKind === 'picture' ? 'Choose picture' : 'Choose video'}
-              <input
-                type="file"
-                accept={postKind === 'picture' ? 'image/jpeg,image/png,image/webp,image/gif' : 'video/mp4,video/webm'}
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  onPickPostFile(file)
-                  e.target.value = ''
-                }}
-              />
-              <span className="muted">
-                {postFileName
-                  ? `Ready: ${postFileName}`
-                  : postKind === 'picture'
-                    ? 'Under 4 MB · jpg/png/webp/gif'
-                    : 'Under 25 MB · mp4/webm'}
-              </span>
-            </label>
+            <PhotoAttach
+              label={postKind === 'picture' ? 'Add picture' : 'Add video'}
+              hint={
+                postKind === 'picture'
+                  ? 'Tap to upload · under 4 MB · jpg/png/webp/gif'
+                  : 'Tap to upload · under 25 MB · mp4/webm'
+              }
+              accept={
+                postKind === 'picture'
+                  ? 'image/jpeg,image/png,image/webp,image/gif'
+                  : 'video/mp4,video/webm'
+              }
+              mediaKind={postKind === 'video' ? 'video' : 'image'}
+              icon={postKind === 'video' ? '🎬' : '🖼️'}
+              readyLabel={postKind === 'picture' ? 'Picture ready' : 'Video ready'}
+              previewUrl={postMedia || null}
+              fileName={postFileName}
+              busy={busy}
+              onPick={(file) => onPickPostFile(file)}
+              onClear={() => {
+                setPostMedia('')
+                setPostFileName('')
+                setStatus('')
+              }}
+            />
           ) : null}
 
           <label>
@@ -1964,32 +1970,34 @@ export function HomeApp({ userId, onLogout }: Props) {
             </p>
           </div>
 
-          <label>
-            Profile picture
-            <input
-              type="file"
+          <div className="profile-upload-stack">
+            <p className="friend-pick-heading" style={{ marginBottom: 6 }}>
+              Profile picture
+            </p>
+            <PhotoAttach
+              label="Update profile picture"
+              hint="Tap to upload · under 4 MB · jpg/png/webp/gif"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              disabled={busy}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) uploadImage('avatar', file)
-                e.target.value = ''
-              }}
+              icon="😊"
+              readyLabel="Profile photo"
+              previewUrl={me?.avatar_url || null}
+              busy={busy}
+              onPick={(file) => uploadImage('avatar', file)}
             />
-          </label>
-          <label>
-            Banner
-            <input
-              type="file"
+            <p className="friend-pick-heading" style={{ margin: '14px 0 6px' }}>
+              Banner
+            </p>
+            <PhotoAttach
+              label="Update banner"
+              hint="Tap to upload a wide cover photo · under 4 MB"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              disabled={busy}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) uploadImage('banner', file)
-                e.target.value = ''
-              }}
+              icon="🌄"
+              readyLabel="Banner"
+              previewUrl={me?.banner_url || null}
+              busy={busy}
+              onPick={(file) => uploadImage('banner', file)}
             />
-          </label>
+          </div>
 
           <label>
             Display name

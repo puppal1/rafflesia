@@ -2260,7 +2260,16 @@ select {
 
 /* created: 2026-11-24T13:50:00-08:00 — modern photo attach */
 .photo-attach {
+  /* updated: 2026-11-24T13:45:00-08:00 */
   width: 100%;
+  text-align: left;
+}
+
+.profile-upload-stack {
+  /* created: 2026-11-24T13:45:00-08:00 — Me tab modern uploads */
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 14px;
   text-align: left;
 }
 .photo-attach-input {
@@ -2319,13 +2328,16 @@ select {
   border: 2px solid var(--card-border, #7ec4f5);
   background: #fff;
 }
-.photo-attach-preview img {
-  width: 72px;
-  height: 72px;
+.photo-attach-preview img,
+.photo-attach-thumb {
+  /* updated: 2026-11-24T13:45:00-08:00 — shared thumb for image + video */
+  width: 88px;
+  height: 88px;
   object-fit: cover;
   border-radius: 12px;
   flex-shrink: 0;
   background: #e3f2ff;
+  display: block;
 }
 .photo-attach-preview-meta {
   display: grid;
