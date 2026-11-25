@@ -174,6 +174,7 @@ grant execute on function public.count_my_unread_notifications() to authenticate
 
 -- created: 2026-11-25T00:30:00-08:00
 -- updated: 2026-11-25T00:40:00-08:00 — @mentions notify in every chat type (DM included)
+-- updated: 2026-11-25T00:55:00-08:00 — private DMs never notify (open chat instead)
 create or replace function public.trg_notify_on_message()
 returns trigger
 language plpgsql
@@ -189,11 +190,17 @@ declare
 begin
   select * into ch from public.chats where id = new.chat_id;
   if not found then return new; end if;
+
+  -- Private 1:1 DMs: no bloom notifications (Messages tab is enough)
+  if coalesce(ch.is_group, false) = false and ch.lounge_key is null then
+    return new;
+  end if;
+
   select coalesce(nullif(trim(display_name), ''), username) into actor_name
   from public.profiles where id = new.sender_id;
   snippet := left(coalesce(new.body, '📷'), 80);
 
-  -- Always notify @mentioned people (DM / group / Everyone / Announcements)
+  -- @mentions in lounge / groups (not private DMs — already returned)
   for mentioned in
     select distinct p.id
     from regexp_matches(coalesce(new.body, ''), '@([a-z0-9_]{1,32})', 'gi') as rm(cap)
@@ -225,7 +232,7 @@ begin
     return new;
   end if;
 
-  -- DM / normal group: other members
+  -- Named group chats: other members
   for m in
     select cm.user_id from public.chat_members cm
     where cm.chat_id = new.chat_id and cm.user_id is distinct from new.sender_id

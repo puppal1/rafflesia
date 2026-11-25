@@ -1,6 +1,6 @@
 -- created: 2026-11-25T00:40:00-08:00
--- Fix: @mentions notify in DMs/groups (not only Lounge Everyone); harden mention parse.
--- Run this in Supabase after sql/notifications.sql (or re-run full notifications.sql).
+-- updated: 2026-11-25T00:55:00-08:00 — private DMs never emit bloom notifications
+-- Run in Supabase SQL Editor (after sql/notifications.sql).
 
 create or replace function public.trg_notify_on_message()
 returns trigger
@@ -10,6 +10,7 @@ set search_path = public
 as $$
 declare
   -- created: 2026-11-25T00:40:00-08:00
+  -- updated: 2026-11-25T00:55:00-08:00
   ch public.chats;
   actor_name text;
   snippet text;
@@ -19,11 +20,15 @@ begin
   select * into ch from public.chats where id = new.chat_id;
   if not found then return new; end if;
 
+  -- Private 1:1 DMs: no bloom notifications
+  if coalesce(ch.is_group, false) = false and ch.lounge_key is null then
+    return new;
+  end if;
+
   select coalesce(nullif(trim(display_name), ''), username) into actor_name
   from public.profiles where id = new.sender_id;
   snippet := left(coalesce(new.body, '📷'), 80);
 
-  -- 1) Always notify @mentioned people (DM, group, Everyone, Announcements)
   for mentioned in
     select distinct p.id
     from regexp_matches(coalesce(new.body, ''), '@([a-z0-9_]{1,32})', 'gi') as rm(cap)
@@ -42,7 +47,6 @@ begin
     );
   end loop;
 
-  -- 2) Announcements → every other lounge member
   if ch.lounge_key = 'announcements' then
     for m in
       select cm.user_id
@@ -58,13 +62,11 @@ begin
     return new;
   end if;
 
-  -- 3) Lounge Everyone → mentions only (already done in step 1)
   if ch.lounge_key = 'everyone' then
     return new;
   end if;
 
-  -- 4) DM / normal group → other members (skip if already mentioned to avoid dup spam:
-  --    still send chat_message; inbox can show both — prefer message for members)
+  -- Named group chats only
   for m in
     select cm.user_id
     from public.chat_members cm
@@ -86,6 +88,3 @@ drop trigger if exists trg_notify_on_message on public.messages;
 create trigger trg_notify_on_message
   after insert on public.messages
   for each row execute function public.trg_notify_on_message();
-
--- Quick check (optional): should return trg_notify_on_message
--- select tgname from pg_trigger where not tgisinternal and tgname like 'trg_notify%';
