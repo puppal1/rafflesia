@@ -1,12 +1,12 @@
 # Run these in Supabase SQL Editor (order matters)
 <!-- created: 2026-11-23T20:47:00-08:00 -->
-<!-- updated: 2026-11-24T13:50:00-08:00 — fix deleted_at missing on posts -->
+<!-- updated: 2026-11-24T22:08:00-08:00 — news story history + backfill -->
 <!-- project: btzgwfcnpnhtfnfxauqe -->
 
 1. Open https://supabase.com/dashboard/project/btzgwfcnpnhtfnfxauqe/sql/new  
-2. Paste **entire** [`sql-fix-comment-block-ambiguous.sql`](sql-fix-comment-block-ambiguous.sql) → **Run** ← For You comments  
-3. Paste **entire** [`sql-news-comments.sql`](sql-news-comments.sql) → **Run** ← **Siobhan comments + photos**  
-4. Paste **entire** [`sql-content-reactions.sql`](sql-content-reactions.sql) → **Run** (emoji likes)  
-5. Hard refresh https://diyaanuppal.github.io/rafflesia-online/
+2. Paste **entire** [`sql-news-story-history.sql`](sql-news-story-history.sql) → **Run** ← **Stories we talked about** (touch + list + backfill)  
+3. Hard refresh https://diyaanuppal.github.io/rafflesia-online/
 
-**Fixes:** `column p.deleted_at does not exist` · ambiguous `block_post` · For You comments.
+**Fixes:** empty history after like/comment · Chromebook / new browser · stack not updating live.
+
+Already applied earlier? Still re-run step 2 — it adds `backfill_news_story_history` and a safer `touch_news_story_history`.

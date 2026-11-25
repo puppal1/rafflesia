@@ -24,26 +24,90 @@ export type NewsHistoryRow = {
   engagement_score: number
 }
 
+/** created: 2026-11-24T22:08:00-08:00 — same-tab RT ping after like/comment */
+export const HISTORY_TOUCHED_EVENT = 'siobhan-history-touched'
+
+/** created: 2026-11-24T22:08:00-08:00 */
+export function notifyHistoryTouched(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(HISTORY_TOUCHED_EVENT))
+}
+
 /** created: 2026-11-24T21:55:00-08:00 — save card snapshot after like/comment */
+/** updated: 2026-11-24T22:08:00-08:00 — fit_chips as jsonb-safe JSON; always notify RT */
 export async function touchNewsStoryHistory(item: LiveNewsItem): Promise<void> {
   const articleKey = item.id.slice(0, 500)
+  const title = (item.title || '').trim()
+  if (!articleKey || !title) {
+    throw new Error('Missing story snapshot for history.')
+  }
+  const chips = Array.isArray(item.fitChips) ? item.fitChips.map(String) : []
+  // updated: 2026-11-24T22:08:00-08:00 — SQL expects text JSON (avoids jsonb PostgREST fails)
+  const fitChipsText = JSON.stringify(chips)
+  const published =
+    item.publishedAt && !Number.isNaN(Date.parse(item.publishedAt)) ? item.publishedAt : null
+
   const { error } = await supabase.rpc('touch_news_story_history', {
     p_article_key: articleKey,
-    p_title: item.title,
+    p_title: title,
     p_blurb: item.blurb || '',
     p_tag: item.tag || '',
     p_emoji: item.emoji || '📰',
     p_place: item.place || '',
     p_source: item.source || '',
     p_url: item.url || '',
-    p_fit_chips: item.fitChips || [],
-    p_published_at: item.publishedAt,
+    p_fit_chips: fitChipsText,
+    p_published_at: published,
   })
   if (error) {
-    if (/touch_news_story_history|news_story_history|schema cache/i.test(error.message)) {
-      throw new Error('Run docs/sql-news-story-history.sql in Supabase, then hard refresh.')
+    if (/touch_news_story_history|news_story_history|schema cache|Could not find the function/i.test(error.message)) {
+      throw new Error('Re-run docs/sql-news-story-history.sql in Supabase, then hard refresh.')
     }
     throw new Error(error.message)
+  }
+  notifyHistoryTouched()
+}
+
+/** created: 2026-11-24T22:05:00-08:00 — pull existing likes/comments into history table */
+export async function backfillNewsStoryHistory(): Promise<number> {
+  const { data, error } = await supabase.rpc('backfill_news_story_history')
+  if (error) {
+    if (/backfill_news_story_history|schema cache/i.test(error.message)) {
+      throw new Error('Re-run docs/sql-news-story-history.sql in Supabase (adds backfill).')
+    }
+    throw new Error(error.message)
+  }
+  return Number(data || 0)
+}
+
+/**
+ * created: 2026-11-24T22:05:00-08:00
+ * Live cards that already have likes/comments get full title snapshots into history.
+ */
+export async function syncEngagedLiveStories(items: LiveNewsItem[]): Promise<void> {
+  if (!items.length) return
+  const keys = items.map((a) => a.id.slice(0, 500))
+  const engaged = new Set<string>()
+
+  const chunkSize = 12
+  for (let i = 0; i < keys.length; i += chunkSize) {
+    const chunk = keys.slice(i, i + chunkSize)
+    const [com, reac] = await Promise.all([
+      supabase.from('news_comments').select('article_key').in('article_key', chunk).is('deleted_at', null),
+      supabase.from('news_reactions').select('article_key').in('article_key', chunk),
+    ])
+    for (const row of com.data || []) engaged.add(String((row as { article_key: string }).article_key))
+    for (const row of reac.data || []) engaged.add(String((row as { article_key: string }).article_key))
+  }
+
+  for (const item of items) {
+    const key = item.id.slice(0, 500)
+    if (!engaged.has(key)) continue
+    try {
+      await touchNewsStoryHistory(item)
+    } catch {
+      // ignore per-card; modal will surface SQL errors on open
+    }
   }
 }
 

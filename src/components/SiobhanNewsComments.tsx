@@ -4,6 +4,7 @@
 // updated: 2026-11-24T14:15:00-08:00 — dock UX + timestamps; feed stays readable
 // updated: 2026-11-24T14:28:00-08:00 — report comment count to parent for badge
 // updated: 2026-11-24T21:55:00-08:00 — touch engaged-story history after comment
+// updated: 2026-11-24T22:08:00-08:00 — surface history touch errors (was silent)
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
@@ -192,8 +193,13 @@ export function SiobhanNewsComments({
             if (story) {
               try {
                 await touchNewsStoryHistory(story)
-              } catch {
-                // optional until sql-news-story-history.sql is applied
+              } catch (histErr) {
+                // updated: 2026-11-24T22:08:00-08:00 — comment saved; show history fail
+                setErr(
+                  histErr instanceof Error
+                    ? histErr.message
+                    : 'Could not update Stories we talked about.',
+                )
               }
             }
             await loadComments()

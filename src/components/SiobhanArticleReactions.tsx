@@ -1,5 +1,6 @@
 // created: 2026-11-24T14:20:00-08:00 — emoji likes on Siobhan news cards
 // updated: 2026-11-24T21:55:00-08:00 — touch engaged-story history after like
+// updated: 2026-11-24T22:08:00-08:00 — surface history touch errors (was silent)
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { newsRowsAsReactions, type NewsReactionRow } from '../lib/reactions'
@@ -9,7 +10,7 @@ import { ReactionBar } from './ReactionBar'
 
 type Props = {
   // created: 2026-11-24T14:20:00-08:00
-  // updated: 2026-11-24T21:55:00-08:00
+  // updated: 2026-11-24T22:08:00-08:00
   articleKey: string
   userId: string
   /** created: 2026-11-24T21:55:00-08:00 — card snapshot for history */
@@ -63,10 +64,8 @@ export function SiobhanArticleReactions({ articleKey, userId, story }: Props) {
         try {
           await touchNewsStoryHistory(story)
         } catch (histErr) {
-          // History is optional until SQL is run; don't block liking
-          if (histErr instanceof Error && /sql-news-story-history/i.test(histErr.message)) {
-            setErr(histErr.message)
-          }
+          // updated: 2026-11-24T22:08:00-08:00 — always show; like already saved
+          setErr(histErr instanceof Error ? histErr.message : 'Could not update Stories we talked about.')
         }
       }
       await load()

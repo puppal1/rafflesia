@@ -76,6 +76,9 @@ begin
 end;
 $$;
 
+-- updated: 2026-11-24T22:08:00-08:00 — p_fit_chips as text (PostgREST-safe); drop old jsonb overload
+drop function if exists public.touch_news_story_history(text, text, text, text, text, text, text, text, jsonb, timestamptz);
+
 create or replace function public.touch_news_story_history(
   p_article_key text,
   p_title text,
@@ -85,7 +88,7 @@ create or replace function public.touch_news_story_history(
   p_place text default '',
   p_source text default '',
   p_url text default '',
-  p_fit_chips jsonb default '[]'::jsonb,
+  p_fit_chips text default '[]',
   p_published_at timestamptz default null
 )
 returns void
@@ -96,9 +99,19 @@ as $$
 declare
   akey text := left(trim(coalesce(p_article_key, '')), 500);
   ttl text := left(trim(coalesce(p_title, '')), 300);
+  chips jsonb;
 begin
   if auth.uid() is null then raise exception 'Not logged in'; end if;
   if akey = '' or ttl = '' then raise exception 'Missing story'; end if;
+
+  begin
+    chips := coalesce(nullif(trim(coalesce(p_fit_chips, '')), '')::jsonb, '[]'::jsonb);
+  exception when others then
+    chips := '[]'::jsonb;
+  end;
+  if jsonb_typeof(chips) is distinct from 'array' then
+    chips := '[]'::jsonb;
+  end if;
 
   insert into public.news_story_history (
     article_key, title, blurb, tag, emoji, place, source, url, fit_chips, published_at,
@@ -113,7 +126,7 @@ begin
     left(coalesce(p_place, ''), 120),
     left(coalesce(p_source, ''), 120),
     left(coalesce(p_url, ''), 2000),
-    coalesce(p_fit_chips, '[]'::jsonb),
+    chips,
     p_published_at,
     now(),
     now()
@@ -214,12 +227,63 @@ begin
 end;
 $$;
 
+-- created: 2026-11-24T22:05:00-08:00 — seed history from likes/comments that predate the feature
+create or replace function public.backfill_news_story_history()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n int := 0;
+begin
+  if auth.uid() is null then raise exception 'Not logged in'; end if;
+
+  insert into public.news_story_history (
+    article_key, title, blurb, tag, emoji, place, source, url, fit_chips, published_at,
+    first_engaged_at, last_engaged_at
+  )
+  select
+    k.article_key,
+    'Story you engaged with',
+    '',
+    'Saved',
+    '💬',
+    '',
+    '',
+    '',
+    '[]'::jsonb,
+    null,
+    coalesce(k.first_at, now()),
+    coalesce(k.last_at, now())
+  from (
+    select
+      article_key,
+      min(created_at) as first_at,
+      max(created_at) as last_at
+    from (
+      select article_key, created_at from public.news_comments where deleted_at is null
+      union all
+      select article_key, created_at from public.news_reactions
+    ) u
+    group by article_key
+  ) k
+  on conflict (article_key) do nothing;
+
+  get diagnostics n = row_count;
+  perform public.prune_news_story_history();
+  return n;
+end;
+$$;
+
 revoke all on function public.news_story_engagement_score(text) from public;
 revoke all on function public.prune_news_story_history() from public;
-revoke all on function public.touch_news_story_history(text, text, text, text, text, text, text, text, jsonb, timestamptz) from public;
+revoke all on function public.touch_news_story_history(text, text, text, text, text, text, text, text, text, timestamptz) from public;
 revoke all on function public.list_news_story_history(int, int) from public;
 revoke all on function public.count_news_story_history() from public;
+revoke all on function public.backfill_news_story_history() from public;
 
-grant execute on function public.touch_news_story_history(text, text, text, text, text, text, text, text, jsonb, timestamptz) to authenticated;
+grant execute on function public.touch_news_story_history(text, text, text, text, text, text, text, text, text, timestamptz) to authenticated;
 grant execute on function public.list_news_story_history(int, int) to authenticated;
 grant execute on function public.count_news_story_history() to authenticated;
+grant execute on function public.backfill_news_story_history() to authenticated;

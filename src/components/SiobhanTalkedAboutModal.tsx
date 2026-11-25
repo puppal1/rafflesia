@@ -1,7 +1,10 @@
 // created: 2026-11-24T21:55:00-08:00 — “Stories we talked about” engaged-history modal
+// updated: 2026-11-24T22:08:00-08:00 — reload on HISTORY_TOUCHED_EVENT (same-tab RT)
 import { useCallback, useEffect, useState } from 'react'
 import {
   HISTORY_PAGE_SIZE,
+  HISTORY_TOUCHED_EVENT,
+  backfillNewsStoryHistory,
   countNewsStoryHistory,
   historyRowToLiveItem,
   listNewsStoryHistory,
@@ -37,6 +40,17 @@ export function SiobhanTalkedAboutModal({
     setBusy(true)
     setErr('')
     try {
+      // updated: 2026-11-24T22:05:00-08:00 — backfill likes/comments from before history existed
+      if (pageIndex === 0) {
+        try {
+          await backfillNewsStoryHistory()
+        } catch (bf) {
+          // keep going if backfill missing; list will show the real error
+          if (bf instanceof Error && /sql-news-story-history|backfill/i.test(bf.message)) {
+            setErr(bf.message)
+          }
+        }
+      }
       const offset = pageIndex * HISTORY_PAGE_SIZE
       const [list, count] = await Promise.all([
         listNewsStoryHistory(offset, HISTORY_PAGE_SIZE),
@@ -55,6 +69,16 @@ export function SiobhanTalkedAboutModal({
   useEffect(() => {
     if (!open) return
     load(0).catch(() => undefined)
+  }, [open, load])
+
+  // created: 2026-11-24T22:08:00-08:00 — keep list fresh while modal stays open
+  useEffect(() => {
+    if (!open) return
+    const onTouched = () => {
+      load(0).catch(() => undefined)
+    }
+    window.addEventListener(HISTORY_TOUCHED_EVENT, onTouched)
+    return () => window.removeEventListener(HISTORY_TOUCHED_EVENT, onTouched)
   }, [open, load])
 
   useEffect(() => {
@@ -92,7 +116,9 @@ export function SiobhanTalkedAboutModal({
           {busy && rows.length === 0 ? <p className="muted">Loading…</p> : null}
           {err ? <p className="error">{err}</p> : null}
           {!busy && !err && rows.length === 0 ? (
-            <p className="muted">No chats yet — like or comment on a live story to save it here.</p>
+            <p className="muted">
+              Nothing here yet. Like or comment on a live story — it shows up on every Chromebook.
+            </p>
           ) : null}
           {rows.map((row, i) => {
             const item = historyRowToLiveItem(row)

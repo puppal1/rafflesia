@@ -7,8 +7,14 @@
 // updated: 2026-11-24T14:25:00-08:00 — like in action row; Comments shows count
 // updated: 2026-11-24T14:38:00-08:00 — calmer cards; no Google query source
 // updated: 2026-11-24T21:55:00-08:00 — Stories we talked about history modal
+// updated: 2026-11-24T22:08:00-08:00 — live history count on button after engage
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import {
+  HISTORY_TOUCHED_EVENT,
+  countNewsStoryHistory,
+  syncEngagedLiveStories,
+} from '../lib/siobhanHistory'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
 import { SiobhanArticleReactions } from './SiobhanArticleReactions'
@@ -52,11 +58,21 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   const [activeStoryOverride, setActiveStoryOverride] = useState<LiveNewsItem | null>(null)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyCount, setHistoryCount] = useState(0)
 
   const activeStory =
     activeStoryOverride ||
     items.find((a) => a.id.slice(0, 500) === activeKey) ||
     null
+
+  // created: 2026-11-24T22:08:00-08:00 — badge on Stories button
+  const refreshHistoryCount = useCallback(async () => {
+    try {
+      setHistoryCount(await countNewsStoryHistory())
+    } catch {
+      setHistoryCount(0)
+    }
+  }, [])
 
   // created: 2026-11-24T14:25:00-08:00 — batch comment counts for Comments (n)
   // updated: 2026-11-24T14:28:00-08:00 — chunk .in() (long article keys break one big query)
@@ -99,6 +115,9 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       setFetchedAt(result.fetchedAt)
       const keys = result.items.map((a) => a.id.slice(0, 500))
       await loadCommentCounts(keys)
+      // updated: 2026-11-24T22:05:00-08:00 — push already-liked live cards into shared history
+      await syncEngagedLiveStories(result.items)
+      await refreshHistoryCount()
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh feed to try again.')
       }
@@ -107,11 +126,20 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
     } finally {
       setBusy(false)
     }
-  }, [loadCommentCounts])
+  }, [loadCommentCounts, refreshHistoryCount])
 
   useEffect(() => {
     refresh().catch(() => undefined)
   }, [refresh])
+
+  // created: 2026-11-24T22:08:00-08:00 — bump Stories count right after like/comment
+  useEffect(() => {
+    const onTouched = () => {
+      refreshHistoryCount().catch(() => undefined)
+    }
+    window.addEventListener(HISTORY_TOUCHED_EVENT, onTouched)
+    return () => window.removeEventListener(HISTORY_TOUCHED_EVENT, onTouched)
+  }, [refreshHistoryCount])
 
   // created: 2026-11-24T14:25:00-08:00 — refresh count when dock closes after commenting
   useEffect(() => {
@@ -169,7 +197,9 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
               type="button"
               onClick={() => setHistoryOpen(true)}
             >
-              Stories we talked about
+              {historyCount > 0
+                ? `Stories we talked about (${historyCount})`
+                : 'Stories we talked about'}
             </button>
           </p>
         </div>
