@@ -5,6 +5,7 @@
 // updated: 2026-11-24T13:45:00-08:00 — modern attach on Share + Me (no Choose File)
 // updated: 2026-11-24T14:30:00-08:00 — hide listed usernames from People / FYP / search
 // updated: 2026-11-24T23:55:00-08:00 — change password on Me
+// updated: 2026-11-25T00:20:00-08:00 — @mention open-profile from chat/comments
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -736,6 +737,35 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
     const ids = new Set((edges || []).map((e) => String(e.chat_id)))
     setSharedGroups(chats.filter((c) => c.is_group && ids.has(c.id)))
+  }
+
+  async function openUsername(username: string) {
+    // created: 2026-11-25T00:20:00-08:00 — tap @mention → profile
+    const u = username.trim().replace(/^@/, '').toLowerCase()
+    if (!u) return
+    const hit =
+      people.find((p) => p.username.toLowerCase() === u) ||
+      Object.values(profilesById).find((p) => p.username.toLowerCase() === u) ||
+      (me && me.username.toLowerCase() === u ? me : null)
+    if (hit) {
+      await openProfile(hit)
+      return
+    }
+    setBusy(true)
+    try {
+      const { data, error: err } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('username', u)
+        .maybeSingle()
+      if (err) throw err
+      if (data) await openProfile(data as Profile)
+      else setError(`No one named @${u}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open profile.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function openProfile(profile: Profile, kind: FollowListKind | null = null) {
@@ -1641,6 +1671,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                     const p = authorProfile(aid)
                     if (p) openProfile(p)
                   }}
+                  onOpenUsername={openUsername}
                 />
               ))
             )}
@@ -2151,6 +2182,7 @@ export function HomeApp({ userId, onLogout }: Props) {
           uploadPicture={(file) => uploadPostFile(file, 'picture')}
           profilesById={{
             ...profilesById,
+            ...Object.fromEntries(people.map((x) => [x.id, x])),
             ...(me ? { [userId]: me } : {}),
           }}
           onProfiles={(rows) => {
@@ -2160,6 +2192,7 @@ export function HomeApp({ userId, onLogout }: Props) {
               return next
             })
           }}
+          onOpenUsername={openUsername}
         />
       )}
 
@@ -2234,6 +2267,8 @@ export function HomeApp({ userId, onLogout }: Props) {
           onSend={sendChatPayload}
           onUploadPhoto={(file) => uploadPostFile(file, 'picture')}
           authorName={authorName}
+          mentionPeople={people}
+          onOpenUsername={openUsername}
         />
       )}
 
@@ -2299,6 +2334,8 @@ export function HomeApp({ userId, onLogout }: Props) {
             onSend={sendChatPayload}
             onUploadPhoto={(file) => uploadPostFile(file, 'picture')}
             authorName={authorName}
+            mentionPeople={people}
+            onOpenUsername={openUsername}
           />
         </div>
       )}

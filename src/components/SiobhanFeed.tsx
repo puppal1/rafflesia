@@ -8,6 +8,7 @@
 // updated: 2026-11-24T14:38:00-08:00 — calmer cards; no Google query source
 // updated: 2026-11-24T21:55:00-08:00 — Stories we talked about history modal
 // updated: 2026-11-24T22:08:00-08:00 — live history count on button after engage
+// updated: 2026-11-25T00:20:00-08:00 — pass onOpenUsername into comments
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
@@ -48,11 +49,19 @@ type Props = {
   onProfiles?: (rows: Profile[]) => void
   /** created: 2026-11-24T14:05:00-08:00 */
   uploadPicture?: (file: File) => Promise<string>
+  /** created: 2026-11-25T00:20:00-08:00 */
+  onOpenUsername?: (username: string) => void
 }
 
 /** created: 2026-11-24T13:10:00-08:00 */
 /** updated: 2026-11-24T21:55:00-08:00 — history modal for engaged stories */
-export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }: Props) {
+export function SiobhanFeed({
+  userId,
+  profilesById,
+  onProfiles,
+  uploadPicture,
+  onOpenUsername,
+}: Props) {
   const [items, setItems] = useState<LiveNewsItem[]>([])
   const [fromLive, setFromLive] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -327,6 +336,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
               uploadPicture={uploadPicture}
               onClose={closeComments}
               onCountChange={bumpCommentCount}
+              onOpenUsername={onOpenUsername}
             />
           </aside>
         ) : null}

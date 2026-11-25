@@ -5,13 +5,16 @@
 // updated: 2026-11-24T14:28:00-08:00 — report comment count to parent for badge
 // updated: 2026-11-24T21:55:00-08:00 — touch engaged-story history after comment
 // updated: 2026-11-24T22:08:00-08:00 — surface history touch errors (was silent)
-import { useCallback, useEffect, useState } from 'react'
+// updated: 2026-11-25T00:20:00-08:00 — @mentions + soft Reply
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { replyMentionSeed } from '../lib/mentions'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
 import { touchNewsStoryHistory } from '../lib/siobhanHistory'
 import type { LiveNewsItem } from '../lib/siobhanNews'
 import { NameWithBadge } from './VerifiedBadge'
 import { CommentComposer } from './CommentComposer'
+import { MentionText } from './MentionText'
 import { MediaLightbox } from './MediaLightbox'
 import type { Profile } from '../types'
 
@@ -39,6 +42,8 @@ type Props = {
   onCountChange?: (articleKey: string, count: number) => void
   /** created: 2026-11-24T21:55:00-08:00 */
   story?: LiveNewsItem | null
+  /** created: 2026-11-25T00:20:00-08:00 */
+  onOpenUsername?: (username: string) => void
 }
 
 /** created: 2026-11-24T13:25:00-08:00 */
@@ -53,11 +58,15 @@ export function SiobhanNewsComments({
   onClose,
   onCountChange,
   story,
+  onOpenUsername,
 }: Props) {
   const [comments, setComments] = useState<NewsComment[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  // created: 2026-11-25T00:20:00-08:00
+  const [draftSeed, setDraftSeed] = useState<string | null>(null)
+  const people = useMemo(() => Object.values(profilesById), [profilesById])
 
   const loadComments = useCallback(async () => {
     const { data, error } = await supabase
@@ -132,7 +141,13 @@ export function SiobhanNewsComments({
                   />
                   <span>· {new Date(c.created_at).toLocaleString()}</span>
                 </p>
-                <p className="profile-bio">{c.body}</p>
+                <p className="profile-bio">
+                  <MentionText
+                    text={c.body}
+                    profilesById={profilesById}
+                    onOpenUsername={onOpenUsername}
+                  />
+                </p>
                 {c.media_url ? (
                   <button
                     type="button"
@@ -152,16 +167,28 @@ export function SiobhanNewsComments({
                     ))}
                   </p>
                 ) : null}
-                {c.author_id === userId ? (
-                  <button
-                    className="ghost btn-compact"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => remove(c.id)}
-                  >
-                    Delete
-                  </button>
-                ) : null}
+                <div className="row-actions" style={{ gap: 6, marginTop: 4 }}>
+                  {who?.username ? (
+                    <button
+                      className="ghost btn-compact"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setDraftSeed(replyMentionSeed(who.username))}
+                    >
+                      Reply
+                    </button>
+                  ) : null}
+                  {c.author_id === userId ? (
+                    <button
+                      className="ghost btn-compact"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => remove(c.id)}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )
           })
@@ -173,6 +200,9 @@ export function SiobhanNewsComments({
           busy={busy}
           variant="dock"
           uploadPicture={uploadPicture}
+          people={people}
+          draftSeed={draftSeed}
+          onDraftSeedConsumed={() => setDraftSeed(null)}
           onSubmit={async ({ body, mediaUrl }) => {
             const check = await checkKidText(body)
             if (!check.ok) {

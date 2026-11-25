@@ -2,13 +2,16 @@
 // updated: 2026-11-24T12:55:00-08:00 — stacked layout (no action overlap)
 // updated: 2026-11-24T13:35:00-08:00 — emoji likes, comment emoji + photo
 // updated: 2026-11-24T13:58:00-08:00 — larger post images + tap-to-enlarge lightbox
-import { useCallback, useEffect, useState } from 'react'
+// updated: 2026-11-25T00:20:00-08:00 — @mentions + soft Reply
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { replyMentionSeed } from '../lib/mentions'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
 import type { ReactionRow, ReactionTarget } from '../lib/reactions'
 import { NameWithBadge } from './VerifiedBadge'
 import { ReactionBar } from './ReactionBar'
 import { CommentComposer } from './CommentComposer'
+import { MentionText } from './MentionText'
 import { MediaLightbox } from './MediaLightbox'
 import type { PostRow, Profile } from '../types'
 
@@ -36,6 +39,8 @@ type Props = {
   onShare: (post: PostRow) => void
   onOpenAuthor?: (authorId: string) => void
   uploadPicture?: (file: File) => Promise<string>
+  /** created: 2026-11-25T00:20:00-08:00 */
+  onOpenUsername?: (username: string) => void
 }
 
 /** created: 2026-11-24T12:35:00-08:00 */
@@ -52,7 +57,11 @@ export function PostCard({
   onShare,
   onOpenAuthor,
   uploadPicture,
+  onOpenUsername,
 }: Props) {
+  // created: 2026-11-25T00:20:00-08:00
+  const [draftSeed, setDraftSeed] = useState<string | null>(null)
+  const people = useMemo(() => Object.values(profilesById), [profilesById])
   const [openComments, setOpenComments] = useState(false)
   const [comments, setComments] = useState<PostComment[]>([])
   const [localBusy, setLocalBusy] = useState(false)
@@ -260,7 +269,13 @@ export function PostCard({
                     />
                     <span>· {new Date(c.created_at).toLocaleString()}</span>
                   </p>
-                  <p className="profile-bio">{c.body}</p>
+                  <p className="profile-bio">
+                    <MentionText
+                      text={c.body}
+                      profilesById={profilesById}
+                      onOpenUsername={onOpenUsername}
+                    />
+                  </p>
                   {c.media_url ? (
                     <button
                       type="button"
@@ -289,16 +304,28 @@ export function PostCard({
                     busy={localBusy || busy}
                     onReact={react}
                   />
-                  {c.author_id === userId ? (
-                    <button
-                      className="ghost btn-compact"
-                      type="button"
-                      disabled={localBusy}
-                      onClick={() => deleteComment(c.id)}
-                    >
-                      Delete
-                    </button>
-                  ) : null}
+                  <div className="row-actions" style={{ gap: 6, marginTop: 4 }}>
+                    {who?.username ? (
+                      <button
+                        className="ghost btn-compact"
+                        type="button"
+                        disabled={localBusy}
+                        onClick={() => setDraftSeed(replyMentionSeed(who.username))}
+                      >
+                        Reply
+                      </button>
+                    ) : null}
+                    {c.author_id === userId ? (
+                      <button
+                        className="ghost btn-compact"
+                        type="button"
+                        disabled={localBusy}
+                        onClick={() => deleteComment(c.id)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )
             })
@@ -307,6 +334,9 @@ export function PostCard({
             busy={localBusy || busy}
             variant="dock"
             uploadPicture={uploadPicture}
+            people={people}
+            draftSeed={draftSeed}
+            onDraftSeedConsumed={() => setDraftSeed(null)}
             onSubmit={async ({ body, mediaUrl }) => {
               const check = await checkKidText(body)
               if (!check.ok) {

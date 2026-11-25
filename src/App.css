@@ -3977,6 +3977,68 @@ select {
   background: #fff;
 }
 
+/* created: 2026-11-25T00:20:00-08:00 — @mention highlight + typeahead */
+.mention-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mention-token {
+  font: inherit;
+  border: none;
+  background: transparent;
+  padding: 0 1px;
+  margin: 0;
+  cursor: default;
+  color: inherit;
+}
+.mention-token.known {
+  cursor: pointer;
+  color: var(--accent, #c45c26);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.mention-token.plain {
+  opacity: 0.85;
+}
+.mention-field {
+  position: relative;
+  display: block;
+}
+.mention-typeahead {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 4px;
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--card-border, #c9b8a8);
+  border-radius: 10px;
+  background: var(--card, #fffaf3);
+  box-shadow: 0 6px 18px rgba(40, 24, 12, 0.12);
+  z-index: 5;
+}
+.mention-typeahead-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+.mention-typeahead-item:hover {
+  background: rgba(196, 92, 38, 0.1);
+}
+.comment-dock-form .mention-typeahead {
+  margin: 0 8px 4px;
+}
+
 @media (max-width: 820px) {
   .chat2 {
     grid-template-columns: 1fr;

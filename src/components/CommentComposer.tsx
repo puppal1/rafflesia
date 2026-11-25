@@ -1,10 +1,18 @@
 // created: 2026-11-24T14:05:00-08:00 — standard comment panel: emoji + text + link + photo
 // updated: 2026-11-24T14:15:00-08:00 — dock variant: one compact row, feed stays visible
-import { useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+// updated: 2026-11-25T00:20:00-08:00 — @mention autocomplete + draft seed for soft Reply
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent, SyntheticEvent } from 'react'
 import { CHAT_EMOJIS, EmojiBar, insertEmojiAtCursor } from '../lib/emojiBar'
 import { prepareChatImage } from '../lib/chatImage'
+import {
+  filterMentionPeople,
+  getActiveMention,
+  insertMentionAt,
+} from '../lib/mentions'
 import { PhotoAttach } from './PhotoAttach'
+import { MentionTypeahead } from './MentionTypeahead'
+import type { Profile } from '../types'
 
 export type CommentPayload = {
   // created: 2026-11-24T14:05:00-08:00
@@ -15,23 +23,31 @@ export type CommentPayload = {
 type Props = {
   // created: 2026-11-24T14:05:00-08:00
   // updated: 2026-11-24T14:15:00-08:00
+  // updated: 2026-11-25T00:20:00-08:00 — people + draftSeed
   busy?: boolean
   submitLabel?: string
   placeholder?: string
   variant?: 'stack' | 'dock'
   uploadPicture?: (file: File) => Promise<string>
   onSubmit: (payload: CommentPayload) => Promise<void>
+  people?: Profile[]
+  /** Soft reply: parent sets `@user ` then clears after consume */
+  draftSeed?: string | null
+  onDraftSeedConsumed?: () => void
 }
 
 /** created: 2026-11-24T14:05:00-08:00 — shared For You / Siobhan comment composer */
-/** updated: 2026-11-24T14:15:00-08:00 */
+/** updated: 2026-11-25T00:20:00-08:00 */
 export function CommentComposer({
   busy,
   submitLabel = 'Comment',
-  placeholder = 'Say hi… emoji, link, or photo',
+  placeholder = 'Say hi… use @ to tag someone',
   variant = 'stack',
   uploadPicture,
   onSubmit,
+  people = [],
+  draftSeed,
+  onDraftSeedConsumed,
 }: Props) {
   const [draft, setDraft] = useState('')
   const [link, setLink] = useState('')
@@ -41,9 +57,46 @@ export function CommentComposer({
   const [showEmoji, setShowEmoji] = useState(false)
   const [localBusy, setLocalBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [cursor, setCursor] = useState(0)
   const draftRef = useRef<HTMLInputElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const locked = busy || localBusy
+
+  useEffect(() => {
+    // created: 2026-11-25T00:20:00-08:00 — apply soft Reply seed
+    if (draftSeed == null || draftSeed === '') return
+    setDraft(draftSeed)
+    setCursor(draftSeed.length)
+    onDraftSeedConsumed?.()
+    requestAnimationFrame(() => {
+      const el = draftRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(draftSeed.length, draftSeed.length)
+    })
+  }, [draftSeed, onDraftSeedConsumed])
+
+  const active = getActiveMention(draft, cursor)
+  const mentionHits =
+    active && people.length > 0 ? filterMentionPeople(people, active.query) : []
+
+  function pickMention(p: Profile) {
+    if (!active) return
+    const next = insertMentionAt(draft, cursor, active.start, p.username)
+    setDraft(next.text)
+    setCursor(next.cursor)
+    requestAnimationFrame(() => {
+      const el = draftRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(next.cursor, next.cursor)
+    })
+  }
+
+  function onDraftChange(value: string, sel: number) {
+    setDraft(value)
+    setCursor(sel)
+  }
 
   async function onPickPhoto(file: File) {
     if (!uploadPicture) return
@@ -78,6 +131,7 @@ export function CommentComposer({
     try {
       await onSubmit({ body: body || '📷', mediaUrl })
       setDraft('')
+      setCursor(0)
       setLink('')
       setLinkOpen(false)
       setMediaUrl(null)
@@ -92,6 +146,21 @@ export function CommentComposer({
     } finally {
       setLocalBusy(false)
     }
+  }
+
+  const inputHandlers = {
+    value: draft,
+    maxLength: 500 as const,
+    disabled: locked,
+    onChange: (e: ChangeEvent<HTMLInputElement>) =>
+      onDraftChange(e.target.value, e.target.selectionStart ?? e.target.value.length),
+    onSelect: (e: SyntheticEvent<HTMLInputElement>) =>
+      setCursor(e.currentTarget.selectionStart ?? 0),
+    onKeyUp: (e: KeyboardEvent<HTMLInputElement>) =>
+      setCursor(e.currentTarget.selectionStart ?? 0),
+    onClick: (e: MouseEvent<HTMLInputElement>) =>
+      setCursor(e.currentTarget.selectionStart ?? 0),
+    placeholder,
   }
 
   if (variant === 'dock') {
@@ -139,6 +208,7 @@ export function CommentComposer({
             inputMode="url"
           />
         ) : null}
+        <MentionTypeahead hits={mentionHits} onPick={pickMention} />
         <div className="comment-dock-row">
           <button
             type="button"
@@ -183,15 +253,7 @@ export function CommentComposer({
           >
             🔗
           </button>
-          <input
-            ref={draftRef}
-            className="comment-dock-input"
-            value={draft}
-            maxLength={500}
-            disabled={locked}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={placeholder}
-          />
+          <input ref={draftRef} className="comment-dock-input" {...inputHandlers} />
           <button
             className="primary btn-compact comment-dock-send"
             type="submit"
@@ -213,16 +275,10 @@ export function CommentComposer({
         onToggle={() => setShowEmoji((v) => !v)}
         onPick={(emoji) => insertEmojiAtCursor(draftRef.current, draft, setDraft, emoji)}
       />
-      <label>
+      <label className="mention-field">
         Comment
-        <input
-          ref={draftRef}
-          value={draft}
-          maxLength={500}
-          disabled={locked}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={placeholder}
-        />
+        <input ref={draftRef} {...inputHandlers} />
+        <MentionTypeahead hits={mentionHits} onPick={pickMention} />
       </label>
       <label className="composer-link">
         Link (optional)

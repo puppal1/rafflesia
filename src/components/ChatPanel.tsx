@@ -1,12 +1,20 @@
 // created: 2026-11-24T14:10:00-08:00 — clean chat UI from scratch (one scroll, no nested bars)
 // updated: 2026-11-24T14:05:00-08:00 — scroll the stream itself; don’t scrollIntoView the page
-import { useEffect, useRef, useState } from 'react'
+// updated: 2026-11-25T00:20:00-08:00 — @mention autocomplete + highlighted message text
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { CHAT_EMOJIS, insertEmojiAtCursor } from '../lib/emojiBar'
+import {
+  filterMentionPeople,
+  getActiveMention,
+  insertMentionAt,
+} from '../lib/mentions'
 import { parsePostShare } from '../lib/postShare'
 import { prepareChatImage } from '../lib/chatImage'
 import { FaceAvatar } from './FaceAvatar'
 import { MediaLightbox } from './MediaLightbox'
+import { MentionText } from './MentionText'
+import { MentionTypeahead } from './MentionTypeahead'
 import { NameWithBadge } from './VerifiedBadge'
 import type { ChatRow, MessageRow, PostRow, Profile } from '../types'
 
@@ -46,6 +54,9 @@ type ThreadProps = {
   onUploadPhoto: (file: File) => Promise<string>
   authorName: (id: string) => string
   messagesEndRef?: RefObject<HTMLDivElement | null>
+  /** created: 2026-11-25T00:20:00-08:00 */
+  mentionPeople?: Profile[]
+  onOpenUsername?: (username: string) => void
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — conversation + composer only */
@@ -70,6 +81,8 @@ export function ChatThread({
   onUploadPhoto,
   authorName,
   messagesEndRef,
+  mentionPeople,
+  onOpenUsername,
 }: ThreadProps) {
   const [draft, setDraft] = useState('')
   const [link, setLink] = useState('')
@@ -80,6 +93,7 @@ export function ChatThread({
   const [localBusy, setLocalBusy] = useState(false)
   const [err, setErr] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const streamRef = useRef<HTMLDivElement | null>(null)
@@ -87,6 +101,26 @@ export function ChatThread({
   const bottomRef = messagesEndRef || endRef
   const locked = busy || localBusy
   const lastMsgId = messages.length ? messages[messages.length - 1]?.id : ''
+  const people = useMemo(
+    () => mentionPeople || Object.values(profilesById),
+    [mentionPeople, profilesById],
+  )
+  const activeMention = getActiveMention(draft, cursor)
+  const mentionHits =
+    activeMention && !readOnly ? filterMentionPeople(people, activeMention.query) : []
+
+  function pickMention(p: Profile) {
+    if (!activeMention) return
+    const next = insertMentionAt(draft, cursor, activeMention.start, p.username)
+    setDraft(next.text)
+    setCursor(next.cursor)
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(next.cursor, next.cursor)
+    })
+  }
 
   // created: 2026-11-24T14:05:00-08:00 — pin to latest inside .chat2-stream only
   useEffect(() => {
@@ -192,7 +226,15 @@ export function ChatThread({
                         <p className="chat2-share-sub">
                           {sharedPost.kind} · {authorName(sharedPost.author_id)}
                         </p>
-                        {sharedPost.body ? <p className="chat2-text">{sharedPost.body}</p> : null}
+                        {sharedPost.body ? (
+                          <p className="chat2-text">
+                            <MentionText
+                              text={sharedPost.body}
+                              profilesById={profilesById}
+                              onOpenUsername={onOpenUsername}
+                            />
+                          </p>
+                        ) : null}
                         {sharedPost.kind === 'picture' && sharedPost.media_url ? (
                           <button
                             type="button"
@@ -210,7 +252,15 @@ export function ChatThread({
                   </div>
                 ) : (
                   <>
-                    {m.body && m.body !== '📷' ? <p className="chat2-text">{m.body}</p> : null}
+                    {m.body && m.body !== '📷' ? (
+                      <p className="chat2-text">
+                        <MentionText
+                          text={m.body}
+                          profilesById={profilesById}
+                          onOpenUsername={onOpenUsername}
+                        />
+                      </p>
+                    ) : null}
                     {media ? (
                       img ? (
                         <button
@@ -292,6 +342,7 @@ export function ChatThread({
             />
           ) : null}
           {err ? <p className="chat2-err">{err}</p> : null}
+          <MentionTypeahead hits={mentionHits} onPick={pickMention} />
           <form className="chat2-row" onSubmit={submit}>
             <input
               ref={fileRef}
@@ -334,8 +385,14 @@ export function ChatThread({
               ref={inputRef}
               className="chat2-input"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Write a message…"
+              onChange={(e) => {
+                setDraft(e.target.value)
+                setCursor(e.target.selectionStart ?? e.target.value.length)
+              }}
+              onSelect={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+              onKeyUp={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+              onClick={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+              placeholder="Message… type @ to tag"
               disabled={locked}
             />
             <button
@@ -372,6 +429,9 @@ type PanelProps = {
   onSend: (payload: { body: string; mediaUrl: string | null }) => Promise<void>
   onUploadPhoto: (file: File) => Promise<string>
   authorName: (id: string) => string
+  /** created: 2026-11-25T00:20:00-08:00 */
+  mentionPeople?: Profile[]
+  onOpenUsername?: (username: string) => void
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — inbox + thread shell */
@@ -392,6 +452,8 @@ export function ChatPanel({
   onSend,
   onUploadPhoto,
   authorName,
+  mentionPeople,
+  onOpenUsername,
 }: PanelProps) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -484,6 +546,8 @@ export function ChatPanel({
             onSend={onSend}
             onUploadPhoto={onUploadPhoto}
             authorName={authorName}
+            mentionPeople={mentionPeople}
+            onOpenUsername={onOpenUsername}
           />
         ) : (
           <div className="chat2-placeholder">
