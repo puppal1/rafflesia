@@ -40,15 +40,12 @@ export function SiobhanTalkedAboutModal({
     setBusy(true)
     setErr('')
     try {
-      // updated: 2026-11-24T22:05:00-08:00 — backfill likes/comments from before history existed
+      // updated: 2026-11-24T22:12:00-08:00 — backfill is best-effort; list errors are the real gate
       if (pageIndex === 0) {
         try {
           await backfillNewsStoryHistory()
-        } catch (bf) {
-          // keep going if backfill missing; list will show the real error
-          if (bf instanceof Error && /sql-news-story-history|backfill/i.test(bf.message)) {
-            setErr(bf.message)
-          }
+        } catch {
+          // missing backfill RPC → still list; user re-runs SQL when list/touch fail
         }
       }
       const offset = pageIndex * HISTORY_PAGE_SIZE
@@ -60,7 +57,12 @@ export function SiobhanTalkedAboutModal({
       setTotal(count)
       setPage(pageIndex)
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Could not load stories.')
+      const msg = ex instanceof Error ? ex.message : 'Could not load stories.'
+      setErr(
+        /sql-news-story-history|schema cache|Could not find the function/i.test(msg)
+          ? 'Open Supabase → SQL → paste docs/sql-news-story-history.sql → Run, then hard refresh.'
+          : msg,
+      )
     } finally {
       setBusy(false)
     }

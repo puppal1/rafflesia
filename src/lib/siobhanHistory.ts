@@ -69,11 +69,12 @@ export async function touchNewsStoryHistory(item: LiveNewsItem): Promise<void> {
 }
 
 /** created: 2026-11-24T22:05:00-08:00 — pull existing likes/comments into history table */
+/** updated: 2026-11-24T22:12:00-08:00 — missing RPC returns 0 (caller still lists) */
 export async function backfillNewsStoryHistory(): Promise<number> {
   const { data, error } = await supabase.rpc('backfill_news_story_history')
   if (error) {
-    if (/backfill_news_story_history|schema cache/i.test(error.message)) {
-      throw new Error('Re-run docs/sql-news-story-history.sql in Supabase (adds backfill).')
+    if (/backfill_news_story_history|schema cache|Could not find the function/i.test(error.message)) {
+      return 0
     }
     throw new Error(error.message)
   }
