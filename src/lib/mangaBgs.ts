@@ -1,5 +1,6 @@
 // created: 2026-11-24T12:55:00-08:00 — selectable manga full-screen backgrounds (PRD v2 C2)
 // updated: 2026-11-24T13:50:00-08:00 — character stickers as backgrounds too
+// updated: 2026-11-24T22:30:00-08:00 — faith + civic character BGs
 
 export type MangaBgId =
   | 'none'
@@ -27,12 +28,18 @@ export type MangaBgId =
   | 'char-delulu'
   | 'char-npc'
   | 'char-lore'
+  | 'char-lotus'
+  | 'char-candle'
+  | 'char-dove'
+  | 'char-ballot'
+  | 'char-debate'
+  | 'char-townhall'
 
 export type MangaBgDef = {
   // created: 2026-11-24T12:55:00-08:00
   id: MangaBgId
   name: string
-  group: 'off' | 'hero' | 'villain' | 'neutral' | 'character'
+  group: 'off' | 'hero' | 'villain' | 'neutral' | 'character' | 'faith' | 'civic'
   /** folder under public/ */
   folder: 'theme-bgs' | 'manga-icons'
   /** filename, or empty for none */
@@ -40,7 +47,7 @@ export type MangaBgDef = {
 }
 
 /** created: 2026-11-24T12:55:00-08:00 */
-/** updated: 2026-11-24T13:50:00-08:00 */
+/** updated: 2026-11-24T22:30:00-08:00 */
 export const MANGA_BGS: MangaBgDef[] = [
   { id: 'none', name: 'No picture', group: 'off', folder: 'theme-bgs', file: '' },
   { id: 'hero-sky', name: 'Hero sky', group: 'hero', folder: 'theme-bgs', file: 'hero-sky.jpg' },
@@ -68,6 +75,13 @@ export const MANGA_BGS: MangaBgDef[] = [
   { id: 'char-delulu', name: 'Delulu Yuki', group: 'character', folder: 'manga-icons', file: 'neutral-delulu.jpg' },
   { id: 'char-npc', name: 'NPC Ken', group: 'character', folder: 'manga-icons', file: 'neutral-npc.jpg' },
   { id: 'char-lore', name: 'Lore Sora', group: 'character', folder: 'manga-icons', file: 'neutral-lore.jpg' },
+  // created: 2026-11-24T22:30:00-08:00
+  { id: 'char-lotus', name: 'Lotus Lina', group: 'faith', folder: 'manga-icons', file: 'faith-lotus.jpg' },
+  { id: 'char-candle', name: 'Candle Kai', group: 'faith', folder: 'manga-icons', file: 'faith-candle.jpg' },
+  { id: 'char-dove', name: 'Dove Dani', group: 'faith', folder: 'manga-icons', file: 'faith-dove.jpg' },
+  { id: 'char-ballot', name: 'Ballot Bea', group: 'civic', folder: 'manga-icons', file: 'civic-ballot.jpg' },
+  { id: 'char-debate', name: 'Debate Dex', group: 'civic', folder: 'manga-icons', file: 'civic-debate.jpg' },
+  { id: 'char-townhall', name: 'Townhall Tess', group: 'civic', folder: 'manga-icons', file: 'civic-townhall.jpg' },
 ]
 
 /** created: 2026-11-24T12:55:00-08:00 */

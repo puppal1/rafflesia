@@ -3,6 +3,7 @@
 // updated: 2026-11-24T12:55:00-08:00 — color palettes + manga hero/villain BGs
 // updated: 2026-11-24T13:50:00-08:00 — character stickers as theme BGs
 // updated: 2026-11-24T13:30:00-08:00 — None clears manga for real (no villain-night default)
+// updated: 2026-11-24T22:30:00-08:00 — faith + civic manga character sections
 import { useEffect, useState } from 'react'
 import { THEMES, type ThemeId } from '../lib/themes'
 import { MANGA_BGS, type MangaBgId } from '../lib/mangaBgs'
@@ -56,8 +57,10 @@ export function ThemePicker({ compact, onPicked }: Props) {
     onPicked?.(theme.id)
   }
 
-  const scenes = MANGA_BGS.filter((b) => b.group !== 'character')
+  const scenes = MANGA_BGS.filter((b) => b.group === 'off' || b.group === 'hero' || b.group === 'villain' || b.group === 'neutral')
   const characters = MANGA_BGS.filter((b) => b.group === 'character')
+  const faithChars = MANGA_BGS.filter((b) => b.group === 'faith')
+  const civicChars = MANGA_BGS.filter((b) => b.group === 'civic')
 
   return (
     <div className={compact ? 'theme-picker compact' : 'theme-picker'}>
@@ -139,6 +142,39 @@ export function ThemePicker({ compact, onPicked }: Props) {
               <span className="theme-swatch-name">No picture</span>
             </button>
             {characters.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
+                onClick={() => pickBg(b.id)}
+              >
+                <img className="theme-bg-thumb theme-bg-char" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
+                <span className="theme-swatch-name">{b.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* created: 2026-11-24T22:30:00-08:00 */}
+          <h3 className="theme-section-title">Manga faith</h3>
+          <p className="theme-picker-hint">Peaceful inclusive stickers — lotus, candle, dove.</p>
+          <div className="theme-bg-grid">
+            {faithChars.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
+                onClick={() => pickBg(b.id)}
+              >
+                <img className="theme-bg-thumb theme-bg-char" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
+                <span className="theme-swatch-name">{b.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <h3 className="theme-section-title">Manga civic</h3>
+          <p className="theme-picker-hint">Classroom civics — voting, debate, town hall (non-partisan).</p>
+          <div className="theme-bg-grid">
+            {civicChars.map((b) => (
               <button
                 key={b.id}
                 type="button"
