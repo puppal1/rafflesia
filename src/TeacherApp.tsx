@@ -1,12 +1,21 @@
 // created: 2026-11-23T21:00:00-08:00
 // updated: 2026-11-23T23:35:00-08:00 — Verify tab (pink / gold / blue)
+// updated: 2026-11-24T23:50:00-08:00 — always captcha on teacher login; site-wide posts + search
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { AuthChallenge, verifyTurnstileToken } from './components/AuthChallenge'
+import { turnstileSiteKey } from './lib/authEntry'
 import { supabase } from './lib/supabase'
 import { clearBlockedPhraseCache } from './lib/textChecker'
 import { iconEmoji } from './lib/iconPacks'
 import { VerifiedBadge } from './components/VerifiedBadge'
 import type { PostRow, VerifyTier } from './types'
+
+/** created: 2026-11-24T23:50:00-08:00 — post row with author for site-wide review */
+type ModPost = PostRow & {
+  username?: string
+  display_name?: string
+}
 
 type FlagRow = {
   // created: 2026-11-23T21:00:00-08:00
@@ -68,8 +77,23 @@ export function TeacherApp({ onExit }: Props) {
   const [searchOpen, setSearchOpen] = useState(false)
   const searchTimer = useRef<number | null>(null)
   // created: 2026-11-23T22:25:00-08:00
-  const [userPosts, setUserPosts] = useState<PostRow[]>([])
+  // updated: 2026-11-24T23:50:00-08:00 — site-wide feed (not only picked student)
+  const [userPosts, setUserPosts] = useState<ModPost[]>([])
   const [postsBusy, setPostsBusy] = useState(false)
+  const [postQuery, setPostQuery] = useState('')
+  const [postsFilterUser, setPostsFilterUser] = useState(false)
+  // created: 2026-11-24T23:50:00-08:00 — mandatory teacher captcha
+  const [challengeOk, setChallengeOk] = useState(false)
+  const challengeTokenRef = useRef<string | undefined>(undefined)
+  const onChallengePassed = useCallback((ok: boolean, token?: string) => {
+    setChallengeOk(ok)
+    challengeTokenRef.current = token
+  }, [])
+  // created: 2026-11-24T23:55:00-08:00 — change shared teacher password
+  const [tpwCurrent, setTpwCurrent] = useState('')
+  const [tpwNew, setTpwNew] = useState('')
+  const [tpwConfirm, setTpwConfirm] = useState('')
+  const [tpwBusy, setTpwBusy] = useState(false)
 
   const loadAll = useCallback(async (pw: string) => {
     const [f, w, o] = await Promise.all([
@@ -136,10 +160,67 @@ export function TeacherApp({ onExit }: Props) {
         setUserPosts([])
         return
       }
-      setUserPosts((data || []) as PostRow[])
+      setUserPosts((data || []) as ModPost[])
     },
     [sessionPw],
   )
+
+  const loadSitePosts = useCallback(
+    async (opts?: { query?: string; authorId?: string | null }) => {
+      // created: 2026-11-24T23:50:00-08:00 — whole-site timeline or keyword search
+      if (!sessionPw) return
+      setPostsBusy(true)
+      setError('')
+      try {
+        const q = String(opts?.query ?? '').trim()
+        if (q.length >= 1) {
+          const { data, error: err } = await supabase.rpc('teacher_search_posts', {
+            p_password: sessionPw,
+            p_query: q,
+            p_limit: 80,
+          })
+          if (err) {
+            throw new Error(
+              err.message.includes('teacher_search_posts')
+                ? 'Site-wide search needs sql/teacher-posts-overview.sql — run in Supabase.'
+                : err.message,
+            )
+          }
+          setUserPosts((data || []) as ModPost[])
+          return
+        }
+        const authorId = opts?.authorId ?? null
+        const { data, error: err } = await supabase.rpc('teacher_list_recent_posts', {
+          p_password: sessionPw,
+          p_limit: 80,
+          p_author_id: authorId,
+        })
+        if (err) {
+          throw new Error(
+            err.message.includes('teacher_list_recent_posts')
+              ? 'Site-wide posts need sql/teacher-posts-overview.sql — run in Supabase.'
+              : err.message,
+          )
+        }
+        setUserPosts((data || []) as ModPost[])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not load posts.')
+        setUserPosts([])
+      } finally {
+        setPostsBusy(false)
+      }
+    },
+    [sessionPw],
+  )
+
+  useEffect(() => {
+    // created: 2026-11-24T23:50:00-08:00 — load site feed when Posts tab opens
+    if (!authed || !sessionPw || tab !== 'posts') return
+    const authorId = postsFilterUser && picked ? picked.id : null
+    loadSitePosts({ query: '', authorId }).catch(() => undefined)
+    // intentionally not depending on postQuery (search is button/Enter only)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, sessionPw, tab, postsFilterUser, picked?.id, loadSitePosts])
 
   function pickHit(hit: SearchHit) {
     // created: 2026-11-23T21:35:00-08:00
@@ -165,7 +246,10 @@ export function TeacherApp({ onExit }: Props) {
       })
       if (err) throw err
       setStatus('Post hidden from Home (soft delete).')
-      if (picked) await loadUserPosts(picked.id)
+      await loadSitePosts({
+        query: postQuery,
+        authorId: postsFilterUser && picked ? picked.id : null,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not hide post.')
     } finally {
@@ -183,7 +267,10 @@ export function TeacherApp({ onExit }: Props) {
       })
       if (err) throw err
       setStatus('Post restored to Home.')
-      if (picked) await loadUserPosts(picked.id)
+      await loadSitePosts({
+        query: postQuery,
+        authorId: postsFilterUser && picked ? picked.id : null,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not restore post.')
     } finally {
@@ -204,12 +291,34 @@ export function TeacherApp({ onExit }: Props) {
       })
       if (err) throw err
       setStatus(`Hidden ${data ?? 0} posts from @${picked.username}.`)
-      await loadUserPosts(picked.id)
+      setPostsFilterUser(true)
+      await loadSitePosts({ authorId: picked.id })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not hide posts.')
     } finally {
       setPostsBusy(false)
     }
+  }
+
+  function filterToAuthor(username: string, authorId: string) {
+    // created: 2026-11-24T23:50:00-08:00 — jump from feed row into one student
+    setPostQuery('')
+    setPostsFilterUser(true)
+    setPicked({
+      id: authorId,
+      username,
+      display_name: username,
+      bio: '',
+      avatar_url: null,
+      banner_url: null,
+      icon_pack: null,
+      icon_id: null,
+      block_post: false,
+      block_message: false,
+    })
+    setRestrictUser(username)
+    setStatus(`Filtered to @${username}`)
+    loadSitePosts({ query: '', authorId }).catch(() => undefined)
   }
 
   async function setVerify(tier: VerifyTier) {
@@ -258,10 +367,60 @@ export function TeacherApp({ onExit }: Props) {
     return 'Not verified'
   }
 
-  async function onLogin(e: FormEvent) {
-    // updated: 2026-11-24T22:50:00-08:00 — DB password only (no client fallback)
+  async function changeTeacherPassword(e: FormEvent) {
+    // created: 2026-11-24T23:55:00-08:00 — rotate app_settings teacher_password via RPC
     e.preventDefault()
     setError('')
+    setStatus('')
+    setTpwBusy(true)
+    try {
+      if (!tpwCurrent) throw new Error('Enter the current teacher password.')
+      if (tpwNew.length < 8) throw new Error('New teacher password must be at least 8 characters.')
+      if (tpwNew !== tpwConfirm) throw new Error('New password and confirmation do not match.')
+      const { error: err } = await supabase.rpc('teacher_change_password', {
+        p_current: tpwCurrent,
+        p_new: tpwNew,
+      })
+      if (err) {
+        throw new Error(
+          err.message.includes('teacher_change_password')
+            ? 'Password change needs sql/teacher-change-password.sql — run in Supabase.'
+            : err.message,
+        )
+      }
+      setSessionPw(tpwNew)
+      setTpwCurrent('')
+      setTpwNew('')
+      setTpwConfirm('')
+      setStatus('Teacher password updated. Use the new one next login.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change teacher password.')
+    } finally {
+      setTpwBusy(false)
+    }
+  }
+
+  async function onLogin(e: FormEvent) {
+    // updated: 2026-11-24T22:50:00-08:00 — DB password only (no client fallback)
+    // updated: 2026-11-24T23:50:00-08:00 — mandatory captcha every teacher login
+    e.preventDefault()
+    setError('')
+    if (!challengeOk) {
+      setError('Complete the bot check before entering the console.')
+      return
+    }
+    if (turnstileSiteKey()) {
+      const token = challengeTokenRef.current
+      if (!token) {
+        setError('Complete the bot check before entering the console.')
+        return
+      }
+      const verified = await verifyTurnstileToken(token)
+      if (!verified) {
+        setError('Bot check failed. Refresh and try again.')
+        return
+      }
+    }
     const { data, error: err } = await supabase.rpc('verify_teacher_password', {
       p_password: password,
     })
@@ -376,7 +535,7 @@ export function TeacherApp({ onExit }: Props) {
     return (
       <div className="teacher-login">
         <h2 className="panel-title">Teacher access</h2>
-        <p className="muted">Separate from kid accounts</p>
+        <p className="muted">Separate from kid accounts — bot check required every time</p>
         <form className="form" onSubmit={onLogin}>
           <label>
             Teacher password
@@ -387,7 +546,13 @@ export function TeacherApp({ onExit }: Props) {
               autoComplete="current-password"
             />
           </label>
-          <button className="primary" type="submit">
+          {/* created: 2026-11-24T23:50:00-08:00 */}
+          <AuthChallenge
+            required
+            onPassed={onChallengePassed}
+            hint="Required every teacher login."
+          />
+          <button className="primary" type="submit" disabled={!challengeOk}>
             Enter console
           </button>
         </form>
@@ -532,75 +697,148 @@ export function TeacherApp({ onExit }: Props) {
 
       {tab === 'posts' && (
         <div>
+          {/* updated: 2026-11-24T23:50:00-08:00 — site-wide timeline + search; student filter optional */}
           <h2 className="panel-title">Moderate posts</h2>
           <p className="muted">
-            Soft-delete hides a post from Home. Restrict alone does not remove old posts.
+            Review the whole site here. Soft-delete hides a post from Home. Restrict alone does not
+            remove old posts.
           </p>
-          {!picked ? (
-            <p className="muted">First pick a student under Restrict (search), then come back here.</p>
-          ) : (
-            <>
-              <p className="row-title">
-                @{picked.username} · {userPosts.filter((p) => !p.deleted_at).length} visible ·{' '}
-                {userPosts.filter((p) => p.deleted_at).length} hidden
+          <div className="form" style={{ marginBottom: 12 }}>
+            <label>
+              Search posts / usernames
+              <input
+                value={postQuery}
+                onChange={(e) => setPostQuery(e.target.value)}
+                placeholder="Keyword…"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    loadSitePosts({ query: postQuery }).catch(() => undefined)
+                  }
+                }}
+              />
+            </label>
+            <div className="row-actions" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="primary btn-compact"
+                type="button"
+                disabled={postsBusy}
+                onClick={() => loadSitePosts({ query: postQuery })}
+              >
+                {postsBusy ? 'Loading…' : postQuery.trim() ? 'Search' : 'Refresh recent'}
+              </button>
+              <button
+                className="ghost btn-compact"
+                type="button"
+                disabled={postsBusy}
+                onClick={() => {
+                  setPostQuery('')
+                  setPostsFilterUser(false)
+                  loadSitePosts({ query: '', authorId: null }).catch(() => undefined)
+                }}
+              >
+                Show all recent
+              </button>
+            </div>
+            {picked ? (
+              <label className="member-check" style={{ marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={postsFilterUser}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    setPostsFilterUser(on)
+                    setPostQuery('')
+                    loadSitePosts({
+                      query: '',
+                      authorId: on ? picked.id : null,
+                    }).catch(() => undefined)
+                  }}
+                />
+                Only @{picked.username}
+              </label>
+            ) : (
+              <p className="muted" style={{ fontSize: '0.85rem' }}>
+                Tip: pick a student under Restrict (or tap @username below) to filter one person.
               </p>
+            )}
+            {picked && postsFilterUser ? (
               <button
                 className="danger"
                 type="button"
                 disabled={postsBusy || userPosts.every((p) => p.deleted_at)}
                 onClick={softDeleteAllPosts}
-                style={{ marginBottom: 12 }}
+                style={{ marginTop: 8 }}
               >
-                Hide all visible posts
+                Hide all visible from @{picked.username}
               </button>
-              <div className="list soft-scroll" style={{ maxHeight: 420 }}>
-                {userPosts.length === 0 ? (
-                  <p className="muted">No posts from this user.</p>
-                ) : (
-                  userPosts.map((p) => (
-                    <div className={p.deleted_at ? 'row post-mod hidden' : 'row post-mod'} key={p.id}>
-                      <div className="row-main">
-                        <p className="row-title">
-                          {p.kind}
-                          {p.deleted_at ? ' · HIDDEN' : ''}
-                        </p>
-                        <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
-                        {p.body ? <p className="profile-bio">{p.body}</p> : null}
-                        {p.media_url ? (
-                          <p className="row-sub">
-                            <a href={p.media_url} target="_blank" rel="noreferrer">
-                              Media link
-                            </a>
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="row-actions">
-                        {p.deleted_at ? (
-                          <button
-                            className="ghost"
-                            type="button"
-                            disabled={postsBusy}
-                            onClick={() => restorePost(p.id)}
-                          >
-                            Restore
-                          </button>
-                        ) : (
-                          <button
-                            className="danger"
-                            type="button"
-                            disabled={postsBusy}
-                            onClick={() => softDeletePost(p.id)}
-                          >
-                            Hide
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
+            ) : null}
+          </div>
+          <p className="row-title">
+            {postQuery.trim()
+              ? `Search “${postQuery.trim()}”`
+              : postsFilterUser && picked
+                ? `@${picked.username}`
+                : 'All recent'}{' '}
+            · {userPosts.filter((p) => !p.deleted_at).length} visible ·{' '}
+            {userPosts.filter((p) => p.deleted_at).length} hidden
+          </p>
+          <div className="list soft-scroll" style={{ maxHeight: 420 }}>
+            {userPosts.length === 0 ? (
+              <p className="muted">{postsBusy ? 'Loading…' : 'No posts match.'}</p>
+            ) : (
+              userPosts.map((p) => (
+                <div className={p.deleted_at ? 'row post-mod hidden' : 'row post-mod'} key={p.id}>
+                  <div className="row-main">
+                    <p className="row-title">
+                      {p.username ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          style={{ padding: 0, marginRight: 6 }}
+                          onClick={() => filterToAuthor(p.username || '?', p.author_id)}
+                        >
+                          @{p.username}
+                        </button>
+                      ) : null}
+                      {p.kind}
+                      {p.deleted_at ? ' · HIDDEN' : ''}
+                    </p>
+                    <p className="row-sub">{new Date(p.created_at).toLocaleString()}</p>
+                    {p.body ? <p className="profile-bio">{p.body}</p> : null}
+                    {p.media_url ? (
+                      <p className="row-sub">
+                        <a href={p.media_url} target="_blank" rel="noreferrer">
+                          Media link
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="row-actions">
+                    {p.deleted_at ? (
+                      <button
+                        className="ghost"
+                        type="button"
+                        disabled={postsBusy}
+                        onClick={() => restorePost(p.id)}
+                      >
+                        Restore
+                      </button>
+                    ) : (
+                      <button
+                        className="danger"
+                        type="button"
+                        disabled={postsBusy}
+                        onClick={() => softDeletePost(p.id)}
+                      >
+                        Hide
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -717,6 +955,44 @@ export function TeacherApp({ onExit }: Props) {
           <p className="muted">Chats in club: {overview.chats}</p>
           <p className="muted">Flags: {overview.flags}</p>
           <p className="muted">Blocked phrases: {words.length}</p>
+
+          {/* created: 2026-11-24T23:55:00-08:00 */}
+          <form className="form" onSubmit={changeTeacherPassword} style={{ marginTop: 20 }}>
+            <h2 className="panel-title">Change teacher password</h2>
+            <p className="muted">
+              Shared console password (not a kid account). At least 8 characters.
+            </p>
+            <label>
+              Current teacher password
+              <input
+                type="password"
+                value={tpwCurrent}
+                onChange={(e) => setTpwCurrent(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            <label>
+              New teacher password
+              <input
+                type="password"
+                value={tpwNew}
+                onChange={(e) => setTpwNew(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              Confirm new password
+              <input
+                type="password"
+                value={tpwConfirm}
+                onChange={(e) => setTpwConfirm(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <button className="primary" type="submit" disabled={tpwBusy}>
+              {tpwBusy ? 'Saving…' : 'Update teacher password'}
+            </button>
+          </form>
         </div>
       )}
       </div>

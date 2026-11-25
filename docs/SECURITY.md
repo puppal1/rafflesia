@@ -1,6 +1,7 @@
 # Rafflesia Online — security notes
 <!-- created: 2026-11-24T22:50:00-08:00 -->
 <!-- updated: 2026-11-24T23:40:00-08:00 — login always challenged off-site; Turnstile Edge verify -->
+<!-- updated: 2026-11-24T23:55:00-08:00 — teacher captcha always; Me + teacher change password; site-wide posts -->
 
 ## Public vs private
 
@@ -19,7 +20,9 @@ The anon key in the built bundle is normal for a Supabase SPA. **RLS + Auth** pr
 
 - Client must not hardcode a fallback password.
 - After any password was ever in git, **rotate** the DB teacher password in Supabase.
-- Prefer changing it via SQL: update `app_settings` where key = `teacher_password`.
+- Prefer **Overview → Change teacher password** (needs `sql/teacher-change-password.sql`), or SQL: update `app_settings` where key = `teacher_password`.
+- Teacher login always requires the bot check (math / Turnstile).
+- Kids change their own password under **Me → Change password**.
 
 ## School-site soft gate + bot check
 

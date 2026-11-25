@@ -4,6 +4,7 @@
 // updated: 2026-11-24T13:40:00-08:00 — Gotcha-style messaging + expandable photos
 // updated: 2026-11-24T13:45:00-08:00 — modern attach on Share + Me (no Choose File)
 // updated: 2026-11-24T14:30:00-08:00 — hide listed usernames from People / FYP / search
+// updated: 2026-11-24T23:55:00-08:00 — change password on Me
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -48,6 +49,10 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [sharePost, setSharePost] = useState<PostRow | null>(null)
   const [shareMode, setShareMode] = useState<'send' | 'share' | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState('')
+  // created: 2026-11-24T23:55:00-08:00 — change own password
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -462,6 +467,37 @@ export function HomeApp({ userId, onLogout }: Props) {
   function removeEditLink(index: number) {
     // created: 2026-11-24T00:05:00-08:00
     setEditLinks((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  async function changeMyPassword() {
+    // created: 2026-11-24T23:55:00-08:00 — verify current then supabase.auth.updateUser
+    setBusy(true)
+    setError('')
+    setStatus('')
+    try {
+      const uname = (me?.username || '').trim().toLowerCase()
+      if (!uname) throw new Error('Profile not loaded yet.')
+      if (!pwCurrent) throw new Error('Enter your current password.')
+      if (pwNew.length < 6) throw new Error('New password must be at least 6 characters.')
+      if (pwNew !== pwConfirm) throw new Error('New password and confirmation do not match.')
+      if (pwNew === pwCurrent) throw new Error('New password must be different.')
+      const email = `${uname}@rafflesia.local`
+      const { error: checkErr } = await supabase.auth.signInWithPassword({
+        email,
+        password: pwCurrent,
+      })
+      if (checkErr) throw new Error('Current password is wrong.')
+      const { error: updErr } = await supabase.auth.updateUser({ password: pwNew })
+      if (updErr) throw updErr
+      setPwCurrent('')
+      setPwNew('')
+      setPwConfirm('')
+      setStatus('Password updated.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change password.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function saveIcon(icon: IconDef) {
@@ -2041,6 +2077,51 @@ export function HomeApp({ userId, onLogout }: Props) {
             <button className="primary btn-compact" type="submit" disabled={busy}>
               Save profile
             </button>
+          </div>
+
+          {/* created: 2026-11-24T23:55:00-08:00 — change password */}
+          <div className="profile-links-edit" style={{ marginTop: 16 }}>
+            <p className="friend-pick-heading">Change password</p>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Use your current password, then pick a new one (at least 6 characters).
+            </p>
+            <label>
+              Current password
+              <input
+                type="password"
+                value={pwCurrent}
+                onChange={(e) => setPwCurrent(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            <label>
+              New password
+              <input
+                type="password"
+                value={pwNew}
+                onChange={(e) => setPwNew(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              Confirm new password
+              <input
+                type="password"
+                value={pwConfirm}
+                onChange={(e) => setPwConfirm(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <div className="me-actions-row">
+              <button
+                className="primary btn-compact"
+                type="button"
+                disabled={busy}
+                onClick={() => changeMyPassword()}
+              >
+                Update password
+              </button>
+            </div>
           </div>
 
           {/* created: 2026-11-24T12:35:00-08:00 — delete account (PRD v2 B8) */}
