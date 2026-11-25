@@ -5,8 +5,10 @@
 
 **This file = everything implemented after v2 that is now product truth.**  
 v1 stays in [`PRD.md`](PRD.md). v2 stays in [`PRD v2.0.md`](PRD%20v2.0.md).  
+**Next (locked):** [`PRD v4.0.md`](PRD%20v4.0.md).  
 **Process:** wires before build for *new* surfaces ([`PRD.md`](PRD.md) §0).  
-**Live kid URL (free GH):** `https://puppal1.github.io/rafflesia/` — Diyaan private source may 404 Pages until Pro.
+**Live kid URL (free GH):** `https://puppal1.github.io/rafflesia/` — Diyaan private source may 404 Pages until Pro.  
+<!-- updated: 2026-11-25T01:18:00-08:00 — point to PRD v4.0 -->
 
 ---
 
@@ -294,5 +296,5 @@ Optional AI captcha: Turnstile keys + `supabase/functions/verify-turnstile`.
 ## 4. Related docs
 <!-- created: 2026-11-25T01:20:00-08:00 -->
 
-- [`PRD.md`](PRD.md) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`SECURITY.md`](SECURITY.md) · [`TASKS.md`](TASKS.md)  
+- [`PRD.md`](PRD.md) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v4.0.md`](PRD%20v4.0.md) · [`SECURITY.md`](SECURITY.md) · [`TASKS.md`](TASKS.md)  
 - Plans: `rafflesia_mentions_first`, `rafflesia_notifications_inbox`, `public_repo_security_*`  

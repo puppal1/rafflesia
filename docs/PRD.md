@@ -4,7 +4,8 @@
 <!-- updated: 2026-11-24T12:00:00-08:00 — backfill v1.0 shipped features from build arc -->
 <!-- updated: 2026-11-24T12:10:00-08:00 — v2 features moved to PRD v2.0.md -->
 <!-- updated: 2026-11-25T01:20:00-08:00 — post-v2 work lives in PRD v3.0.md -->
-<!-- new features: PRD v2.0.md · PRD v3.0.md · tech: TECH.md · screens: SCREEN_MAP.md · tasks: TASKS.md -->
+<!-- updated: 2026-11-25T01:18:00-08:00 — next locked work: PRD v4.0.md -->
+<!-- new features: PRD v2.0.md · PRD v3.0.md · PRD v4.0.md · tech: TECH.md · screens: SCREEN_MAP.md · tasks: TASKS.md -->
 <!-- audience: Diyaan (~10) + parent helper -->
 
 ---
@@ -26,7 +27,8 @@ Human QC / phase test cases: [`QC.md`](QC.md).
 **v1 first-cut wire set:** Auth A1–A4, shell B1, Messages D1–D5, People/Me E1–E5, Teacher G1–G5.  
 **v1 late (built — documented in §5):** Intro video, Lounge/Everyone, teacher soft-delete + verify, right rail, website links, themes + lock, emoji-only icons, header Log out.  
 **v2 features:** [`PRD v2.0.md`](PRD%20v2.0.md) — FYP, Announcements, manga BGs, Siobhan page, ToS, named colors.  
-**v3 features:** [`PRD v3.0.md`](PRD%20v3.0.md) — safety/captcha, Siobhan depth, mentions, dino notifications, theme sheet, faith/furry.
+**v3 features:** [`PRD v3.0.md`](PRD%20v3.0.md) — safety/captcha, Siobhan depth, mentions, dino notifications, theme sheet, faith/furry.  
+**v4 (locked, not built):** [`PRD v4.0.md`](PRD%20v4.0.md) — DM unread, teacher PW reset, report, edit TTL, polls, media grid, stickers, Help.
 
 ---
 

@@ -142,8 +142,28 @@ Source: [`PRD v3.0.md`](PRD%20v3.0.md)
 
 ---
 
+## Phase 8 — PRD v4.0 (locked, not built)
+<!-- created: 2026-11-25T01:18:00-08:00 -->
+
+Source: [`PRD v4.0.md`](PRD%20v4.0.md)
+
+| # | Epic | Status |
+|---|------|--------|
+| 8.J1 | Unread Messages — **DMs only** | Locked |
+| 8.J2 | Teacher kid password reset | Locked |
+| 8.J3 | Kid Report → teacher Flags | Locked |
+| 8.J4 | Edit own post/comment — **15m TTL** | Locked |
+| 8.J5 | Lounge polls | Locked |
+| 8.J6 | Profile media grid | Locked |
+| 8.J7 | Chat stickers / PNG | Locked |
+| 8.J8 | Help / club rules | Locked |
+
+**Parked:** Following+FYP tabs (decide later), mute, bookmarks, Play, presence, notif prefs, calendar, hashtags, nested replies, push, read receipts.
+
+---
+
 ## Related
-<!-- updated: 2026-11-25T01:20:00-08:00 -->
-- [`PRD.md`](PRD.md) (v1.0) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v3.0.md`](PRD%20v3.0.md) · [`SECURITY.md`](SECURITY.md)  
+<!-- updated: 2026-11-25T01:18:00-08:00 -->
+- [`PRD.md`](PRD.md) (v1.0) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v3.0.md`](PRD%20v3.0.md) · [`PRD v4.0.md`](PRD%20v4.0.md) · [`SECURITY.md`](SECURITY.md)  
 - [`SCREEN_MAP.md`](SCREEN_MAP.md) · [`UX.md`](UX.md) · [`TECH.md`](TECH.md) · [`QC.md`](QC.md)  
 - App: `OneDrive/Desktop/rafflesia-online` → Pages `puppal1/rafflesia`  
