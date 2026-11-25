@@ -4,6 +4,7 @@
 // updated: 2026-11-24T14:38:00-08:00 — never show Google query as source; nicer publisher label
 // updated: 2026-11-24T14:40:00-08:00 — top 10 only; local weather/incidents → animals/env → nature/science
 // updated: 2026-11-24T22:10:00-08:00 — balance bands; hard-cap NASA/space so feed isn’t all space
+// updated: 2026-11-24T22:20:00-08:00 — feed2json fallback + publisher RSS + Open-Meteo weather (rss2json 503 on Google)
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
@@ -25,18 +26,14 @@ export type LiveNewsItem = {
   priorityBand?: number
 }
 
-type Rss2JsonItem = {
-  title?: string
-  link?: string
-  description?: string
-  pubDate?: string
-  author?: string
-}
-
-type Rss2JsonResponse = {
-  status?: string
-  feed?: { title?: string }
-  items?: Rss2JsonItem[]
+type RawRssItem = {
+  // created: 2026-11-24T22:20:00-08:00
+  title: string
+  link: string
+  description: string
+  pubDate: string | null
+  author: string
+  feedTitle: string
 }
 
 /** created: 2026-11-24T14:40:00-08:00 — hard cap for the Siobhan feed */
@@ -216,13 +213,14 @@ const CHIP_LABEL: Record<string, string> = {
 
 type FeedSpec = {
   // created: 2026-11-24T13:15:00-08:00
-  // updated: 2026-11-24T14:40:00-08:00 — band drives pick order
+  // updated: 2026-11-24T22:20:00-08:00 — band + take for NASA
   id: string
   tag: string
   emoji: string
   place: string
   band: 0 | 1 | 2
   rssUrl: string
+  take?: number
 }
 
 /** created: 2026-11-24T13:15:00-08:00 */
@@ -233,7 +231,8 @@ function googleNewsRss(query: string): string {
 
 /**
  * created: 2026-11-24T14:40:00-08:00
- * Priority feeds: local weather/incidents → env/animals → nature/science
+ * updated: 2026-11-24T22:20:00-08:00 — mix Google (via fallback) + stable publisher RSS
+ * Themes: weather/local → animals/env → science/space
  */
 const FEEDS: FeedSpec[] = [
   {
@@ -243,7 +242,7 @@ const FEEDS: FeedSpec[] = [
     place: 'SoCal · weather',
     band: 0,
     rssUrl: googleNewsRss(
-      '(weather OR storm OR rain OR wind OR heat OR flood OR "air quality" OR "red flag" OR wildfire) ("Oak Park" OR "Thousand Oaks" OR Ventura OR "San Fernando" OR "Los Angeles" OR SoCal OR "Southern California") when:5d',
+      'Los Angeles OR "Thousand Oaks" OR Ventura (weather OR forecast OR storm OR rain OR wind OR heat) when:3d',
     ),
   },
   {
@@ -253,27 +252,27 @@ const FEEDS: FeedSpec[] = [
     place: 'Local · alerts',
     band: 0,
     rssUrl: googleNewsRss(
-      '("road closure" OR outage OR "power outage" OR "school closure" OR "school closed" OR advisory OR alert OR traffic) ("Oak Park" OR OPUSD OR "Thousand Oaks" OR Ventura OR "San Fernando Valley" OR "Los Angeles") when:5d',
-    ),
-  },
-  {
-    id: 'oakpark',
-    tag: 'Oak Park',
-    emoji: '🌳',
-    place: 'Oak Park',
-    band: 0,
-    rssUrl: googleNewsRss(
-      '"Oak Park" (California OR CA OR OPUSD) (weather OR school OR park OR community OR student) when:7d',
+      '("road closure" OR outage OR "power outage" OR "school closure" OR advisory OR alert) ("Oak Park" OR "Thousand Oaks" OR Ventura OR "Los Angeles") when:5d',
     ),
   },
   {
     id: 'env-animals',
     tag: 'Animals',
     emoji: '🐾',
-    place: 'Wildlife · SoCal',
+    place: 'Wildlife · animals',
+    band: 1,
+    // ScienceDaily is reliable on rss2json (Google News often 503)
+    rssUrl: 'https://www.sciencedaily.com/rss/plants_animals.xml',
+    take: 8,
+  },
+  {
+    id: 'env-california',
+    tag: 'Animals',
+    emoji: '🦭',
+    place: 'Wildlife · California',
     band: 1,
     rssUrl: googleNewsRss(
-      '(wildlife OR animal OR whale OR dolphin OR bird OR habitat OR rescue OR zoo OR aquarium OR conservation) ("Los Angeles" OR Ventura OR California OR SoCal OR ocean OR beach) when:10d',
+      '(wildlife OR whale OR dolphin OR coyote OR bird OR rescue OR zoo) (California OR "Los Angeles" OR Ventura OR SoCal) when:10d',
     ),
   },
   {
@@ -282,9 +281,8 @@ const FEEDS: FeedSpec[] = [
     emoji: '🌍',
     place: 'Environment',
     band: 1,
-    rssUrl: googleNewsRss(
-      '(environment OR climate OR pollution OR recycling OR "air quality" OR park OR forest OR ocean) (kids OR students OR school OR California OR "Los Angeles" OR Ventura) when:10d',
-    ),
+    rssUrl: 'https://www.theguardian.com/environment/rss',
+    take: 8,
   },
   {
     id: 'nature-science',
@@ -292,9 +290,17 @@ const FEEDS: FeedSpec[] = [
     emoji: '🔬',
     place: 'Nature · science',
     band: 2,
-    // updated: 2026-11-24T22:10:00-08:00 — no NASA/space here; nasa feed covers that slot
+    rssUrl: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
+    take: 8,
+  },
+  {
+    id: 'stem-kids',
+    tag: 'Science',
+    emoji: '🧪',
+    place: 'STEM · school',
+    band: 2,
     rssUrl: googleNewsRss(
-      '(science OR STEM OR nature OR discovery OR museum OR planetarium OR dinosaur OR geology OR biology OR robot OR coding) (kids OR students OR school OR classroom OR California) -NASA -space -astronaut when:10d',
+      '(STEM OR science OR museum OR dinosaur OR robot OR coding) (kids OR students OR classroom OR school) (California OR students) -NASA -astronaut when:10d',
     ),
   },
   {
@@ -304,6 +310,7 @@ const FEEDS: FeedSpec[] = [
     place: 'NASA education',
     band: 2,
     rssUrl: 'https://www.nasa.gov/rss/dyn/educationnews.rss',
+    take: 3,
   },
 ]
 
@@ -388,18 +395,11 @@ function looksLikeSearchQuery(s: string): boolean {
 }
 
 /** created: 2026-11-24T14:38:00-08:00 */
-function nicePublisher(
-  item: Rss2JsonItem,
-  title: string,
-  feedTitle: string | undefined,
-  fallback: string,
-): string {
-  const author = stripHtml(item.author || '')
+function nicePublisher(author: string, title: string, feedTitle: string, fallback: string): string {
   if (author && !looksLikeSearchQuery(author)) return author.slice(0, 48)
   const dash = title.match(/\s[-–—]\s([^–—-]{2,48})$/)
   if (dash?.[1] && !looksLikeSearchQuery(dash[1])) return dash[1].trim()
-  const ft = stripHtml(feedTitle || '')
-  if (ft && !looksLikeSearchQuery(ft)) return ft.slice(0, 48)
+  if (feedTitle && !looksLikeSearchQuery(feedTitle)) return feedTitle.slice(0, 48)
   return fallback
 }
 
@@ -427,25 +427,86 @@ function isSpaceHeavy(item: LiveNewsItem): boolean {
   )
 }
 
-/** created: 2026-11-24T13:15:00-08:00 */
-/** updated: 2026-11-24T22:10:00-08:00 — band on each item; NASA feed only keeps a few */
-async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
-  const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(spec.rssUrl)}`
-  const res = await fetch(endpoint)
-  if (!res.ok) throw new Error(`RSS ${spec.id} HTTP ${res.status}`)
-  const data = (await res.json()) as Rss2JsonResponse
-  if (data.status !== 'ok' || !Array.isArray(data.items)) return []
+/**
+ * created: 2026-11-24T22:20:00-08:00
+ * rss2json often 503s on Google News; feed2json.org still returns those feeds.
+ */
+async function fetchRawRssItems(rssUrl: string): Promise<RawRssItem[]> {
+  // 1) rss2json
+  try {
+    const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`
+    const res = await fetch(endpoint)
+    if (res.ok) {
+      const data = (await res.json()) as {
+        status?: string
+        feed?: { title?: string }
+        items?: Array<{
+          title?: string
+          link?: string
+          description?: string
+          pubDate?: string
+          author?: string
+        }>
+      }
+      if (data.status === 'ok' && Array.isArray(data.items) && data.items.length) {
+        const feedTitle = stripHtml(data.feed?.title || '')
+        return data.items.map((item) => ({
+          title: stripHtml(item.title || ''),
+          link: (item.link || '').trim(),
+          description: stripHtml(item.description || ''),
+          pubDate: item.pubDate || null,
+          author: stripHtml(item.author || ''),
+          feedTitle,
+        }))
+      }
+    }
+  } catch {
+    // fall through
+  }
 
-  // updated: 2026-11-24T22:10:00-08:00 — NASA RSS is dense; only pull a few candidates
-  const take = spec.id === 'nasa' ? 3 : 10
+  // 2) feed2json.org
+  const endpoint2 = `https://feed2json.org/convert?url=${encodeURIComponent(rssUrl)}`
+  const res2 = await fetch(endpoint2)
+  if (!res2.ok) throw new Error(`feed2json HTTP ${res2.status}`)
+  const data2 = (await res2.json()) as {
+    err?: string
+    title?: string
+    items?: Array<{
+      title?: string
+      url?: string
+      external_url?: string
+      content_text?: string
+      content_html?: string
+      summary?: string
+      date_published?: string
+      author?: { name?: string }
+    }>
+  }
+  if (data2.err || !Array.isArray(data2.items)) throw new Error(data2.err || 'feed2json empty')
+  const feedTitle = stripHtml(data2.title || '')
+  return data2.items.map((item) => ({
+    title: stripHtml(item.title || ''),
+    link: (item.url || item.external_url || '').trim(),
+    description: stripHtml(item.content_text || item.summary || item.content_html || ''),
+    pubDate: item.date_published || null,
+    author: stripHtml(item.author?.name || ''),
+    feedTitle,
+  }))
+}
+
+/** created: 2026-11-24T13:15:00-08:00 */
+/** updated: 2026-11-24T22:20:00-08:00 — dual proxy + publisher feeds */
+async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
+  const raw = await fetchRawRssItems(spec.rssUrl)
+  const take = spec.take ?? (spec.id === 'nasa' ? 3 : 10)
   const out: LiveNewsItem[] = []
-  for (const item of data.items.slice(0, take)) {
-    const title = stripHtml(item.title || '')
-    const rawDesc = stripHtml(item.description || '')
+  for (const item of raw.slice(0, take)) {
+    const title = item.title
+    const rawDesc = item.description
     const blurb = niceBlurb(title, rawDesc)
     const hay = `${title} ${rawDesc}`
     if (!title || isBlocked(hay)) continue
-    const link = (item.link || '').trim()
+    const link = item.link
     if (!link.startsWith('http')) continue
     const band = classifyBand(hay, spec.band)
     out.push({
@@ -458,13 +519,71 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
       funFact: '',
       fitChips: fitChipsFor(hay, spec.tag),
       url: link,
-      publishedAt: item.pubDate || null,
-      source: nicePublisher(item, title, data.feed?.title, spec.tag),
+      publishedAt: item.pubDate,
+      source: nicePublisher(item.author, title, item.feedTitle, spec.tag),
       live: true,
       priorityBand: band,
     })
   }
   return out
+}
+
+/** created: 2026-11-24T22:20:00-08:00 — WMO weather codes → kid-friendly label */
+function weatherLabel(code: number): { emoji: string; label: string } {
+  if (code === 0) return { emoji: '☀️', label: 'Clear skies' }
+  if (code <= 3) return { emoji: '🌤️', label: 'Partly cloudy' }
+  if (code <= 48) return { emoji: '🌫️', label: 'Foggy' }
+  if (code <= 57) return { emoji: '🌦️', label: 'Drizzle' }
+  if (code <= 67) return { emoji: '🌧️', label: 'Rain' }
+  if (code <= 77) return { emoji: '🌨️', label: 'Snow / ice' }
+  if (code <= 82) return { emoji: '🌧️', label: 'Showers' }
+  if (code <= 99) return { emoji: '⛈️', label: 'Thunderstorms' }
+  return { emoji: '🌦️', label: 'Local weather' }
+}
+
+/**
+ * created: 2026-11-24T22:20:00-08:00
+ * Guaranteed Oak Park–area weather card (Open-Meteo) so band 0 is never empty.
+ */
+async function fetchOakParkWeatherCard(): Promise<LiveNewsItem | null> {
+  try {
+    const url =
+      'https://api.open-meteo.com/v1/forecast?latitude=34.1792&longitude=-118.762&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles'
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      current?: {
+        time?: string
+        temperature_2m?: number
+        weather_code?: number
+        wind_speed_10m?: number
+      }
+    }
+    const cur = data.current
+    if (!cur || typeof cur.temperature_2m !== 'number') return null
+    const { emoji, label } = weatherLabel(Number(cur.weather_code || 0))
+    const temp = Math.round(cur.temperature_2m)
+    const wind = Math.round(Number(cur.wind_speed_10m || 0))
+    const title = `Oak Park area: ${temp}°F · ${label}`
+    const blurb = `Right now near Oak Park / Conejo Valley — ${temp}°F, ${label.toLowerCase()}, wind about ${wind} mph.`
+    return {
+      id: `oakpark-weather-${cur.time || 'now'}`,
+      tag: 'Weather',
+      emoji,
+      title,
+      blurb,
+      place: 'Oak Park · live',
+      funFact: '',
+      fitChips: ['Weather', 'Oak Park', 'Live'],
+      url: 'https://forecast.weather.gov/MapClick.php?lat=34.1792&lon=-118.762',
+      publishedAt: cur.time ? new Date(cur.time).toISOString() : new Date().toISOString(),
+      source: 'Open-Meteo',
+      live: true,
+      priorityBand: 0,
+    }
+  } catch {
+    return null
+  }
 }
 
 /** created: 2026-11-24T13:15:00-08:00 */
@@ -483,7 +602,7 @@ function staticAsLive(): LiveNewsItem[] {
 
 /**
  * created: 2026-11-24T13:15:00-08:00
- * updated: 2026-11-24T22:10:00-08:00 — balanced 3/4/3 + SPACE_MAX; top-up prefers non-space
+ * updated: 2026-11-24T22:20:00-08:00 — Open-Meteo weather + dual RSS proxy + 3/4/3 + SPACE_MAX
  */
 export async function loadSiobhanLiveNews(): Promise<{
   items: LiveNewsItem[]
@@ -492,8 +611,9 @@ export async function loadSiobhanLiveNews(): Promise<{
   errors: string[]
 }> {
   const errors: string[] = []
-  const batches = await Promise.all(
-    FEEDS.map(async (spec) => {
+  const [weatherCard, ...batches] = await Promise.all([
+    fetchOakParkWeatherCard(),
+    ...FEEDS.map(async (spec) => {
       try {
         return await fetchRss(spec)
       } catch {
@@ -501,10 +621,11 @@ export async function loadSiobhanLiveNews(): Promise<{
         return [] as LiveNewsItem[]
       }
     }),
-  )
+  ])
 
   const seen = new Set<string>()
   const merged: LiveNewsItem[] = []
+  if (weatherCard) merged.push(weatherCard)
   for (const batch of batches) {
     for (const item of batch) {
       const key = item.title.toLowerCase().replace(/\s+/g, ' ').slice(0, 80)
@@ -518,11 +639,8 @@ export async function loadSiobhanLiveNews(): Promise<{
     const ba = a.priorityBand ?? 2
     const bb = b.priorityBand ?? 2
     if (ba !== bb) return ba - bb
-    // updated: 2026-11-24T22:10:00-08:00 — within a band, prefer non-space first
-    const sa =
-      rankScore(`${a.title} ${a.blurb}`, ba) - (isSpaceHeavy(a) ? 20 : 0)
-    const sb =
-      rankScore(`${b.title} ${b.blurb}`, bb) - (isSpaceHeavy(b) ? 20 : 0)
+    const sa = rankScore(`${a.title} ${a.blurb}`, ba) - (isSpaceHeavy(a) ? 20 : 0)
+    const sb = rankScore(`${b.title} ${b.blurb}`, bb) - (isSpaceHeavy(b) ? 20 : 0)
     if (sb !== sa) return sb - sa
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0
@@ -542,10 +660,12 @@ export async function loadSiobhanLiveNews(): Promise<{
     return true
   }
 
-  // Fill quotas: weather/local 3 · animals/env 4 · science 3 (science includes ≤ SPACE_MAX space)
+  // Always keep the live Oak Park weather card first when present
+  if (weatherCard) tryPick(weatherCard)
+
   for (let band = 0; band <= 2; band++) {
     const want = BAND_QUOTAS[band]
-    let got = 0
+    let got = picked.filter((p) => (p.priorityBand ?? 2) === band).length
     for (const item of merged) {
       if (got >= want || picked.length >= FEED_LIMIT) break
       if ((item.priorityBand ?? 2) !== band) continue
@@ -553,7 +673,6 @@ export async function loadSiobhanLiveNews(): Promise<{
     }
   }
 
-  // Top up: non-space first, then allow remaining space slots
   for (const preferNonSpace of [true, false]) {
     for (const item of merged) {
       if (picked.length >= FEED_LIMIT) break

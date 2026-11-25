@@ -8,6 +8,7 @@ import {
   countNewsStoryHistory,
   historyRowToLiveItem,
   listNewsStoryHistory,
+  type HistoryTouchedDetail,
   type NewsHistoryRow,
 } from '../lib/siobhanHistory'
 import type { LiveNewsItem } from '../lib/siobhanNews'
@@ -74,9 +75,37 @@ export function SiobhanTalkedAboutModal({
   }, [open, load])
 
   // created: 2026-11-24T22:08:00-08:00 — keep list fresh while modal stays open
+  // updated: 2026-11-24T22:20:00-08:00 — optimistic prepend, then refetch
   useEffect(() => {
     if (!open) return
-    const onTouched = () => {
+    const onTouched = (ev: Event) => {
+      const detail = (ev as CustomEvent<HistoryTouchedDetail>).detail
+      const item = detail?.item
+      if (item) {
+        const key = item.id.slice(0, 500)
+        const optimistic: NewsHistoryRow = {
+          article_key: key,
+          title: item.title,
+          blurb: item.blurb || '',
+          tag: item.tag || '',
+          emoji: item.emoji || '📰',
+          place: item.place || '',
+          source: item.source || '',
+          url: item.url || '',
+          fit_chips: item.fitChips || [],
+          published_at: item.publishedAt,
+          first_engaged_at: new Date().toISOString(),
+          last_engaged_at: new Date().toISOString(),
+          comment_count: 0,
+          reaction_count: 1,
+          engagement_score: 1,
+        }
+        setRows((prev) => {
+          if (prev.some((r) => r.article_key === key)) return prev
+          return [optimistic, ...prev].slice(0, HISTORY_PAGE_SIZE)
+        })
+        setTotal((t) => (t < 1 ? 1 : t))
+      }
       load(0).catch(() => undefined)
     }
     window.addEventListener(HISTORY_TOUCHED_EVENT, onTouched)

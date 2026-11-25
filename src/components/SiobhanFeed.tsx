@@ -120,6 +120,9 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       await refreshHistoryCount()
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh feed to try again.')
+      } else if (result.errors.length >= 4) {
+        // updated: 2026-11-24T22:20:00-08:00 — surface when many theme feeds fail
+        setErr(`Some theme feeds are sleepy (${result.errors.length}). Showing what we got — try Refresh feed.`)
       }
     } catch {
       setErr('Could not load live news. Try Refresh feed.')
@@ -133,8 +136,10 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   }, [refresh])
 
   // created: 2026-11-24T22:08:00-08:00 — bump Stories count right after like/comment
+  // updated: 2026-11-24T22:20:00-08:00 — optimistic +1 then reconcile from DB
   useEffect(() => {
     const onTouched = () => {
+      setHistoryCount((n) => n + 1)
       refreshHistoryCount().catch(() => undefined)
     }
     window.addEventListener(HISTORY_TOUCHED_EVENT, onTouched)

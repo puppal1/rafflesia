@@ -201,8 +201,8 @@ begin
       where r.article_key = h.article_key
     ), 0) as reaction_count,
     public.news_story_engagement_score(h.article_key) as engagement_score
+  -- updated: 2026-11-24T22:20:00-08:00 — show all touched rows (table = engaged); score only sorts
   from public.news_story_history h
-  where public.news_story_engagement_score(h.article_key) > 0
   order by
     public.news_story_engagement_score(h.article_key) desc,
     h.last_engaged_at desc
@@ -219,11 +219,8 @@ set search_path = public
 as $$
 begin
   if auth.uid() is null then raise exception 'Not logged in'; end if;
-  return (
-    select count(*)::int
-    from public.news_story_history h
-    where public.news_story_engagement_score(h.article_key) > 0
-  );
+  -- updated: 2026-11-24T22:20:00-08:00 — count every history row
+  return (select count(*)::int from public.news_story_history);
 end;
 $$;
 

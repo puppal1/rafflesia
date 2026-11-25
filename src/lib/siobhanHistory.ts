@@ -27,10 +27,20 @@ export type NewsHistoryRow = {
 /** created: 2026-11-24T22:08:00-08:00 — same-tab RT ping after like/comment */
 export const HISTORY_TOUCHED_EVENT = 'siobhan-history-touched'
 
+export type HistoryTouchedDetail = {
+  // created: 2026-11-24T22:20:00-08:00 — optimistic modal row
+  item: LiveNewsItem
+}
+
 /** created: 2026-11-24T22:08:00-08:00 */
-export function notifyHistoryTouched(): void {
+/** updated: 2026-11-24T22:20:00-08:00 — include story for optimistic UI */
+export function notifyHistoryTouched(item?: LiveNewsItem): void {
   if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent(HISTORY_TOUCHED_EVENT))
+  window.dispatchEvent(
+    new CustomEvent<HistoryTouchedDetail>(HISTORY_TOUCHED_EVENT, {
+      detail: item ? { item } : undefined,
+    }),
+  )
 }
 
 /** created: 2026-11-24T21:55:00-08:00 — save card snapshot after like/comment */
@@ -65,7 +75,7 @@ export async function touchNewsStoryHistory(item: LiveNewsItem): Promise<void> {
     }
     throw new Error(error.message)
   }
-  notifyHistoryTouched()
+  notifyHistoryTouched(item)
 }
 
 /** created: 2026-11-24T22:05:00-08:00 — pull existing likes/comments into history table */
