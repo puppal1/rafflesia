@@ -671,13 +671,21 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   padding: 0;
 }
 .bloom-btn.active {
+  /* updated: 2026-11-25T01:05:00-08:00 — dino jumps, button stays put */
   border-color: var(--accent, #c45c26);
   background: color-mix(in srgb, var(--accent, #c45c26) 14%, #fff);
-  animation: bloom-pulse 1.8s ease-in-out infinite;
 }
 .bloom-glyph {
   font-size: 1.25rem;
   line-height: 1;
+  display: inline-block;
+}
+.bloom-glyph.dino {
+  font-size: 1.35rem;
+}
+.bloom-glyph.dino.jumping {
+  animation: dino-jump 0.7s ease-in-out infinite;
+  transform-origin: center bottom;
 }
 .bloom-badge {
   position: absolute;
@@ -695,13 +703,20 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   align-items: center;
   justify-content: center;
 }
-@keyframes bloom-pulse {
+/* created: 2026-11-25T01:05:00-08:00 */
+@keyframes dino-jump {
   0%,
   100% {
-    transform: scale(1);
+    transform: translateY(0) rotate(0deg);
   }
-  50% {
-    transform: scale(1.05);
+  35% {
+    transform: translateY(-7px) rotate(-8deg);
+  }
+  55% {
+    transform: translateY(-2px) rotate(4deg);
+  }
+  70% {
+    transform: translateY(-5px) rotate(-4deg);
   }
 }
 .bloom-overlay {
