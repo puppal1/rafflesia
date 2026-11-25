@@ -2873,6 +2873,19 @@ select {
   margin: 0;
   font-size: 0.82rem;
 }
+/* created: 2026-11-24T22:25:00-08:00 — feed source health row */
+.siobhan-feed-report {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  margin: 0 0 0.5rem;
+  word-break: break-word;
+}
+.siobhan-src-ok {
+  color: #2f6b4f;
+}
+.siobhan-src-bad {
+  color: #9a3b3b;
+}
 .siobhan-scroll-hint {
   margin: 0;
   font-size: 0.8rem;

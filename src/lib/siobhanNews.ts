@@ -5,7 +5,17 @@
 // updated: 2026-11-24T14:40:00-08:00 — top 10 only; local weather/incidents → animals/env → nature/science
 // updated: 2026-11-24T22:10:00-08:00 — balance bands; hard-cap NASA/space so feed isn’t all space
 // updated: 2026-11-24T22:20:00-08:00 — feed2json fallback + publisher RSS + Open-Meteo weather (rss2json 503 on Google)
+// updated: 2026-11-24T22:25:00-08:00 — allorigins XML fallback (feed2json has no CORS); feed diagnostics logs
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
+
+/** created: 2026-11-24T22:25:00-08:00 — per-source fetch report for UI + console */
+export type FeedSourceReport = {
+  id: string
+  ok: boolean
+  count: number
+  via?: string
+  error?: string
+}
 
 export type LiveNewsItem = {
   // created: 2026-11-24T13:15:00-08:00
@@ -223,57 +233,21 @@ type FeedSpec = {
   take?: number
 }
 
-/** created: 2026-11-24T13:15:00-08:00 */
-function googleNewsRss(query: string): string {
-  const q = encodeURIComponent(query)
-  return `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
-}
-
 /**
  * created: 2026-11-24T14:40:00-08:00
- * updated: 2026-11-24T22:20:00-08:00 — mix Google (via fallback) + stable publisher RSS
- * Themes: weather/local → animals/env → science/space
+ * updated: 2026-11-24T22:25:00-08:00 — publisher RSS only (Google News proxies were 429/503)
+ * Themes: Open-Meteo weather → animals/env → science/space
  */
 const FEEDS: FeedSpec[] = [
-  {
-    id: 'local-weather',
-    tag: 'Weather',
-    emoji: '🌦️',
-    place: 'SoCal · weather',
-    band: 0,
-    rssUrl: googleNewsRss(
-      'Los Angeles OR "Thousand Oaks" OR Ventura (weather OR forecast OR storm OR rain OR wind OR heat) when:3d',
-    ),
-  },
-  {
-    id: 'local-incident',
-    tag: 'Local',
-    emoji: '📢',
-    place: 'Local · alerts',
-    band: 0,
-    rssUrl: googleNewsRss(
-      '("road closure" OR outage OR "power outage" OR "school closure" OR advisory OR alert) ("Oak Park" OR "Thousand Oaks" OR Ventura OR "Los Angeles") when:5d',
-    ),
-  },
+  // updated: 2026-11-24T22:25:00-08:00 — drop Google News (rss2json 429/503); publishers + Open-Meteo
   {
     id: 'env-animals',
     tag: 'Animals',
     emoji: '🐾',
     place: 'Wildlife · animals',
     band: 1,
-    // ScienceDaily is reliable on rss2json (Google News often 503)
     rssUrl: 'https://www.sciencedaily.com/rss/plants_animals.xml',
     take: 8,
-  },
-  {
-    id: 'env-california',
-    tag: 'Animals',
-    emoji: '🦭',
-    place: 'Wildlife · California',
-    band: 1,
-    rssUrl: googleNewsRss(
-      '(wildlife OR whale OR dolphin OR coyote OR bird OR rescue OR zoo) (California OR "Los Angeles" OR Ventura OR SoCal) when:10d',
-    ),
   },
   {
     id: 'environment',
@@ -292,16 +266,6 @@ const FEEDS: FeedSpec[] = [
     band: 2,
     rssUrl: 'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
     take: 8,
-  },
-  {
-    id: 'stem-kids',
-    tag: 'Science',
-    emoji: '🧪',
-    place: 'STEM · school',
-    band: 2,
-    rssUrl: googleNewsRss(
-      '(STEM OR science OR museum OR dinosaur OR robot OR coding) (kids OR students OR classroom OR school) (California OR students) -NASA -astronaut when:10d',
-    ),
   },
   {
     id: 'nasa',
@@ -427,77 +391,120 @@ function isSpaceHeavy(item: LiveNewsItem): boolean {
   )
 }
 
+/** created: 2026-11-24T22:25:00-08:00 — browser-safe RSS/Atom XML parse */
+function parseRssXml(xml: string): RawRssItem[] {
+  if (typeof DOMParser === 'undefined') return []
+  const doc = new DOMParser().parseFromString(xml, 'text/xml')
+  if (doc.querySelector('parsererror')) return []
+  const feedTitle = stripHtml(
+    doc.querySelector('channel > title, feed > title')?.textContent || '',
+  )
+  const rssItems = [...doc.querySelectorAll('channel > item')]
+  if (rssItems.length) {
+    return rssItems.map((node) => {
+      const title = stripHtml(node.querySelector('title')?.textContent || '')
+      const link =
+        (node.querySelector('link')?.textContent || '').trim() ||
+        (node.querySelector('guid')?.textContent || '').trim()
+      const description = stripHtml(
+        node.querySelector('description')?.textContent ||
+          node.querySelector('content\\:encoded, encoded')?.textContent ||
+          '',
+      )
+      const pubDate = (node.querySelector('pubDate')?.textContent || '').trim() || null
+      const author = stripHtml(
+        node.querySelector('author, dc\\:creator, creator')?.textContent || '',
+      )
+      return { title, link, description, pubDate, author, feedTitle }
+    })
+  }
+  // Atom
+  return [...doc.querySelectorAll('entry')].map((node) => {
+    const title = stripHtml(node.querySelector('title')?.textContent || '')
+    const linkEl = node.querySelector('link[href], link')
+    const href =
+      linkEl?.getAttribute('href') ||
+      (linkEl?.textContent || '').trim() ||
+      (node.querySelector('id')?.textContent || '').trim()
+    const description = stripHtml(
+      node.querySelector('summary, content')?.textContent || '',
+    )
+    const pubDate =
+      (node.querySelector('updated, published')?.textContent || '').trim() || null
+    const author = stripHtml(node.querySelector('author > name')?.textContent || '')
+    return { title, link: href, description, pubDate, author, feedTitle }
+  })
+}
+
 /**
  * created: 2026-11-24T22:20:00-08:00
- * rss2json often 503s on Google News; feed2json.org still returns those feeds.
+ * updated: 2026-11-24T22:25:00-08:00 — rss2json → allorigins XML (CORS). feed2json skipped (no ACAO).
  */
-async function fetchRawRssItems(rssUrl: string): Promise<RawRssItem[]> {
-  // 1) rss2json
+async function fetchRawRssItems(
+  rssUrl: string,
+): Promise<{ items: RawRssItem[]; via: string }> {
+  const errors: string[] = []
+
+  // 1) rss2json (CORS OK when not rate-limited)
   try {
     const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`
     const res = await fetch(endpoint)
-    if (res.ok) {
-      const data = (await res.json()) as {
-        status?: string
-        feed?: { title?: string }
-        items?: Array<{
-          title?: string
-          link?: string
-          description?: string
-          pubDate?: string
-          author?: string
-        }>
-      }
-      if (data.status === 'ok' && Array.isArray(data.items) && data.items.length) {
-        const feedTitle = stripHtml(data.feed?.title || '')
-        return data.items.map((item) => ({
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      status?: string
+      message?: string
+      feed?: { title?: string }
+      items?: Array<{
+        title?: string
+        link?: string
+        description?: string
+        pubDate?: string
+        author?: string
+      }>
+    }
+    if (data.status === 'ok' && Array.isArray(data.items) && data.items.length) {
+      const feedTitle = stripHtml(data.feed?.title || '')
+      return {
+        via: 'rss2json',
+        items: data.items.map((item) => ({
           title: stripHtml(item.title || ''),
           link: (item.link || '').trim(),
           description: stripHtml(item.description || ''),
           pubDate: item.pubDate || null,
           author: stripHtml(item.author || ''),
           feedTitle,
-        }))
+        })),
       }
     }
-  } catch {
-    // fall through
+    errors.push(data.message || data.status || 'rss2json empty')
+  } catch (ex) {
+    errors.push(ex instanceof Error ? ex.message : 'rss2json fail')
   }
 
-  // 2) feed2json.org
-  const endpoint2 = `https://feed2json.org/convert?url=${encodeURIComponent(rssUrl)}`
-  const res2 = await fetch(endpoint2)
-  if (!res2.ok) throw new Error(`feed2json HTTP ${res2.status}`)
-  const data2 = (await res2.json()) as {
-    err?: string
-    title?: string
-    items?: Array<{
-      title?: string
-      url?: string
-      external_url?: string
-      content_text?: string
-      content_html?: string
-      summary?: string
-      date_published?: string
-      author?: { name?: string }
-    }>
+  // 2) allorigins — CORS-friendly raw XML
+  try {
+    const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`
+    const res = await fetch(endpoint)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = (await res.json()) as { contents?: string; status?: { http_code?: number } }
+    const xml = data.contents || ''
+    if (!xml || xml.length < 40) throw new Error('allorigins empty')
+    const items = parseRssXml(xml)
+    if (!items.length) throw new Error('XML parse empty')
+    return { via: 'allorigins', items }
+  } catch (ex) {
+    errors.push(ex instanceof Error ? ex.message : 'allorigins fail')
   }
-  if (data2.err || !Array.isArray(data2.items)) throw new Error(data2.err || 'feed2json empty')
-  const feedTitle = stripHtml(data2.title || '')
-  return data2.items.map((item) => ({
-    title: stripHtml(item.title || ''),
-    link: (item.url || item.external_url || '').trim(),
-    description: stripHtml(item.content_text || item.summary || item.content_html || ''),
-    pubDate: item.date_published || null,
-    author: stripHtml(item.author?.name || ''),
-    feedTitle,
-  }))
+
+  throw new Error(errors.join(' · ') || 'all proxies failed')
 }
 
 /** created: 2026-11-24T13:15:00-08:00 */
-/** updated: 2026-11-24T22:20:00-08:00 — dual proxy + publisher feeds */
-async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
-  const raw = await fetchRawRssItems(spec.rssUrl)
+/** updated: 2026-11-24T22:25:00-08:00 — dual proxy + publisher feeds + via tag */
+async function fetchRss(
+  spec: FeedSpec,
+): Promise<{ items: LiveNewsItem[]; via: string }> {
+  const { items: raw, via } = await fetchRawRssItems(spec.rssUrl)
   const take = spec.take ?? (spec.id === 'nasa' ? 3 : 10)
   const out: LiveNewsItem[] = []
   for (const item of raw.slice(0, take)) {
@@ -525,7 +532,7 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
       priorityBand: band,
     })
   }
-  return out
+  return { items: out, via }
 }
 
 /** created: 2026-11-24T22:20:00-08:00 — WMO weather codes → kid-friendly label */
@@ -602,26 +609,52 @@ function staticAsLive(): LiveNewsItem[] {
 
 /**
  * created: 2026-11-24T13:15:00-08:00
- * updated: 2026-11-24T22:20:00-08:00 — Open-Meteo weather + dual RSS proxy + 3/4/3 + SPACE_MAX
+ * updated: 2026-11-24T22:25:00-08:00 — diagnostics + allorigins; Open-Meteo + 3/4/3 + SPACE_MAX
  */
 export async function loadSiobhanLiveNews(): Promise<{
   items: LiveNewsItem[]
   fromLive: boolean
   fetchedAt: string
   errors: string[]
+  report: FeedSourceReport[]
 }> {
   const errors: string[] = []
-  const [weatherCard, ...batches] = await Promise.all([
-    fetchOakParkWeatherCard(),
-    ...FEEDS.map(async (spec) => {
+  const report: FeedSourceReport[] = []
+
+  const weatherCard = await fetchOakParkWeatherCard()
+  report.push({
+    id: 'oakpark-weather',
+    ok: Boolean(weatherCard),
+    count: weatherCard ? 1 : 0,
+    via: weatherCard ? 'open-meteo' : undefined,
+    error: weatherCard ? undefined : 'open-meteo failed',
+  })
+
+  // Sequential-ish batches in parallel, but each feed logs clearly
+  const batches = await Promise.all(
+    FEEDS.map(async (spec) => {
       try {
-        return await fetchRss(spec)
-      } catch {
+        const { items, via } = await fetchRss(spec)
+        report.push({ id: spec.id, ok: items.length > 0, count: items.length, via })
+        if (!items.length) errors.push(spec.id)
+        return items
+      } catch (ex) {
+        const msg = ex instanceof Error ? ex.message : 'fail'
+        report.push({ id: spec.id, ok: false, count: 0, error: msg })
         errors.push(spec.id)
         return [] as LiveNewsItem[]
       }
     }),
-  ])
+  )
+
+  // created: 2026-11-24T22:25:00-08:00 — DevTools: filter “siobhan-feed”
+  console.info(
+    '[siobhan-feed]',
+    new Date().toISOString(),
+    report.map((r) =>
+      r.ok ? `${r.id}:${r.count}@${r.via}` : `${r.id}:FAIL(${r.error || '?'})`,
+    ),
+  )
 
   const seen = new Set<string>()
   const merged: LiveNewsItem[] = []
@@ -687,6 +720,7 @@ export async function loadSiobhanLiveNews(): Promise<{
       fromLive: false,
       fetchedAt: new Date().toISOString(),
       errors,
+      report,
     }
   }
   return {
@@ -694,5 +728,6 @@ export async function loadSiobhanLiveNews(): Promise<{
     fromLive: true,
     fetchedAt: new Date().toISOString(),
     errors,
+    report,
   }
 }

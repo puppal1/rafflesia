@@ -15,7 +15,11 @@ import {
   countNewsStoryHistory,
   syncEngagedLiveStories,
 } from '../lib/siobhanHistory'
-import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
+import {
+  loadSiobhanLiveNews,
+  type FeedSourceReport,
+  type LiveNewsItem,
+} from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
 import { SiobhanArticleReactions } from './SiobhanArticleReactions'
 import { SiobhanTalkedAboutModal } from './SiobhanTalkedAboutModal'
@@ -59,6 +63,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyCount, setHistoryCount] = useState(0)
+  const [feedReport, setFeedReport] = useState<FeedSourceReport[]>([])
 
   const activeStory =
     activeStoryOverride ||
@@ -113,16 +118,20 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       setItems(result.items)
       setFromLive(result.fromLive)
       setFetchedAt(result.fetchedAt)
+      setFeedReport(result.report)
       const keys = result.items.map((a) => a.id.slice(0, 500))
       await loadCommentCounts(keys)
       // updated: 2026-11-24T22:05:00-08:00 — push already-liked live cards into shared history
       await syncEngagedLiveStories(result.items)
       await refreshHistoryCount()
+      const failed = result.report.filter((r) => !r.ok)
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh feed to try again.')
-      } else if (result.errors.length >= 4) {
-        // updated: 2026-11-24T22:20:00-08:00 — surface when many theme feeds fail
-        setErr(`Some theme feeds are sleepy (${result.errors.length}). Showing what we got — try Refresh feed.`)
+      } else if (failed.length >= 4) {
+        // updated: 2026-11-24T22:25:00-08:00 — name failing sources (also in DevTools [siobhan-feed])
+        setErr(
+          `Some feeds failed: ${failed.map((f) => f.id).join(', ')}. Check DevTools console for [siobhan-feed].`,
+        )
       }
     } catch {
       setErr('Could not load live news. Try Refresh feed.')
@@ -224,6 +233,17 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
         10 live stories · liked/commented ones stay in Stories we talked about
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
+      {/* created: 2026-11-24T22:25:00-08:00 — live source health (DevTools: [siobhan-feed]) */}
+      {feedReport.length > 0 ? (
+        <p className="siobhan-feed-report muted" title="Feed source health">
+          {feedReport.map((r) => (
+            <span key={r.id} className={r.ok ? 'siobhan-src-ok' : 'siobhan-src-bad'}>
+              {r.ok ? '✓' : '✗'} {r.id}
+              {r.ok ? `(${r.count})` : ''}{' '}
+            </span>
+          ))}
+        </p>
+      ) : null}
 
       <div className="siobhan-workspace">
         <div className="siobhan-feed" role="feed" aria-label="Siobhan live science and music news">
