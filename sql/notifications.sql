@@ -173,6 +173,7 @@ grant execute on function public.count_my_unread_notifications() to authenticate
 -- ---- triggers ----
 
 -- created: 2026-11-25T00:30:00-08:00
+-- updated: 2026-11-25T00:40:00-08:00 — @mentions notify in every chat type (DM included)
 create or replace function public.trg_notify_on_message()
 returns trigger
 language plpgsql
@@ -184,7 +185,6 @@ declare
   actor_name text;
   snippet text;
   m record;
-  mention text;
   mentioned uuid;
 begin
   select * into ch from public.chats where id = new.chat_id;
@@ -192,6 +192,20 @@ begin
   select coalesce(nullif(trim(display_name), ''), username) into actor_name
   from public.profiles where id = new.sender_id;
   snippet := left(coalesce(new.body, '📷'), 80);
+
+  -- Always notify @mentioned people (DM / group / Everyone / Announcements)
+  for mentioned in
+    select distinct p.id
+    from regexp_matches(coalesce(new.body, ''), '@([a-z0-9_]{1,32})', 'gi') as rm(cap)
+    join public.profiles p on lower(p.username) = lower(rm.cap[1])
+    where p.id is distinct from new.sender_id
+  loop
+    perform public.emit_notification(
+      mentioned, new.sender_id, 'chat_mention',
+      coalesce(actor_name, 'Someone') || ' mentioned you',
+      snippet, 'chat', new.chat_id::text, new.chat_id
+    );
+  end loop;
 
   if ch.lounge_key = 'announcements' then
     for m in
@@ -206,33 +220,20 @@ begin
     return new;
   end if;
 
+  -- Lounge Everyone: mentions only (above)
   if ch.lounge_key = 'everyone' then
-    for mention in
-      select distinct lower((regexp_matches(coalesce(new.body, ''), '@([a-z0-9_]{1,32})', 'gi'))[1])
-    loop
-      select id into mentioned from public.profiles where lower(username) = mention limit 1;
-      if mentioned is not null and mentioned is distinct from new.sender_id then
-        if exists (
-          select 1 from public.chat_members
-          where chat_id = new.chat_id and user_id = mentioned
-        ) then
-          perform public.emit_notification(
-            mentioned, new.sender_id, 'chat_mention',
-            actor_name || ' mentioned you', snippet, 'chat', new.chat_id::text, new.chat_id
-          );
-        end if;
-      end if;
-    end loop;
     return new;
   end if;
 
+  -- DM / normal group: other members
   for m in
     select cm.user_id from public.chat_members cm
     where cm.chat_id = new.chat_id and cm.user_id is distinct from new.sender_id
   loop
     perform public.emit_notification(
       m.user_id, new.sender_id, 'chat_message',
-      actor_name || ' sent a message', snippet, 'chat', new.chat_id::text, new.chat_id
+      coalesce(actor_name, 'Someone') || ' sent a message',
+      snippet, 'chat', new.chat_id::text, new.chat_id
     );
   end loop;
   return new;

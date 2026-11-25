@@ -1,4 +1,5 @@
 // created: 2026-11-25T00:30:00-08:00 — Rafflesia bloom notification control + What’s new modal
+// updated: 2026-11-25T00:40:00-08:00 — mark read on close; faster poll if realtime lags
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { iconEmoji } from '../lib/iconPacks'
@@ -72,7 +73,7 @@ export function BloomInbox({ userId, onNavigate }: Props) {
     refreshCount().catch(() => undefined)
     const id = window.setInterval(() => {
       refreshCount().catch(() => undefined)
-    }, 45_000)
+    }, 8_000)
     return () => window.clearInterval(id)
   }, [refreshCount, userId])
 
@@ -82,7 +83,7 @@ export function BloomInbox({ userId, onNavigate }: Props) {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `recipient_id=eq.${userId}`,
@@ -101,10 +102,15 @@ export function BloomInbox({ userId, onNavigate }: Props) {
   async function openModal() {
     setOpen(true)
     await loadList()
+    await refreshCount()
+  }
+
+  async function closeModal() {
+    // updated: 2026-11-25T00:40:00-08:00 — mark read when leaving so rows are visible first
+    setOpen(false)
     try {
       await markAllNotificationsRead(supabase)
       setUnread(0)
-      setRows((prev) => prev.map((r) => ({ ...r, read_at: r.read_at || new Date().toISOString() })))
     } catch {
       // ignore if SQL missing
     }
@@ -119,7 +125,7 @@ export function BloomInbox({ userId, onNavigate }: Props) {
       targetType: n.target_type,
       targetId: n.target_id,
     })
-    setOpen(false)
+    closeModal().catch(() => undefined)
   }
 
   const active = unread > 0
@@ -141,7 +147,15 @@ export function BloomInbox({ userId, onNavigate }: Props) {
       </button>
 
       {open ? (
-        <div className="bloom-overlay" role="dialog" aria-modal="true" aria-label="What’s new">
+        <div
+          className="bloom-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="What’s new"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal().catch(() => undefined)
+          }}
+        >
           <div className="bloom-modal">
             <header className="bloom-modal-head">
               <div>
@@ -150,7 +164,7 @@ export function BloomInbox({ userId, onNavigate }: Props) {
                   Latest club activity
                 </p>
               </div>
-              <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)}>
+              <button className="ghost btn-compact" type="button" onClick={() => closeModal()}>
                 Close
               </button>
             </header>
