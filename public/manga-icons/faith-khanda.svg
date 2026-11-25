@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Khanda">
+  <!-- created: 2026-11-25T01:15:00-08:00 — simplified Khanda-inspired mark for Sikh faith theme -->
+  <rect width="512" height="512" rx="64" fill="#FFF8E8"/>
+  <circle cx="256" cy="256" r="78" fill="none" stroke="#C45C00" stroke-width="26"/>
+  <rect x="242" y="70" width="28" height="372" rx="10" fill="#C45C00"/>
+  <path d="M120 150 L180 250 L120 350" fill="none" stroke="#C45C00" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M392 150 L332 250 L392 350" fill="none" stroke="#C45C00" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

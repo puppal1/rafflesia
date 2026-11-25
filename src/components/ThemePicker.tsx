@@ -4,7 +4,8 @@
 // updated: 2026-11-24T13:50:00-08:00 — character stickers as theme BGs
 // updated: 2026-11-24T13:30:00-08:00 — None clears manga for real (no villain-night default)
 // updated: 2026-11-24T22:30:00-08:00 — faith + civic manga character sections
-import { useEffect, useState } from 'react'
+// updated: 2026-11-25T01:10:00-08:00 — modal + category tabs; sticky Auto/Close (no endless scroll)
+import { useEffect, useMemo, useState } from 'react'
 import { THEMES, type ThemeId } from '../lib/themes'
 import { MANGA_BGS, type MangaBgId } from '../lib/mangaBgs'
 import {
@@ -22,21 +23,54 @@ type Props = {
   onPicked?: (id: ThemeId) => void
 }
 
+type ThemeTab = 'colors' | 'scenes' | 'characters' | 'faith' | 'civic'
+
 const baseUrl = import.meta.env.BASE_URL || '/'
 
+const TABS: { id: ThemeTab; label: string }[] = [
+  // created: 2026-11-25T01:10:00-08:00
+  { id: 'colors', label: 'Colors' },
+  { id: 'scenes', label: 'Scenes' },
+  { id: 'characters', label: 'Chars' },
+  { id: 'faith', label: 'Faith' },
+  { id: 'civic', label: 'Civic' },
+]
+
 /** created: 2026-11-24T11:45:00-08:00 */
-/** updated: 2026-11-24T13:50:00-08:00 */
+/** updated: 2026-11-25T01:10:00-08:00 */
 export function ThemePicker({ compact, onPicked }: Props) {
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<ThemeTab>('colors')
   const [active, setActive] = useState<ThemeId>(THEMES[0].id)
   const [bgId, setBgId] = useState<MangaBgId>('none')
   const [locked, setLocked] = useState(false)
 
   useEffect(() => {
+    if (!open) return
     setActive(getCurrentThemeId())
     setBgId(getMangaBgId())
     setLocked(isThemeLocked())
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const scenes = useMemo(
+    () =>
+      MANGA_BGS.filter(
+        (b) => b.group === 'off' || b.group === 'hero' || b.group === 'villain' || b.group === 'neutral',
+      ),
+    [],
+  )
+  const characters = useMemo(() => MANGA_BGS.filter((b) => b.group === 'character'), [])
+  const faithChars = useMemo(() => MANGA_BGS.filter((b) => b.group === 'faith'), [])
+  const civicChars = useMemo(() => MANGA_BGS.filter((b) => b.group === 'civic'), [])
 
   function pick(id: ThemeId) {
     setUserTheme(id)
@@ -57,10 +91,45 @@ export function ThemePicker({ compact, onPicked }: Props) {
     onPicked?.(theme.id)
   }
 
-  const scenes = MANGA_BGS.filter((b) => b.group === 'off' || b.group === 'hero' || b.group === 'villain' || b.group === 'neutral')
-  const characters = MANGA_BGS.filter((b) => b.group === 'character')
-  const faithChars = MANGA_BGS.filter((b) => b.group === 'faith')
-  const civicChars = MANGA_BGS.filter((b) => b.group === 'civic')
+  function renderBgGrid(items: typeof MANGA_BGS, includeNone: boolean) {
+    return (
+      <div className="theme-bg-grid">
+        {includeNone ? (
+          <button
+            type="button"
+            className={bgId === 'none' ? 'theme-bg-tile on' : 'theme-bg-tile'}
+            onClick={() => pickBg('none')}
+          >
+            <span className="theme-bg-none">None</span>
+            <span className="theme-swatch-name">No picture</span>
+          </button>
+        ) : null}
+        {items.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
+            onClick={() => pickBg(b.id)}
+          >
+            {b.file ? (
+              <img
+                className={
+                  b.group === 'character' || b.group === 'faith' || b.group === 'civic'
+                    ? 'theme-bg-thumb theme-bg-char'
+                    : 'theme-bg-thumb'
+                }
+                src={`${baseUrl}${b.folder}/${b.file}`}
+                alt=""
+              />
+            ) : (
+              <span className="theme-bg-none">None</span>
+            )}
+            <span className="theme-swatch-name">{b.name}</span>
+          </button>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className={compact ? 'theme-picker compact' : 'theme-picker'}>
@@ -68,123 +137,118 @@ export function ThemePicker({ compact, onPicked }: Props) {
         className="theme-picker-toggle"
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(true)}
       >
         Theme{locked ? ' · yours' : ''}
       </button>
+
       {open ? (
-        <div className="theme-picker-panel" role="listbox" aria-label="Theme colors and backgrounds">
-          <p className="theme-picker-hint">
-            {locked
-              ? 'Your color stays — hourly rotate is off until Auto.'
-              : 'Auto changes colors every hour. Pick a manga scene or character any time.'}
-          </p>
-          <button className="theme-auto-btn" type="button" onClick={useAuto}>
-            {locked ? 'Use Auto rotate' : 'Auto is on'}
-          </button>
+        <div
+          className="theme-sheet-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Theme"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false)
+          }}
+        >
+          <div className="theme-sheet">
+            <header className="theme-sheet-head">
+              <div className="theme-sheet-head-text">
+                <h2 className="theme-sheet-title">Theme</h2>
+                <p className="theme-picker-hint" style={{ margin: 0 }}>
+                  {locked
+                    ? 'Your color stays until Auto.'
+                    : 'Auto rotates colors hourly. Pick a picture any time.'}
+                </p>
+              </div>
+              <div className="theme-sheet-head-actions">
+                <button
+                  className={locked ? 'theme-auto-btn compact' : 'theme-auto-btn compact on'}
+                  type="button"
+                  onClick={useAuto}
+                >
+                  {locked ? 'Auto' : 'Auto on'}
+                </button>
+                <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)}>
+                  Done
+                </button>
+              </div>
+            </header>
 
-          <h3 className="theme-section-title">Colors</h3>
-          <div className="theme-swatch-grid">
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="option"
-                aria-selected={active === t.id}
-                className={active === t.id ? 'theme-swatch on' : 'theme-swatch'}
-                title={t.name}
-                onClick={() => pick(t.id)}
-              >
-                <span
-                  className="theme-swatch-colors"
-                  style={{
-                    background: `linear-gradient(135deg, ${t.swatch[0]} 0%, ${t.swatch[1]} 55%, ${t.swatch[2]} 100%)`,
-                  }}
-                />
-                <span className="theme-swatch-name">{t.name}</span>
-              </button>
-            ))}
-          </div>
+            <nav className="theme-sheet-tabs" aria-label="Theme sections">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={tab === t.id ? 'theme-sheet-tab on' : 'theme-sheet-tab'}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
 
-          <h3 className="theme-section-title">Manga picture</h3>
-          <p className="theme-picker-hint">
-            {bgId === 'none'
-              ? 'No picture — colors only. Manga is off.'
-              : 'Tap No picture to remove manga completely (not Villain night).'}
-          </p>
-          <div className="theme-bg-grid">
-            {scenes.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
-                onClick={() => pickBg(b.id)}
-              >
-                {b.file ? (
-                  <img className="theme-bg-thumb" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
-                ) : (
-                  <span className="theme-bg-none">None</span>
-                )}
-                <span className="theme-swatch-name">{b.name}</span>
-              </button>
-            ))}
-          </div>
+            <div className="theme-sheet-body soft-scroll">
+              {tab === 'colors' ? (
+                <>
+                  <p className="theme-picker-hint">Tap a palette to lock it.</p>
+                  <div className="theme-swatch-grid">
+                    {THEMES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active === t.id}
+                        className={active === t.id ? 'theme-swatch on' : 'theme-swatch'}
+                        title={t.name}
+                        onClick={() => pick(t.id)}
+                      >
+                        <span
+                          className="theme-swatch-colors"
+                          style={{
+                            background: `linear-gradient(135deg, ${t.swatch[0]} 0%, ${t.swatch[1]} 55%, ${t.swatch[2]} 100%)`,
+                          }}
+                        />
+                        <span className="theme-swatch-name">{t.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
 
-          <h3 className="theme-section-title">Manga characters</h3>
-          <p className="theme-picker-hint">Same stickers as icons — full-screen background. No picture clears.</p>
-          <div className="theme-bg-grid">
-            <button
-              type="button"
-              className={bgId === 'none' ? 'theme-bg-tile on' : 'theme-bg-tile'}
-              onClick={() => pickBg('none')}
-            >
-              <span className="theme-bg-none">None</span>
-              <span className="theme-swatch-name">No picture</span>
-            </button>
-            {characters.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
-                onClick={() => pickBg(b.id)}
-              >
-                <img className="theme-bg-thumb theme-bg-char" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
-                <span className="theme-swatch-name">{b.name}</span>
-              </button>
-            ))}
-          </div>
+              {tab === 'scenes' ? (
+                <>
+                  <p className="theme-picker-hint">
+                    {bgId === 'none'
+                      ? 'No picture — colors only.'
+                      : 'Tap No picture to clear manga.'}
+                  </p>
+                  {renderBgGrid(scenes, false)}
+                </>
+              ) : null}
 
-          {/* created: 2026-11-24T22:30:00-08:00 */}
-          <h3 className="theme-section-title">Manga faith</h3>
-          <p className="theme-picker-hint">Peaceful inclusive stickers — lotus, candle, dove.</p>
-          <div className="theme-bg-grid">
-            {faithChars.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
-                onClick={() => pickBg(b.id)}
-              >
-                <img className="theme-bg-thumb theme-bg-char" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
-                <span className="theme-swatch-name">{b.name}</span>
-              </button>
-            ))}
-          </div>
+              {tab === 'characters' ? (
+                <>
+                  <p className="theme-picker-hint">Character stickers as full-screen background.</p>
+                  {renderBgGrid(characters, true)}
+                </>
+              ) : null}
 
-          <h3 className="theme-section-title">Manga civic</h3>
-          <p className="theme-picker-hint">Classroom civics — voting, debate, town hall (non-partisan).</p>
-          <div className="theme-bg-grid">
-            {civicChars.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className={bgId === b.id ? 'theme-bg-tile on' : 'theme-bg-tile'}
-                onClick={() => pickBg(b.id)}
-              >
-                <img className="theme-bg-thumb theme-bg-char" src={`${baseUrl}${b.folder}/${b.file}`} alt="" />
-                <span className="theme-swatch-name">{b.name}</span>
-              </button>
-            ))}
+              {tab === 'faith' ? (
+                <>
+                  <p className="theme-picker-hint">Peaceful inclusive stickers.</p>
+                  {renderBgGrid(faithChars, true)}
+                </>
+              ) : null}
+
+              {tab === 'civic' ? (
+                <>
+                  <p className="theme-picker-hint">Classroom civics (non-partisan).</p>
+                  {renderBgGrid(civicChars, true)}
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

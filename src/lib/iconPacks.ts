@@ -3,6 +3,7 @@
 // updated: 2026-11-24T12:40:00-08:00 — manga sticker packs + imageUrl (PRD v2 C3)
 // updated: 2026-11-24T13:45:00-08:00 — +5 meme×manga icons per hero/villain/neutral
 // updated: 2026-11-24T22:30:00-08:00 — more emoji packs + faith & civic manga stickers
+// updated: 2026-11-25T01:15:00-08:00 — faith symbols + furry icon
 
 export type IconDef = {
   // created: 2026-11-23T21:00:00-08:00
@@ -22,7 +23,7 @@ function manga(path: string): string {
 }
 
 /** created: 2026-11-23T21:00:00-08:00 */
-/** updated: 2026-11-24T22:30:00-08:00 — emoji categories + faith/civic manga */
+/** updated: 2026-11-25T01:15:00-08:00 — emoji categories + faith/civic + furry */
 export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
   {
     id: 'manga-hero',
@@ -58,9 +59,11 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
       { id: 'manga-neutral-delulu', pack: 'manga-neutral', emoji: '💭', label: 'Delulu Yuki', imageUrl: manga('neutral-delulu.jpg') },
       { id: 'manga-neutral-npc', pack: 'manga-neutral', emoji: '🎒', label: 'NPC Ken', imageUrl: manga('neutral-npc.jpg') },
       { id: 'manga-neutral-lore', pack: 'manga-neutral', emoji: '📖', label: 'Lore Sora', imageUrl: manga('neutral-lore.jpg') },
+      { id: 'manga-neutral-furry', pack: 'manga-neutral', emoji: '🦊', label: 'Furry Fox', imageUrl: manga('char-furry.jpg') },
     ],
   },
   // created: 2026-11-24T22:30:00-08:00 — inclusive peaceful faith stickers (fictional)
+  // updated: 2026-11-25T01:15:00-08:00 — aum, cross, judaism, sikh, buddhist, islam marks
   {
     id: 'manga-faith',
     title: 'Manga Faith',
@@ -68,9 +71,12 @@ export const ICON_PACKS: { id: string; title: string; icons: IconDef[] }[] = [
       { id: 'manga-faith-lotus', pack: 'manga-faith', emoji: '🪷', label: 'Lotus Lina', imageUrl: manga('faith-lotus.jpg') },
       { id: 'manga-faith-candle', pack: 'manga-faith', emoji: '🕯️', label: 'Candle Kai', imageUrl: manga('faith-candle.jpg') },
       { id: 'manga-faith-dove', pack: 'manga-faith', emoji: '🕊️', label: 'Dove Dani', imageUrl: manga('faith-dove.jpg') },
-      { id: 'manga-faith-star', pack: 'manga-faith', emoji: '✡️', label: 'Star Sam' },
-      { id: 'manga-faith-crescent', pack: 'manga-faith', emoji: '🌙', label: 'Crescent Cam' },
-      { id: 'manga-faith-om', pack: 'manga-faith', emoji: '🕉️', label: 'Om Ari' },
+      { id: 'manga-faith-om', pack: 'manga-faith', emoji: '🕉️', label: 'Om / Aum', imageUrl: manga('faith-om.svg') },
+      { id: 'manga-faith-cross', pack: 'manga-faith', emoji: '✝️', label: 'Cross', imageUrl: manga('faith-cross.svg') },
+      { id: 'manga-faith-star', pack: 'manga-faith', emoji: '✡️', label: 'Star of David', imageUrl: manga('faith-star-david.svg') },
+      { id: 'manga-faith-khanda', pack: 'manga-faith', emoji: '☬', label: 'Khanda (Sikh)', imageUrl: manga('faith-khanda.svg') },
+      { id: 'manga-faith-dharma', pack: 'manga-faith', emoji: '☸️', label: 'Dharma wheel', imageUrl: manga('faith-dharma.svg') },
+      { id: 'manga-faith-crescent', pack: 'manga-faith', emoji: '☪️', label: 'Crescent', imageUrl: manga('faith-crescent.svg') },
     ],
   },
   // created: 2026-11-24T22:30:00-08:00 — non-partisan civics / political classroom stickers
