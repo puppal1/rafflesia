@@ -6,6 +6,7 @@
 // updated: 2026-11-24T14:30:00-08:00 — hide listed usernames from People / FYP / search
 // updated: 2026-11-24T23:55:00-08:00 — change password on Me
 // updated: 2026-11-25T00:20:00-08:00 — @mention open-profile from chat/comments
+// updated: 2026-11-25T00:30:00-08:00 — bloom notifications inbox
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -23,6 +24,7 @@ import { SiobhanFeed } from './components/SiobhanFeed'
 import { PhotoAttach } from './components/PhotoAttach'
 import { PeoplePickGrid } from './components/PeoplePickGrid'
 import { ChatPanel, ChatThread } from './components/ChatPanel'
+import { BloomInbox, type NotifNavigateTarget } from './components/BloomInbox'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 
@@ -768,6 +770,66 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  async function onNotificationNavigate(target: NotifNavigateTarget) {
+    // created: 2026-11-25T00:30:00-08:00 — bloom row → tab / chat / profile
+    closeFollowProfile()
+    setError('')
+    if (target.type === 'teacher_restrict') {
+      setTab('me')
+      setStatus(target.targetId ? 'A teacher updated your posting/messaging access.' : 'Teacher update.')
+      return
+    }
+    if (target.type === 'teacher_verify') {
+      setTab('me')
+      setStatus('Check Me — a teacher updated your verification.')
+      await loadMe()
+      return
+    }
+    if (target.type === 'news_story_reaction') {
+      setTab('siobhan')
+      setActiveChat(null)
+      return
+    }
+    if (target.type === 'follow' && (target.actorId || target.actorUsername)) {
+      if (target.actorUsername) {
+        await openUsername(target.actorUsername)
+        return
+      }
+      const p = people.find((x) => x.id === target.actorId) || profilesById[target.actorId || '']
+      if (p) await openProfile(p)
+      return
+    }
+    if (
+      (target.type === 'chat_message' ||
+        target.type === 'chat_mention' ||
+        target.type === 'announcement') &&
+      target.chatId
+    ) {
+      let chat = chats.find((c) => c.id === target.chatId) || null
+      if (!chat) {
+        const { data } = await supabase.from('chats').select('*').eq('id', target.chatId).maybeSingle()
+        chat = (data as ChatRow | null) || null
+        if (chat) setChats((prev) => (prev.some((c) => c.id === chat!.id) ? prev : [...prev, chat!]))
+      }
+      if (chat) {
+        setActiveChat(chat)
+        setTab(chat.is_group || chat.lounge_key ? 'lounge' : 'chats')
+      }
+      return
+    }
+    if (
+      target.type === 'post_comment' ||
+      target.type === 'post_comment_followup' ||
+      target.type === 'post_reaction'
+    ) {
+      setTab('fyp')
+      setActiveChat(null)
+      setStatus('Open For You — there’s new activity on a post.')
+      return
+    }
+    setTab('fyp')
+  }
+
   async function openProfile(profile: Profile, kind: FollowListKind | null = null) {
     // updated: 2026-11-24T14:30:00-08:00 — refuse hidden usernames
     if (isHiddenProfile(profile) && profile.id !== userId) {
@@ -1410,9 +1472,13 @@ export function HomeApp({ userId, onLogout }: Props) {
             </p>
           </div>
         </div>
-        <button className="ghost header-logout" type="button" onClick={onLogout}>
-          Log out
-        </button>
+        <div className="header-actions">
+          {/* created: 2026-11-25T00:30:00-08:00 */}
+          <BloomInbox userId={userId} onNavigate={onNotificationNavigate} />
+          <button className="ghost header-logout" type="button" onClick={onLogout}>
+            Log out
+          </button>
+        </div>
       </div>
 
       {error ? <p className="error">{error}</p> : null}

@@ -2,6 +2,7 @@
 <!-- created: 2026-11-24T22:50:00-08:00 -->
 <!-- updated: 2026-11-24T23:40:00-08:00 — login always challenged off-site; Turnstile Edge verify -->
 <!-- updated: 2026-11-24T23:55:00-08:00 — teacher captcha always; Me + teacher change password; site-wide posts -->
+<!-- updated: 2026-11-25T00:30:00-08:00 — bloom notifications (run sql/notifications.sql) -->
 
 ## Public vs private
 
