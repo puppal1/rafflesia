@@ -1,4 +1,5 @@
 // created: 2026-11-25T00:20:00-08:00 — render @username highlights in chat/comments
+// updated: 2026-11-25T00:25:00-08:00 — always highlight @handles; tap tries open even if not in local map
 import { splitMentionText } from '../lib/mentions'
 import type { Profile } from '../types'
 
@@ -6,7 +7,6 @@ type Props = {
   // created: 2026-11-25T00:20:00-08:00
   text: string
   profilesById?: Record<string, Profile>
-  /** Prefer username lookup map when profiles keyed by id */
   people?: Profile[]
   className?: string
   onOpenUsername?: (username: string) => void
@@ -29,6 +29,7 @@ function resolveProfile(
 }
 
 /** created: 2026-11-25T00:20:00-08:00 */
+/** updated: 2026-11-25T00:25:00-08:00 — every @token is a visible, tappable mention */
 export function MentionText({
   text,
   profilesById,
@@ -44,26 +45,20 @@ export function MentionText({
           return <span key={`t-${i}`}>{p.value}</span>
         }
         const known = resolveProfile(p.username, profilesById, people)
-        if (!known) {
-          return (
-            <span key={`m-${i}`} className="mention-token plain">
-              {p.value}
-            </span>
-          )
-        }
+        const handle = known?.username || p.username
         return (
           <button
             key={`m-${i}`}
             type="button"
-            className="mention-token known"
-            title={`@${known.username}`}
+            className={known ? 'mention-token known' : 'mention-token linkish'}
+            title={`@${handle}`}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              onOpenUsername?.(known.username)
+              onOpenUsername?.(handle)
             }}
           >
-            @{known.username}
+            @{handle}
           </button>
         )
       })}

@@ -3978,29 +3978,32 @@ select {
 }
 
 /* created: 2026-11-25T00:20:00-08:00 — @mention highlight + typeahead */
+/* updated: 2026-11-25T00:25:00-08:00 — all @handles look linked inside bubbles */
 .mention-text {
   white-space: pre-wrap;
   word-break: break-word;
 }
-.mention-token {
+.mention-token,
+.chat2-text .mention-token,
+.profile-bio .mention-token {
+  display: inline;
   font: inherit;
+  font-size: inherit;
+  line-height: inherit;
   border: none;
   background: transparent;
   padding: 0 1px;
   margin: 0;
-  cursor: default;
-  color: inherit;
-}
-.mention-token.known {
   cursor: pointer;
   color: var(--accent, #c45c26);
-  font-weight: 650;
+  font-weight: 700;
   text-decoration: underline;
-  text-decoration-thickness: 1px;
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
 }
-.mention-token.plain {
-  opacity: 0.85;
+.mention-token.known,
+.mention-token.linkish {
+  color: var(--accent, #c45c26);
 }
 .mention-field {
   position: relative;
