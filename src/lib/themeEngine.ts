@@ -94,6 +94,7 @@ export function applyTheme(theme: ThemeDef) {
 
   // Manga picture is ONLY from KEY_MANGA_BG. Color themes must not paint images.
   const picked = mangaBgById(getMangaBgId())
+  // updated: 2026-11-25T01:15:00-08:00 — svg faith marks count as pictures too
   const wantNone = picked.id === 'none' || picked.group === 'off' || !picked.file
   if (wantNone) {
     clearMangaLayers(root)

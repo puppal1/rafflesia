@@ -149,16 +149,17 @@ Source: [`PRD v4.0.md`](PRD%20v4.0.md)
 
 | # | Epic | Status |
 |---|------|--------|
-| 8.J1 | Unread Messages — **DMs only** | Locked |
-| 8.J2 | Teacher kid password reset | Locked |
-| 8.J3 | Kid Report → teacher Flags | Locked |
-| 8.J4 | Edit own post/comment — **15m TTL** | Locked |
-| 8.J5 | Lounge polls | Locked |
-| 8.J6 | Profile media grid | Locked |
-| 8.J7 | Chat stickers / PNG | Locked |
-| 8.J8 | Help / club rules | Locked |
+| 8.J1 | Unread Messages — **DMs only** | **Done** (SQL `prd-v4.sql`) |
+| 8.J2 | Teacher kid password reset | **Done** (SQL) |
+| 8.J3 | Kid Report → teacher Reports | **Done** (SQL) |
+| 8.J4 | Edit own post/comment — **15m TTL** | **Done** (SQL) |
+| 8.J5 | Lounge polls | **Done** (SQL) |
+| 8.J6 | Profile media grid | **Done** |
+| 8.J7 | Chat stickers / PNG | **Done** |
+| 8.J8 | Help / club rules | **Done** |
 
-**Parked:** Following+FYP tabs (decide later), mute, bookmarks, Play, presence, notif prefs, calendar, hashtags, nested replies, push, read receipts.
+**Human:** run `sql/prd-v4.sql` in Supabase.  
+**Parked:** Following+FYP tabs, mute, bookmarks, Play, presence, notif prefs, calendar, hashtags, nested replies, push, read receipts.
 
 ---
 

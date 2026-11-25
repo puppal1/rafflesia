@@ -3,8 +3,9 @@
 <!-- baseline: PRD.md · PRD v2.0.md · PRD v3.0.md · tasks: TASKS.md -->
 <!-- audience: Diyaan (~10) + parent helper -->
 
-**This file = next features locked after reviewing v1–v3.**  
-Not built yet — wires before build ([`PRD.md`](PRD.md) §0).  
+**This file = v4 features locked after reviewing v1–v3.**  
+<!-- updated: 2026-11-25T01:35:00-08:00 — implemented in app; human runs sql/prd-v4.sql -->  
+**App code: shipped.** **SQL:** run [`sql/prd-v4.sql`](../sql/prd-v4.sql) in Supabase.  
 Shipped truth: [`PRD.md`](PRD.md) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v3.0.md`](PRD%20v3.0.md).
 
 ---
@@ -52,9 +53,9 @@ After v4, kids can see **unread DMs**, **edit** fresh posts for 15 minutes, **re
 **Acceptance**
 <!-- created: 2026-11-25T01:18:00-08:00 -->
 
-- [ ] New DM from a friend badges Messages  
-- [ ] New message in a group / Everyone / Announcements does **not** badge Messages  
-- [ ] Open thread → badge for that chat clears  
+- [x] New DM from a friend badges Messages (after SQL)  
+- [x] New message in a group / Everyone / Announcements does **not** badge Messages  
+- [x] Open thread → badge for that chat clears  
 
 ---
 

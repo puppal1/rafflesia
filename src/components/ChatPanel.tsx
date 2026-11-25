@@ -1,6 +1,7 @@
 // created: 2026-11-24T14:10:00-08:00 — clean chat UI from scratch (one scroll, no nested bars)
 // updated: 2026-11-24T14:05:00-08:00 — scroll the stream itself; don’t scrollIntoView the page
 // updated: 2026-11-25T00:20:00-08:00 — @mention autocomplete + highlighted message text
+// updated: 2026-11-25T01:25:00-08:00 — PRD v4 stickers, polls, DM unread badges
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { CHAT_EMOJIS, insertEmojiAtCursor } from '../lib/emojiBar'
@@ -11,11 +12,16 @@ import {
 } from '../lib/mentions'
 import { parsePostShare } from '../lib/postShare'
 import { prepareChatImage } from '../lib/chatImage'
+import { parsePollMessage } from '../lib/polls'
+import { encodeStickerBody, parseStickerBody } from '../lib/stickers'
+import type { IconDef } from '../lib/iconPacks'
 import { FaceAvatar } from './FaceAvatar'
 import { MediaLightbox } from './MediaLightbox'
 import { MentionText } from './MentionText'
 import { MentionTypeahead } from './MentionTypeahead'
 import { NameWithBadge } from './VerifiedBadge'
+import { PollCard } from './PollCard'
+import { StickerPicker } from './StickerPicker'
 import type { ChatRow, MessageRow, PostRow, Profile } from '../types'
 
 function niceName(p: Profile | null | undefined) {
@@ -57,6 +63,9 @@ type ThreadProps = {
   /** created: 2026-11-25T00:20:00-08:00 */
   mentionPeople?: Profile[]
   onOpenUsername?: (username: string) => void
+  /** created: 2026-11-25T01:25:00-08:00 — lounge polls */
+  allowPolls?: boolean
+  onCreatePoll?: (question: string, options: string[]) => Promise<void>
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — conversation + composer only */
@@ -83,6 +92,8 @@ export function ChatThread({
   messagesEndRef,
   mentionPeople,
   onOpenUsername,
+  allowPolls,
+  onCreatePoll,
 }: ThreadProps) {
   const [draft, setDraft] = useState('')
   const [link, setLink] = useState('')
@@ -94,6 +105,9 @@ export function ChatThread({
   const [err, setErr] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
+  const [pollOpen, setPollOpen] = useState(false)
+  const [pollQ, setPollQ] = useState('')
+  const [pollOpts, setPollOpts] = useState(['', ''])
   const inputRef = useRef<HTMLInputElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const streamRef = useRef<HTMLDivElement | null>(null)
@@ -108,6 +122,40 @@ export function ChatThread({
   const activeMention = getActiveMention(draft, cursor)
   const mentionHits =
     activeMention && !readOnly ? filterMentionPeople(people, activeMention.query) : []
+
+  async function sendSticker(icon: IconDef) {
+    // created: 2026-11-25T01:25:00-08:00
+    setLocalBusy(true)
+    setErr('')
+    try {
+      await onSend({
+        body: encodeStickerBody(icon),
+        mediaUrl: icon.imageUrl || null,
+      })
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : 'Could not send sticker.')
+    } finally {
+      setLocalBusy(false)
+    }
+  }
+
+  async function submitPoll() {
+    // created: 2026-11-25T01:25:00-08:00
+    if (!onCreatePoll) return
+    const opts = pollOpts.map((o) => o.trim()).filter(Boolean)
+    setLocalBusy(true)
+    setErr('')
+    try {
+      await onCreatePoll(pollQ.trim(), opts)
+      setPollQ('')
+      setPollOpts(['', ''])
+      setPollOpen(false)
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : 'Could not create poll.')
+    } finally {
+      setLocalBusy(false)
+    }
+  }
 
   function pickMention(p: Profile) {
     if (!activeMention) return
@@ -205,7 +253,9 @@ export function ChatThread({
           messages.map((m) => {
             const sender = profilesById[m.sender_id]
             const mine = m.sender_id === userId
-            const shared = parsePostShare(m.body)
+            const pollId = parsePollMessage(m.body)
+            const sticker = parseStickerBody(m.body)
+            const shared = pollId || sticker ? null : parsePostShare(m.body)
             const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
             const media = m.video_url
             const img = media && isChatImage(media)
@@ -218,7 +268,18 @@ export function ChatThread({
                   />
                   <span>· {new Date(m.created_at).toLocaleTimeString()}</span>
                 </div>
-                {shared ? (
+                {pollId ? (
+                  <PollCard pollId={pollId} userId={userId} canClose={mine} />
+                ) : sticker ? (
+                  <div className="chat2-sticker">
+                    {sticker.imageUrl ? (
+                      <img src={sticker.imageUrl} alt={sticker.label} />
+                    ) : (
+                      <span className="chat2-sticker-emoji">{sticker.emoji}</span>
+                    )}
+                    <span className="chat2-muted">{sticker.label}</span>
+                  </div>
+                ) : shared ? (
                   <div className="chat2-share">
                     <p className="chat2-share-label">Shared post</p>
                     {sharedPost ? (
@@ -276,13 +337,15 @@ export function ChatThread({
                     ) : null}
                   </>
                 )}
-                <button
-                  type="button"
-                  className={myLiked.has(m.id) ? 'chat2-like on' : 'chat2-like'}
-                  onClick={() => onToggleLike(m.id)}
-                >
-                  ♥ {likes[m.id] || 0}
-                </button>
+                {!pollId ? (
+                  <button
+                    type="button"
+                    className={myLiked.has(m.id) ? 'chat2-like on' : 'chat2-like'}
+                    onClick={() => onToggleLike(m.id)}
+                  >
+                    ♥ {likes[m.id] || 0}
+                  </button>
+                ) : null}
               </article>
             )
           })
@@ -342,6 +405,59 @@ export function ChatThread({
             />
           ) : null}
           {err ? <p className="chat2-err">{err}</p> : null}
+          <StickerPicker disabled={locked} onPick={sendSticker} />
+          {allowPolls && onCreatePoll ? (
+            <div className="poll-composer">
+              <button
+                className="ghost btn-compact"
+                type="button"
+                disabled={locked}
+                onClick={() => setPollOpen((v) => !v)}
+              >
+                {pollOpen ? 'Hide poll' : 'Poll'}
+              </button>
+              {pollOpen ? (
+                <div className="poll-form">
+                  <label>
+                    Question
+                    <input value={pollQ} onChange={(e) => setPollQ(e.target.value.slice(0, 200))} />
+                  </label>
+                  {pollOpts.map((o, i) => (
+                    <label key={`po-${i}`}>
+                      Choice {i + 1}
+                      <input
+                        value={o}
+                        onChange={(e) => {
+                          const next = [...pollOpts]
+                          next[i] = e.target.value.slice(0, 80)
+                          setPollOpts(next)
+                        }}
+                      />
+                    </label>
+                  ))}
+                  <div className="row-actions" style={{ gap: 6 }}>
+                    {pollOpts.length < 4 ? (
+                      <button
+                        className="ghost btn-compact"
+                        type="button"
+                        onClick={() => setPollOpts((v) => [...v, ''])}
+                      >
+                        + Choice
+                      </button>
+                    ) : null}
+                    <button
+                      className="primary btn-compact"
+                      type="button"
+                      disabled={locked}
+                      onClick={submitPoll}
+                    >
+                      Post poll
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <MentionTypeahead hits={mentionHits} onPick={pickMention} />
           <form className="chat2-row" onSubmit={submit}>
             <input
@@ -432,6 +548,8 @@ type PanelProps = {
   /** created: 2026-11-25T00:20:00-08:00 */
   mentionPeople?: Profile[]
   onOpenUsername?: (username: string) => void
+  /** created: 2026-11-25T01:25:00-08:00 — DM unread only */
+  unreadByChatId?: Record<string, number>
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — inbox + thread shell */
@@ -454,6 +572,7 @@ export function ChatPanel({
   authorName,
   mentionPeople,
   onOpenUsername,
+  unreadByChatId,
 }: PanelProps) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -495,6 +614,7 @@ export function ChatPanel({
             list.map((c) => {
               const p = peersByChatId[c.id]
               const on = activeChat?.id === c.id
+              const unread = unreadByChatId?.[c.id] || 0
               return (
                 <button
                   key={c.id}
@@ -515,9 +635,15 @@ export function ChatPanel({
                       ) : (
                         'Private chat'
                       )}
+                      {unread > 0 ? (
+                        <span className="nav-unread-badge" aria-label={`${unread} unread`}>
+                          {unread > 9 ? '9+' : unread}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="chat2-person-sub">
                       {p ? `@${p.username}` : '1:1 chat'}
+                      {unread > 0 ? ' · new' : ''}
                     </span>
                   </span>
                 </button>

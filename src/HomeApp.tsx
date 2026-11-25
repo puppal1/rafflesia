@@ -7,6 +7,7 @@
 // updated: 2026-11-24T23:55:00-08:00 — change password on Me
 // updated: 2026-11-25T00:20:00-08:00 — @mention open-profile from chat/comments
 // updated: 2026-11-25T00:30:00-08:00 — bloom notifications inbox
+// updated: 2026-11-25T01:25:00-08:00 — PRD v4: DM unread, help, media grid, polls, report
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -16,6 +17,9 @@ import { fetchFollowCounts, fetchMyFollowingIds, toggleFollowRpc } from './lib/f
 import { checkKidText, reportBlockedText } from './lib/textChecker'
 import { iconEmoji, type IconDef } from './lib/iconPacks'
 import { encodePostShare } from './lib/postShare'
+import { countMyUnreadDms, listMyDmUnreadCounts, markDmRead } from './lib/dmUnread'
+import { createChatPoll } from './lib/polls'
+import { parseStickerBody } from './lib/stickers'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
@@ -27,6 +31,9 @@ import { ChatPanel, ChatThread } from './components/ChatPanel'
 import { BloomInbox, type NotifNavigateTarget } from './components/BloomInbox'
 import { ThemePicker } from './components/ThemePicker'
 import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
+import { HelpClubRules } from './components/HelpClubRules'
+import { ProfileMediaGrid } from './components/ProfileMediaGrid'
+import { ReportButton } from './components/ReportButton'
 
 import {
   WEBSITE_LINKS_MAX,
@@ -56,6 +63,10 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [pwCurrent, setPwCurrent] = useState('')
   const [pwNew, setPwNew] = useState('')
   const [pwConfirm, setPwConfirm] = useState('')
+  // created: 2026-11-25T01:25:00-08:00 — PRD v4
+  const [showHelp, setShowHelp] = useState(false)
+  const [dmUnreadTotal, setDmUnreadTotal] = useState(0)
+  const [dmUnreadByChat, setDmUnreadByChat] = useState<Record<string, number>>({})
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -344,9 +355,30 @@ export function HomeApp({ userId, onLogout }: Props) {
     [userId],
   )
 
+  const refreshDmUnread = useCallback(async () => {
+    // created: 2026-11-25T01:25:00-08:00
+    try {
+      const [total, byChat] = await Promise.all([countMyUnreadDms(), listMyDmUnreadCounts()])
+      setDmUnreadTotal(total)
+      setDmUnreadByChat(byChat)
+    } catch {
+      /* SQL may not be applied yet */
+    }
+  }, [])
+
+  useEffect(() => {
+    // created: 2026-11-25T01:25:00-08:00 — poll DM unread for Messages badge
+    refreshDmUnread().catch(() => undefined)
+    const id = window.setInterval(() => {
+      refreshDmUnread().catch(() => undefined)
+    }, 8000)
+    return () => window.clearInterval(id)
+  }, [refreshDmUnread])
+
   useEffect(() => {
     // created: 2026-11-23T12:14:00-08:00
     // updated: 2026-11-23T20:30:00-08:00 — realtime + 2s poll so chats update without refresh
+    // updated: 2026-11-25T01:25:00-08:00 — mark DM read when opening private chat
     if (!activeChat) return
     const chatId = activeChat.id
     let cancelled = false
@@ -365,6 +397,9 @@ export function HomeApp({ userId, onLogout }: Props) {
       setGroupMemberIds(new Set())
       setShowAddFriends(false)
       setAddPickIds(new Set())
+      markDmRead(chatId)
+        .then(() => refreshDmUnread())
+        .catch(() => undefined)
     }
 
     const channel = supabase
@@ -1153,10 +1188,11 @@ export function HomeApp({ userId, onLogout }: Props) {
 
   async function sendChatPayload(payload: { body: string; mediaUrl: string | null }) {
     // created: 2026-11-24T14:10:00-08:00 — used by ChatPanel / ChatThread
+    // updated: 2026-11-25T01:25:00-08:00 — stickers skip text check
     if (!activeChat) throw new Error('No active chat.')
     const body = payload.body.trim()
     if (!body && !payload.mediaUrl) return
-    if (body) {
+    if (body && !parseStickerBody(body)) {
       const check = await checkKidText(body)
       if (!check.ok) {
         await reportBlockedText('message', body, check.matched)
@@ -1317,6 +1353,7 @@ export function HomeApp({ userId, onLogout }: Props) {
     // created: 2026-11-23T21:10:00-08:00 — A6 nav shell
     // updated: 2026-11-23T23:45:00-08:00 — right-hand rail
     // updated: 2026-11-24T12:35:00-08:00 — FYP + Siobhan
+    // updated: 2026-11-25T01:25:00-08:00 — DM unread badge on Messages
     <nav className="nav nav-shell nav-rail" aria-label="Main">
       {(
         [
@@ -1332,15 +1369,21 @@ export function HomeApp({ userId, onLogout }: Props) {
         <button
           key={id}
           type="button"
-          className={tab === id && !viewProfile ? 'active' : ''}
+          className={tab === id && !viewProfile && !showHelp ? 'active' : ''}
           onClick={() => {
             closeFollowProfile()
+            setShowHelp(false)
             setActiveChat(null)
             setTab(id)
             if (id === 'fyp') loadPosts()
           }}
         >
           {label}
+          {id === 'chats' && dmUnreadTotal > 0 ? (
+            <span className="nav-unread-badge" aria-label={`${dmUnreadTotal} unread DMs`}>
+              {dmUnreadTotal > 9 ? '9+' : dmUnreadTotal}
+            </span>
+          ) : null}
         </button>
       ))}
     </nav>
@@ -1562,7 +1605,7 @@ export function HomeApp({ userId, onLogout }: Props) {
           </div>
 
           {viewProfile.id !== userId ? (
-            <div className="row-actions" style={{ marginBottom: 12 }}>
+            <div className="row-actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
               <button
                 className="ghost"
                 type="button"
@@ -1578,8 +1621,11 @@ export function HomeApp({ userId, onLogout }: Props) {
               <button className="primary" type="button" disabled={busy} onClick={() => startDm(viewProfile)}>
                 {busy ? 'Messaging…' : 'Message'}
               </button>
+              <ReportButton targetType="user" targetId={viewProfile.id} busy={busy} />
             </div>
           ) : null}
+
+          <ProfileMediaGrid authorId={viewProfile.id} />
 
           <h2 className="panel-title">Lounge groups together</h2>
           <div className="list" style={{ marginBottom: 14 }}>
@@ -1663,7 +1709,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'fyp' && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'fyp' && (
         <div className="fyp-panel">
           {/* created: 2026-11-24T12:35:00-08:00 — FYP + search */}
           {/* updated: 2026-11-24T12:55:00-08:00 — search behind toggle */}
@@ -1745,7 +1791,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'post' && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'post' && (
         <form className="form form-compact" onSubmit={submitPost}>
           {/* created: 2026-11-23T21:10:00-08:00 */}
           {/* updated: 2026-11-23T21:50:00-08:00 — C3 icon mode picker; upload+link for pic/video */}
@@ -1879,7 +1925,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </form>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'lounge' && !activeChat && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'lounge' && !activeChat && (
         <div>
           {/* created: 2026-11-23T22:35:00-08:00 */}
           {/* updated: 2026-11-23T22:40:00-08:00 — Lounge room ≠ group chats */}
@@ -2017,7 +2063,11 @@ export function HomeApp({ userId, onLogout }: Props) {
         </div>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'me' && (
+      {!viewProfile && !textBlockMsg && showHelp && (
+        <HelpClubRules onBack={() => setShowHelp(false)} />
+      )}
+
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'me' && (
         <form className="form me-form" onSubmit={saveProfile}>
           <h2 className="panel-title">My profile</h2>
           <p className="muted">
@@ -2034,7 +2084,11 @@ export function HomeApp({ userId, onLogout }: Props) {
             >
               Change icon
             </button>
+            <button className="ghost btn-compact" type="button" onClick={() => setShowHelp(true)}>
+              Help & club rules
+            </button>
           </div>
+          {me ? <ProfileMediaGrid authorId={me.id} /> : null}
           <div className="follow-counts">
             <button
               type="button"
@@ -2240,7 +2294,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         </form>
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'siobhan' && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'siobhan' && (
         // created: 2026-11-24T12:35:00-08:00 — PRD v2 B7
         // updated: 2026-11-24T13:10:00-08:00 — manga science scrolling feed
         <SiobhanFeed
@@ -2262,7 +2316,7 @@ export function HomeApp({ userId, onLogout }: Props) {
         />
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'people' && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'people' && (
         <div>
           <h2 className="panel-title">People</h2>
           <p className="muted">Follow friends or start a chat. Tap a name to see their lists.</p>
@@ -2315,7 +2369,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       )}
 
       {/* created: 2026-11-24T14:10:00-08:00 — ChatPanel v2 */}
-      {!viewProfile && !textBlockMsg && tab === 'chats' && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'chats' && (
         <ChatPanel
           userId={userId}
           me={me}
@@ -2335,10 +2389,11 @@ export function HomeApp({ userId, onLogout }: Props) {
           authorName={authorName}
           mentionPeople={people}
           onOpenUsername={openUsername}
+          unreadByChatId={dmUnreadByChat}
         />
       )}
 
-      {!viewProfile && !textBlockMsg && tab === 'lounge' && activeChat && activeChat.is_group && (
+      {!viewProfile && !textBlockMsg && !showHelp && tab === 'lounge' && activeChat && activeChat.is_group && (
         <div className="chat2-thread solo">
           {activeChat.is_group && !isEveryoneChat && !isAnnouncementsChat && showAddFriends ? (
             <div className="add-friends-panel" style={{ padding: 12 }}>
@@ -2402,6 +2457,29 @@ export function HomeApp({ userId, onLogout }: Props) {
             authorName={authorName}
             mentionPeople={people}
             onOpenUsername={openUsername}
+            allowPolls={
+              isAnnouncementsChat ? me?.username === 'rafflesiaonline' : true
+            }
+            onCreatePoll={async (question, options) => {
+              // created: 2026-11-25T01:25:00-08:00
+              if (!activeChat) return
+              const check = await checkKidText(question)
+              if (!check.ok) {
+                await reportBlockedText('poll', question, check.matched)
+                setTextBlockMsg(check.message)
+                throw new Error(check.message)
+              }
+              for (const o of options) {
+                const c = await checkKidText(o)
+                if (!c.ok) {
+                  await reportBlockedText('poll', o, c.matched)
+                  setTextBlockMsg(c.message)
+                  throw new Error(c.message)
+                }
+              }
+              await createChatPoll(activeChat.id, question, options)
+              await loadMessages(activeChat.id)
+            }}
           />
         </div>
       )}

@@ -3,9 +3,11 @@
 // updated: 2026-11-24T13:35:00-08:00 — emoji likes, comment emoji + photo
 // updated: 2026-11-24T13:58:00-08:00 — larger post images + tap-to-enlarge lightbox
 // updated: 2026-11-25T00:20:00-08:00 — @mentions + soft Reply
+// updated: 2026-11-25T01:25:00-08:00 — PRD v4 edit TTL + report
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { replyMentionSeed } from '../lib/mentions'
+import { canEditCreatedAt } from '../lib/editWindow'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
 import type { ReactionRow, ReactionTarget } from '../lib/reactions'
 import { NameWithBadge } from './VerifiedBadge'
@@ -13,6 +15,7 @@ import { ReactionBar } from './ReactionBar'
 import { CommentComposer } from './CommentComposer'
 import { MentionText } from './MentionText'
 import { MediaLightbox } from './MediaLightbox'
+import { ReportButton } from './ReportButton'
 import type { PostRow, Profile } from '../types'
 
 export type PostComment = {
@@ -24,6 +27,7 @@ export type PostComment = {
   created_at: string
   deleted_at?: string | null
   media_url?: string | null
+  edited_at?: string | null
 }
 
 type Props = {
@@ -68,7 +72,14 @@ export function PostCard({
   const [err, setErr] = useState('')
   const [reactions, setReactions] = useState<ReactionRow[]>([])
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [editingPost, setEditingPost] = useState(false)
+  const [postDraft, setPostDraft] = useState(post.body || '')
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [commentDraft, setCommentDraft] = useState('')
+  const [postBody, setPostBody] = useState(post.body)
+  const [postEditedAt, setPostEditedAt] = useState(post.edited_at || null)
   const mine = post.author_id === userId
+  const canEditPost = mine && canEditCreatedAt(post.created_at)
 
   const loadComments = useCallback(async () => {
     const { data, error } = await supabase
@@ -169,6 +180,68 @@ export function PostCard({
     }
   }
 
+  async function savePostEdit() {
+    // created: 2026-11-25T01:25:00-08:00
+    setLocalBusy(true)
+    setErr('')
+    try {
+      const check = await checkKidText(postDraft)
+      if (!check.ok) {
+        await reportBlockedText('post', postDraft, check.matched)
+        throw new Error(check.message)
+      }
+      const { data, error } = await supabase.rpc('update_my_post', {
+        p_post_id: post.id,
+        p_body: postDraft,
+      })
+      if (error) {
+        throw new Error(
+          /update_my_post|schema cache/i.test(error.message)
+            ? 'Edit needs sql/prd-v4.sql — run in Supabase.'
+            : error.message,
+        )
+      }
+      const row = data as PostRow
+      setPostBody(row.body)
+      setPostEditedAt(row.edited_at || new Date().toISOString())
+      setEditingPost(false)
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : 'Could not edit post.')
+    } finally {
+      setLocalBusy(false)
+    }
+  }
+
+  async function saveCommentEdit(id: string) {
+    // created: 2026-11-25T01:25:00-08:00
+    setLocalBusy(true)
+    setErr('')
+    try {
+      const check = await checkKidText(commentDraft)
+      if (!check.ok) {
+        await reportBlockedText('comment', commentDraft, check.matched)
+        throw new Error(check.message)
+      }
+      const { error } = await supabase.rpc('update_my_comment', {
+        p_comment_id: id,
+        p_body: commentDraft,
+      })
+      if (error) {
+        throw new Error(
+          /update_my_comment|schema cache/i.test(error.message)
+            ? 'Edit needs sql/prd-v4.sql — run in Supabase.'
+            : error.message,
+        )
+      }
+      setEditingCommentId(null)
+      await loadComments()
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : 'Could not edit comment.')
+    } finally {
+      setLocalBusy(false)
+    }
+  }
+
   const kindLabel =
     post.kind === 'picture'
       ? 'Picture'
@@ -192,7 +265,24 @@ export function PostCard({
         <p className="post-card-time">{new Date(post.created_at).toLocaleString()}</p>
       </header>
 
-      {post.body ? <p className="post-card-body">{post.body}</p> : null}
+      {editingPost ? (
+        <div className="post-edit-box">
+          <textarea value={postDraft} onChange={(e) => setPostDraft(e.target.value.slice(0, 2000))} rows={3} />
+          <div className="row-actions" style={{ gap: 6 }}>
+            <button className="primary btn-compact" type="button" disabled={localBusy} onClick={savePostEdit}>
+              Save
+            </button>
+            <button className="ghost btn-compact" type="button" disabled={localBusy} onClick={() => setEditingPost(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : postBody ? (
+        <p className="post-card-body">
+          {postBody}
+          {postEditedAt ? <span className="muted"> · edited</span> : null}
+        </p>
+      ) : null}
 
       {post.kind === 'picture' ? (
         post.media_url ? (
@@ -243,11 +333,26 @@ export function PostCard({
         <button className="ghost btn-compact" type="button" disabled={busy || localBusy} onClick={() => onShare(post)}>
           Share
         </button>
+        {mine && canEditPost ? (
+          <button
+            className="ghost btn-compact"
+            type="button"
+            disabled={localBusy}
+            onClick={() => {
+              setPostDraft(postBody || '')
+              setEditingPost(true)
+            }}
+          >
+            Edit
+          </button>
+        ) : null}
         {mine ? (
           <button className="danger btn-compact" type="button" disabled={localBusy} onClick={deletePost}>
             Delete
           </button>
-        ) : null}
+        ) : (
+          <ReportButton targetType="post" targetId={post.id} busy={localBusy || busy} />
+        )}
       </div>
 
       {err ? <p className="error">{err}</p> : null}
@@ -269,13 +374,42 @@ export function PostCard({
                     />
                     <span>· {new Date(c.created_at).toLocaleString()}</span>
                   </p>
-                  <p className="profile-bio">
-                    <MentionText
-                      text={c.body}
-                      profilesById={profilesById}
-                      onOpenUsername={onOpenUsername}
-                    />
-                  </p>
+                  {editingCommentId === c.id ? (
+                    <div className="post-edit-box">
+                      <textarea
+                        value={commentDraft}
+                        onChange={(e) => setCommentDraft(e.target.value.slice(0, 500))}
+                        rows={2}
+                      />
+                      <div className="row-actions" style={{ gap: 6 }}>
+                        <button
+                          className="primary btn-compact"
+                          type="button"
+                          disabled={localBusy}
+                          onClick={() => saveCommentEdit(c.id)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="ghost btn-compact"
+                          type="button"
+                          disabled={localBusy}
+                          onClick={() => setEditingCommentId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="profile-bio">
+                      <MentionText
+                        text={c.body}
+                        profilesById={profilesById}
+                        onOpenUsername={onOpenUsername}
+                      />
+                      {c.edited_at ? <span className="muted"> · edited</span> : null}
+                    </p>
+                  )}
                   {c.media_url ? (
                     <button
                       type="button"
@@ -315,6 +449,19 @@ export function PostCard({
                         Reply
                       </button>
                     ) : null}
+                    {c.author_id === userId && canEditCreatedAt(c.created_at) ? (
+                      <button
+                        className="ghost btn-compact"
+                        type="button"
+                        disabled={localBusy}
+                        onClick={() => {
+                          setEditingCommentId(c.id)
+                          setCommentDraft(c.body)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : null}
                     {c.author_id === userId ? (
                       <button
                         className="ghost btn-compact"
@@ -324,7 +471,9 @@ export function PostCard({
                       >
                         Delete
                       </button>
-                    ) : null}
+                    ) : (
+                      <ReportButton targetType="comment" targetId={c.id} busy={localBusy || busy} />
+                    )}
                   </div>
                 </div>
               )

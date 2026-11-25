@@ -57,6 +57,8 @@ export type PostRow = {
   created_at: string
   deleted_at?: string | null
   deleted_reason?: string | null
+  /** created: 2026-11-25T01:25:00-08:00 — PRD v4 edit TTL */
+  edited_at?: string | null
 }
 
 /** created: 2026-11-23T21:05:00-08:00 — A6 nav shell */

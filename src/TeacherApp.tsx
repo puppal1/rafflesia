@@ -1,6 +1,7 @@
 // created: 2026-11-23T21:00:00-08:00
 // updated: 2026-11-23T23:35:00-08:00 — Verify tab (pink / gold / blue)
 // updated: 2026-11-24T23:50:00-08:00 — always captcha on teacher login; site-wide posts + search
+// updated: 2026-11-25T01:25:00-08:00 — PRD v4 kid password reset + kid reports
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AuthChallenge, verifyTurnstileToken } from './components/AuthChallenge'
@@ -10,6 +11,18 @@ import { clearBlockedPhraseCache } from './lib/textChecker'
 import { iconEmoji } from './lib/iconPacks'
 import { VerifiedBadge } from './components/VerifiedBadge'
 import type { PostRow, VerifyTier } from './types'
+
+/** created: 2026-11-25T01:25:00-08:00 */
+type KidReport = {
+  id: string
+  reporter_username: string
+  target_type: string
+  target_id: string
+  reason: string
+  status: string
+  created_at: string
+  target_preview: string
+}
 
 /** created: 2026-11-24T23:50:00-08:00 — post row with author for site-wide review */
 type ModPost = PostRow & {
@@ -62,9 +75,15 @@ export function TeacherApp({ onExit }: Props) {
   const [restrictUser, setRestrictUser] = useState('')
   const [blockPost, setBlockPost] = useState(true)
   const [blockMsg, setBlockMsg] = useState(true)
-  const [tab, setTab] = useState<'flags' | 'words' | 'restrict' | 'posts' | 'verify' | 'overview'>(
-    'flags',
-  )
+  const [tab, setTab] = useState<
+    'flags' | 'words' | 'restrict' | 'posts' | 'verify' | 'overview' | 'reports' | 'passwords'
+  >('flags')
+  // created: 2026-11-25T01:25:00-08:00
+  const [kidReports, setKidReports] = useState<KidReport[]>([])
+  const [resetUser, setResetUser] = useState('')
+  const [resetPw, setResetPw] = useState('')
+  const [resetPw2, setResetPw2] = useState('')
+  const [resetBusy, setResetBusy] = useState(false)
   const [verifyBusy, setVerifyBusy] = useState(false)
   const [overview, setOverview] = useState<{ posts: number; chats: number; flags: number }>({
     posts: 0,
@@ -95,6 +114,22 @@ export function TeacherApp({ onExit }: Props) {
   const [tpwConfirm, setTpwConfirm] = useState('')
   const [tpwBusy, setTpwBusy] = useState(false)
 
+  const loadKidReports = useCallback(async (pw: string) => {
+    // created: 2026-11-25T01:25:00-08:00
+    const { data, error } = await supabase.rpc('teacher_list_reports', {
+      p_password: pw,
+      p_limit: 80,
+    })
+    if (error) {
+      if (/teacher_list_reports|schema cache/i.test(error.message)) {
+        setKidReports([])
+        return
+      }
+      throw error
+    }
+    setKidReports((data || []) as KidReport[])
+  }, [])
+
   const loadAll = useCallback(async (pw: string) => {
     const [f, w, o] = await Promise.all([
       supabase.rpc('teacher_list_flags', { p_password: pw }),
@@ -108,7 +143,55 @@ export function TeacherApp({ onExit }: Props) {
     setWords((w.data as string[]) || [])
     const ov = (o.data || {}) as { posts?: number; chats?: number; flags?: number }
     setOverview({ posts: ov.posts || 0, chats: ov.chats || 0, flags: ov.flags || 0 })
-  }, [])
+    await loadKidReports(pw)
+  }, [loadKidReports])
+
+  async function markReportDone(id: string) {
+    // created: 2026-11-25T01:25:00-08:00
+    setError('')
+    try {
+      const { error: err } = await supabase.rpc('teacher_mark_report_done', {
+        p_password: sessionPw,
+        p_report_id: id,
+      })
+      if (err) throw err
+      await loadKidReports(sessionPw)
+      setStatus('Report marked done.')
+    } catch (ex) {
+      setError(ex instanceof Error ? ex.message : 'Could not update report.')
+    }
+  }
+
+  async function resetKidPassword(e: FormEvent) {
+    // created: 2026-11-25T01:25:00-08:00
+    e.preventDefault()
+    setResetBusy(true)
+    setError('')
+    setStatus('')
+    try {
+      if (resetPw.length < 6) throw new Error('Temp password must be at least 6 characters.')
+      if (resetPw !== resetPw2) throw new Error('Passwords do not match.')
+      const { error: err } = await supabase.rpc('teacher_reset_kid_password', {
+        p_password: sessionPw,
+        p_username: resetUser.trim(),
+        p_new_password: resetPw,
+      })
+      if (err) {
+        throw new Error(
+          /teacher_reset_kid_password|schema cache/i.test(err.message)
+            ? 'Kid password reset needs sql/prd-v4.sql — run in Supabase.'
+            : err.message,
+        )
+      }
+      setStatus(`Temporary password set for @${resetUser.trim().replace(/^@/, '')}. Tell them to change it on Me.`)
+      setResetPw('')
+      setResetPw2('')
+    } catch (ex) {
+      setError(ex instanceof Error ? ex.message : 'Could not reset password.')
+    } finally {
+      setResetBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!authed || !sessionPw) return
@@ -606,6 +689,81 @@ export function TeacherApp({ onExit }: Props) {
         </div>
       )}
 
+      {tab === 'reports' && (
+        <div>
+          {/* created: 2026-11-25T01:25:00-08:00 */}
+          <h2 className="panel-title">Kid reports</h2>
+          <p className="muted">Reports from kids about posts, comments, or users. Reporter name is teacher-only.</p>
+          <div className="list">
+            {kidReports.length === 0 ? (
+              <p className="muted">No reports yet (or run sql/prd-v4.sql).</p>
+            ) : (
+              kidReports.map((r) => (
+                <div className="row" key={r.id}>
+                  <div className="row-main">
+                    <p className="row-title">
+                      {r.target_type} · {r.status}
+                      {r.status === 'open' ? ' · needs look' : ''}
+                    </p>
+                    <p className="row-sub">
+                      {new Date(r.created_at).toLocaleString()} · from @{r.reporter_username}
+                    </p>
+                    <p className="row-sub">Target: {r.target_preview || r.target_id}</p>
+                    <p className="row-sub">Reason: {r.reason}</p>
+                    {r.status === 'open' ? (
+                      <button className="ghost btn-compact" type="button" onClick={() => markReportDone(r.id)}>
+                        Mark done
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'passwords' && (
+        <form className="form" onSubmit={resetKidPassword} autoComplete="off">
+          {/* created: 2026-11-25T01:25:00-08:00 */}
+          <h2 className="panel-title">Reset kid password</h2>
+          <p className="muted">
+            Kids have no email reset. Set a temporary password, then ask them to change it on Me.
+            Keepers @diyaan / @rafflesiaonline cannot be reset here.
+          </p>
+          <label>
+            Username
+            <input
+              value={resetUser}
+              onChange={(e) => setResetUser(e.target.value)}
+              placeholder="username"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            Temporary password
+            <input
+              type="password"
+              value={resetPw}
+              onChange={(e) => setResetPw(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <label>
+            Confirm temporary password
+            <input
+              type="password"
+              value={resetPw2}
+              onChange={(e) => setResetPw2(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <button className="primary" type="submit" disabled={resetBusy || !resetUser.trim()}>
+            {resetBusy ? 'Saving…' : 'Set temporary password'}
+          </button>
+        </form>
+      )}
+
       {tab === 'restrict' && (
         <form className="form" onSubmit={applyRestrict} autoComplete="off">
           <h2 className="panel-title">Restrict user</h2>
@@ -1000,6 +1158,20 @@ export function TeacherApp({ onExit }: Props) {
       <nav className="nav nav-shell nav-rail" aria-label="Teacher">
         <button type="button" className={tab === 'flags' ? 'active' : ''} onClick={() => setTab('flags')}>
           Flagged
+        </button>
+        <button
+          type="button"
+          className={tab === 'reports' ? 'active' : ''}
+          onClick={() => setTab('reports')}
+        >
+          Reports
+        </button>
+        <button
+          type="button"
+          className={tab === 'passwords' ? 'active' : ''}
+          onClick={() => setTab('passwords')}
+        >
+          Passwords
         </button>
         <button
           type="button"
