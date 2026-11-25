@@ -121,9 +121,9 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       setFeedReport(result.report)
       const keys = result.items.map((a) => a.id.slice(0, 500))
       await loadCommentCounts(keys)
-      // updated: 2026-11-24T22:05:00-08:00 — push already-liked live cards into shared history
-      await syncEngagedLiveStories(result.items)
-      await refreshHistoryCount()
+      // updated: 2026-11-24T23:05:00-08:00 — never block the feed UI on history sync
+      void syncEngagedLiveStories(result.items).catch(() => undefined)
+      void refreshHistoryCount().catch(() => undefined)
       const failed = result.report.filter((r) => !r.ok)
       if (!result.fromLive) {
         setErr('Live news is resting — showing club science cards. Tap Refresh feed to try again.')

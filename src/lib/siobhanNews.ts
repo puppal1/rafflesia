@@ -6,7 +6,19 @@
 // updated: 2026-11-24T22:10:00-08:00 — balance bands; hard-cap NASA/space so feed isn’t all space
 // updated: 2026-11-24T22:20:00-08:00 — feed2json fallback + publisher RSS + Open-Meteo weather (rss2json 503 on Google)
 // updated: 2026-11-24T22:25:00-08:00 — allorigins XML fallback (feed2json has no CORS); feed diagnostics logs
+// updated: 2026-11-24T23:05:00-08:00 — fetch timeouts so Siobhan never spins forever
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
+
+/** created: 2026-11-24T23:05:00-08:00 — AbortSignal timeout for flaky RSS proxies */
+async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { signal: ctrl.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
 
 /** created: 2026-11-24T22:25:00-08:00 — per-source fetch report for UI + console */
 export type FeedSourceReport = {
@@ -448,7 +460,7 @@ async function fetchRawRssItems(
   // 1) rss2json (CORS OK when not rate-limited)
   try {
     const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`
-    const res = await fetch(endpoint)
+    const res = await fetchWithTimeout(endpoint, 10000)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = (await res.json()) as {
       status?: string
@@ -484,7 +496,7 @@ async function fetchRawRssItems(
   // 2) allorigins — CORS-friendly raw XML
   try {
     const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`
-    const res = await fetch(endpoint)
+    const res = await fetchWithTimeout(endpoint, 10000)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = (await res.json()) as { contents?: string; status?: { http_code?: number } }
     const xml = data.contents || ''
@@ -556,7 +568,7 @@ async function fetchOakParkWeatherCard(): Promise<LiveNewsItem | null> {
   try {
     const url =
       'https://api.open-meteo.com/v1/forecast?latitude=34.1792&longitude=-118.762&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles'
-    const res = await fetch(url)
+    const res = await fetchWithTimeout(url, 8000)
     if (!res.ok) return null
     const data = (await res.json()) as {
       current?: {
@@ -621,7 +633,19 @@ export async function loadSiobhanLiveNews(): Promise<{
   const errors: string[] = []
   const report: FeedSourceReport[] = []
 
-  const weatherCard = await fetchOakParkWeatherCard()
+  // updated: 2026-11-24T23:05:00-08:00 — weather + feeds in parallel; per-feed timeouts
+  const weatherPromise = fetchOakParkWeatherCard()
+  const feedPromises = FEEDS.map(async (spec) => {
+    try {
+      const { items, via } = await fetchRss(spec)
+      return { specId: spec.id, items, via, error: null as string | null }
+    } catch (ex) {
+      const msg = ex instanceof Error ? ex.message : 'fail'
+      return { specId: spec.id, items: [] as LiveNewsItem[], via: '', error: msg }
+    }
+  })
+
+  const [weatherCard, ...feedResults] = await Promise.all([weatherPromise, ...feedPromises])
   report.push({
     id: 'oakpark-weather',
     ok: Boolean(weatherCard),
@@ -629,23 +653,18 @@ export async function loadSiobhanLiveNews(): Promise<{
     via: weatherCard ? 'open-meteo' : undefined,
     error: weatherCard ? undefined : 'open-meteo failed',
   })
-
-  // Sequential-ish batches in parallel, but each feed logs clearly
-  const batches = await Promise.all(
-    FEEDS.map(async (spec) => {
-      try {
-        const { items, via } = await fetchRss(spec)
-        report.push({ id: spec.id, ok: items.length > 0, count: items.length, via })
-        if (!items.length) errors.push(spec.id)
-        return items
-      } catch (ex) {
-        const msg = ex instanceof Error ? ex.message : 'fail'
-        report.push({ id: spec.id, ok: false, count: 0, error: msg })
-        errors.push(spec.id)
-        return [] as LiveNewsItem[]
-      }
-    }),
-  )
+  const batches: LiveNewsItem[][] = []
+  for (const fr of feedResults) {
+    report.push({
+      id: fr.specId,
+      ok: fr.items.length > 0,
+      count: fr.items.length,
+      via: fr.via || undefined,
+      error: fr.error || undefined,
+    })
+    if (!fr.items.length) errors.push(fr.specId)
+    batches.push(fr.items)
+  }
 
   // created: 2026-11-24T22:25:00-08:00 — DevTools: filter “siobhan-feed”
   console.info(
