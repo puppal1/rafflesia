@@ -2,6 +2,7 @@
 // updated: 2026-11-24T14:05:00-08:00 — scroll the stream itself; don’t scrollIntoView the page
 // updated: 2026-11-25T00:20:00-08:00 — @mention autocomplete + highlighted message text
 // updated: 2026-11-25T01:25:00-08:00 — PRD v4 stickers, polls, DM unread badges
+// updated: 2026-11-25T01:45:00-08:00 — poll sheet UX (tool button + PollComposer)
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { CHAT_EMOJIS, insertEmojiAtCursor } from '../lib/emojiBar'
@@ -21,6 +22,7 @@ import { MentionText } from './MentionText'
 import { MentionTypeahead } from './MentionTypeahead'
 import { NameWithBadge } from './VerifiedBadge'
 import { PollCard } from './PollCard'
+import { PollComposer } from './PollComposer'
 import { StickerPicker } from './StickerPicker'
 import type { ChatRow, MessageRow, PostRow, Profile } from '../types'
 
@@ -106,8 +108,6 @@ export function ChatThread({
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
   const [pollOpen, setPollOpen] = useState(false)
-  const [pollQ, setPollQ] = useState('')
-  const [pollOpts, setPollOpts] = useState(['', ''])
   const inputRef = useRef<HTMLInputElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const streamRef = useRef<HTMLDivElement | null>(null)
@@ -134,24 +134,6 @@ export function ChatThread({
       })
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : 'Could not send sticker.')
-    } finally {
-      setLocalBusy(false)
-    }
-  }
-
-  async function submitPoll() {
-    // created: 2026-11-25T01:25:00-08:00
-    if (!onCreatePoll) return
-    const opts = pollOpts.map((o) => o.trim()).filter(Boolean)
-    setLocalBusy(true)
-    setErr('')
-    try {
-      await onCreatePoll(pollQ.trim(), opts)
-      setPollQ('')
-      setPollOpts(['', ''])
-      setPollOpen(false)
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Could not create poll.')
     } finally {
       setLocalBusy(false)
     }
@@ -407,56 +389,15 @@ export function ChatThread({
           {err ? <p className="chat2-err">{err}</p> : null}
           <StickerPicker disabled={locked} onPick={sendSticker} />
           {allowPolls && onCreatePoll ? (
-            <div className="poll-composer">
-              <button
-                className="ghost btn-compact"
-                type="button"
-                disabled={locked}
-                onClick={() => setPollOpen((v) => !v)}
-              >
-                {pollOpen ? 'Hide poll' : 'Poll'}
-              </button>
-              {pollOpen ? (
-                <div className="poll-form">
-                  <label>
-                    Question
-                    <input value={pollQ} onChange={(e) => setPollQ(e.target.value.slice(0, 200))} />
-                  </label>
-                  {pollOpts.map((o, i) => (
-                    <label key={`po-${i}`}>
-                      Choice {i + 1}
-                      <input
-                        value={o}
-                        onChange={(e) => {
-                          const next = [...pollOpts]
-                          next[i] = e.target.value.slice(0, 80)
-                          setPollOpts(next)
-                        }}
-                      />
-                    </label>
-                  ))}
-                  <div className="row-actions" style={{ gap: 6 }}>
-                    {pollOpts.length < 4 ? (
-                      <button
-                        className="ghost btn-compact"
-                        type="button"
-                        onClick={() => setPollOpts((v) => [...v, ''])}
-                      >
-                        + Choice
-                      </button>
-                    ) : null}
-                    <button
-                      className="primary btn-compact"
-                      type="button"
-                      disabled={locked}
-                      onClick={submitPoll}
-                    >
-                      Post poll
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            <PollComposer
+              open={pollOpen}
+              busy={locked}
+              onClose={() => setPollOpen(false)}
+              onSubmit={async (question, options) => {
+                // created: 2026-11-25T01:45:00-08:00
+                await onCreatePoll(question, options)
+              }}
+            />
           ) : null}
           <MentionTypeahead hits={mentionHits} onPick={pickMention} />
           <form className="chat2-row" onSubmit={submit}>
@@ -497,6 +438,21 @@ export function ChatThread({
             >
               🔗
             </button>
+            {allowPolls && onCreatePoll ? (
+              <button
+                type="button"
+                className={pollOpen ? 'chat2-tool on' : 'chat2-tool'}
+                title="Club vote"
+                disabled={locked}
+                onClick={() => {
+                  setEmojiOpen(false)
+                  setLinkOpen(false)
+                  setPollOpen(true)
+                }}
+              >
+                📊
+              </button>
+            ) : null}
             <input
               ref={inputRef}
               className="chat2-input"
