@@ -876,6 +876,7 @@ export function HomeApp({ userId, onLogout }: Props) {
   async function startDm(other: Profile) {
     // created: 2026-11-23T12:14:00-08:00
     // updated: 2026-11-23T12:35:00-08:00 — use start_dm RPC (avoids chat RLS failures)
+    // updated: 2026-11-24T22:50:00-08:00 — close profile so Messages tab can show
     setBusy(true)
     setError('')
     try {
@@ -884,6 +885,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       })
       if (chatErr) throw chatErr
       if (!chat) throw new Error('Could not start chat.')
+      closeFollowProfile()
       setActiveChat(chat as ChatRow)
       setTab('chats')
       await loadChats()
@@ -1250,6 +1252,7 @@ export function HomeApp({ userId, onLogout }: Props) {
       await deliverSharedPost((chat as ChatRow).id, sharePost)
       setSharePost(null)
       setShareMode(null)
+      closeFollowProfile()
       setActiveChat(chat as ChatRow)
       setTab('chats')
       await loadChats()
@@ -1441,7 +1444,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                     : 'Follow'}
               </button>
               <button className="primary" type="button" disabled={busy} onClick={() => startDm(viewProfile)}>
-                Message
+                {busy ? 'Messaging…' : 'Message'}
               </button>
             </div>
           ) : null}
@@ -2121,7 +2124,7 @@ export function HomeApp({ userId, onLogout }: Props) {
                           : 'Follow'}
                     </button>
                     <button className="primary" type="button" disabled={busy} onClick={() => startDm(p)}>
-                      Message
+                      {busy ? 'Messaging…' : 'Message'}
                     </button>
                   </div>
                 </div>

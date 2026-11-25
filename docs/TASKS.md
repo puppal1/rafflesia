@@ -65,7 +65,7 @@
 | 3.1a–j | DMs, poll, groups, follow, lists, picker | **Done** live |
 | 3.1k | Icon picker + Matches | **Done** in app (emoji packs) |
 | 3.1l | Text checker + calm D5 | **Done** in app |
-| 3.1m | Teacher console | **Done** in app (password `teacher108`) |
+| 3.1m | Teacher console | **Done** in app (password stored in DB via `app_settings` / `verify_teacher_password`) |
 | 3.2a–c | Home / Post / Play | **Done** first-cut in app |
 | A6 | Nav: Home · Post · Messages · Play · People · Me | **Done** |
 | **G5** | First-cut gate | **QC after phase5 SQL** |

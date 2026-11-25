@@ -259,19 +259,18 @@ export function TeacherApp({ onExit }: Props) {
   }
 
   async function onLogin(e: FormEvent) {
+    // updated: 2026-11-24T22:50:00-08:00 — DB password only (no client fallback)
     e.preventDefault()
     setError('')
     const { data, error: err } = await supabase.rpc('verify_teacher_password', {
       p_password: password,
     })
     if (err) {
-      if (password === 'teacher108') {
-        setSessionPw(password)
-        setAuthed(true)
-        setStatus('SQL not fully applied — limited mode.')
-        return
-      }
-      setError(err.message)
+      setError(
+        /verify_teacher_password|schema cache|Could not find the function/i.test(err.message)
+          ? 'Teacher login needs SQL applied in Supabase (verify_teacher_password).'
+          : err.message,
+      )
       return
     }
     if (data === true) {

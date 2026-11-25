@@ -12,3 +12,11 @@
 ## If history RPCs missing
 
 Paste **entire** [`sql-news-story-history.sql`](sql-news-story-history.sql) → **Run**
+
+## Server-side kid text (posts / DMs)
+
+Paste **entire** [`sql-assert-kid-text.sql`](sql-assert-kid-text.sql) → **Run**
+
+## Teacher password
+
+No client fallback. Rotate DB password if it was ever in git (`teacher108` is burned).

@@ -2,13 +2,21 @@
 // updated: 2026-11-24T11:30:00-08:00 — reliable muted intro + corner controls
 // updated: 2026-11-24T11:50:00-08:00 — theme engine + ThemePicker on login
 // updated: 2026-11-24T12:35:00-08:00 — ToS/Privacy signup consent (PRD v2 B1)
-import { useEffect, useRef, useState } from 'react'
+// updated: 2026-11-24T22:50:00-08:00 — school-site soft gate + lax auth challenge
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { TeacherApp } from './TeacherApp'
+import { AuthChallenge } from './components/AuthChallenge'
 import { ThemePicker } from './components/ThemePicker'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
+import {
+  bumpAuthFail,
+  classifyAuthEntry,
+  clearAuthFails,
+  needsAuthChallenge,
+} from './lib/authEntry'
 import { ensureHourlyTheme } from './lib/themeEngine'
 import { supabase } from './lib/supabase'
 import { PRIVACY_VERSION, TOS_PRIVACY_TEXT, TOS_VERSION } from './lib/tosCopy'
@@ -50,6 +58,17 @@ function App() {
   const [showSignupEmoji, setShowSignupEmoji] = useState(false)
   // created: 2026-11-24T12:35:00-08:00 — ToS gate
   const [tosAgreed, setTosAgreed] = useState(false)
+  // created: 2026-11-24T22:50:00-08:00 — soft school / off-site challenge
+  const entry = useMemo(() => classifyAuthEntry(), [])
+  const [failTick, setFailTick] = useState(0)
+  const challengeNeeded = useMemo(
+    () => needsAuthChallenge(entry, mode),
+    // failTick re-reads sessionStorage via needsAuthChallenge
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entry, mode, failTick],
+  )
+  const [challengeOk, setChallengeOk] = useState(true)
+  const onChallengePassed = useCallback((ok: boolean) => setChallengeOk(ok), [])
   // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
   // updated: 2026-11-24T11:40:00-08:00 — unmuted by default; mute only if browser blocks
   const [showIntro, setShowIntro] = useState(true)
@@ -57,6 +76,11 @@ function App() {
   const [introPaused, setIntroPaused] = useState(false)
   const introVideoRef = useRef<HTMLVideoElement | null>(null)
   const introStartedRef = useRef(false)
+
+  useEffect(() => {
+    // updated: 2026-11-24T22:50:00-08:00 — reset challenge when mode / fail streak flips
+    setChallengeOk(!challengeNeeded)
+  }, [challengeNeeded])
 
   useEffect(() => {
     // created: 2026-11-24T11:50:00-08:00 — boot theme; locked picks never rotate
@@ -158,6 +182,7 @@ function App() {
 
   async function onSubmit(e: FormEvent) {
     // created: 2026-11-23T11:59:00-08:00
+    // updated: 2026-11-24T22:50:00-08:00 — soft school gate + challenge + fail streak
     e.preventDefault()
     setError('')
     setBusy(true)
@@ -166,6 +191,14 @@ function App() {
       if (!password) {
         throw new Error('Please enter a username and password.')
       }
+
+      const needChallenge = needsAuthChallenge(entry, mode)
+      if (needChallenge && !challengeOk) {
+        throw new Error('Complete the quick check before continuing.')
+      }
+
+      // created: 2026-11-24T22:50:00-08:00 — visibility for teachers (console only; soft signal)
+      console.info('[auth-entry]', entry.source, entry.reason, entry.inIframe ? 'iframe' : 'top')
 
       const shape = validateUsernameShape(username)
       if (!shape.ok) throw new Error(shape.message)
@@ -236,12 +269,19 @@ function App() {
           p_ip_address: null,
           p_device_info: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 400) : null,
         })
+        clearAuthFails()
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
-        if (signInError) throw signInError
+        if (signInError) {
+          bumpAuthFail()
+          setFailTick((n) => n + 1)
+          throw signInError
+        }
+        clearAuthFails()
+        setFailTick(0)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong.'
@@ -394,11 +434,30 @@ function App() {
                   </label>
                 </div>
               ) : null}
+              {/* created: 2026-11-24T22:50:00-08:00 */}
+              {entry.source === 'offsite' ? (
+                <p className="muted" style={{ fontSize: '0.8rem' }}>
+                  Tip: open Rafflesia from the school Site for the smoothest login.
+                </p>
+              ) : null}
+              <AuthChallenge
+                required={challengeNeeded}
+                onPassed={onChallengePassed}
+                hint={
+                  entry.source === 'offsite'
+                    ? 'Off-site check — answer to continue.'
+                    : 'Quick check after a few failed tries.'
+                }
+              />
               <div className="action-row">
                 <button
                   className="primary"
                   type="submit"
-                  disabled={busy || (mode === 'signup' && !tosAgreed)}
+                  disabled={
+                    busy ||
+                    (mode === 'signup' && !tosAgreed) ||
+                    (challengeNeeded && !challengeOk)
+                  }
                 >
                   {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Log in'}
                 </button>
