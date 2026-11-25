@@ -6,8 +6,10 @@
 
 | Surface | Visibility |
 | --- | --- |
-| GitHub source (`DiyaanUppal/rafflesia-online`, `puppal1/rafflesia`) | **Private** (required) |
-| GitHub Pages (Chromebooks) | Public site; JS includes Supabase **anon** key |
+| GitHub source (`DiyaanUppal/rafflesia-online`) | **Private** (recommended) |
+| Pages host (`puppal1/rafflesia`) | Must stay **public** on free GitHub — private repos cannot serve Pages |
+| Chromebook URL | Prefer `https://puppal1.github.io/rafflesia/` while Diyaan repo is private |
+| `diyaanuppal.github.io/rafflesia-online` | 404 while that repo is private (needs GitHub Pro for private+Pages) |
 | Supabase **service_role** | Never in repo, Pages, or client |
 | Teacher password | **DB only** (`app_settings` / `verify_teacher_password`) — not in TSX |
 
