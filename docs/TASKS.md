@@ -2,8 +2,8 @@
 <!-- created: 2026-11-23T19:46:00-08:00 -->
 <!-- updated: 2026-11-24T11:55:00-08:00 — PRD v2.0 epics added (FYP, themes, Siobhan, ToS) -->
 <!-- updated: 2026-11-24T12:10:00-08:00 — v2 lives in PRD v2.0.md; manga BGs -->
-<!-- live mirror (Phase 5): https://puppal1.github.io/rafflesia/ -->
-<!-- Diyaan Pages stuck on old deploy until env cleared: https://diyaanuppal.github.io/rafflesia-online/ -->
+<!-- updated: 2026-11-25T01:20:00-08:00 — Phase 7 PRD v3.0 inventory -->
+<!-- live mirror: https://puppal1.github.io/rafflesia/ -->
 <!-- QC: QC.md · groups: GROUP_CHAT_WF.md -->
 
 ---
@@ -124,8 +124,26 @@ Source of truth: [`PRD v2.0.md`](PRD%20v2.0.md) — **build in this order only**
 
 ---
 
+## Phase 7 — PRD v3.0 (post-v2 shipped inventory)
+<!-- created: 2026-11-25T01:20:00-08:00 -->
+
+Source: [`PRD v3.0.md`](PRD%20v3.0.md)
+
+| # | Epic | Status |
+|---|------|--------|
+| 7.D1–D6 | Safety, hosting, captcha, teacher posts, passwords, startDm fix | **Done** (SQL human checks remain) |
+| 7.E | Siobhan live feed / likes / dock / history | **Done** |
+| 7.F | ChatPanel + @mentions + soft Reply | **Done** |
+| 7.G | Dino notifications (no private DM) | **Done** |
+| 7.H | Theme sheet + faith symbols + furry | **Done** |
+| 7.I | Hidden users / FYP polish | **Done** |
+
+**Human:** apply remaining SQL listed in PRD v3 §2; optional Turnstile keys.
+
+---
+
 ## Related
-<!-- updated: 2026-11-24T12:10:00-08:00 -->
-- [`PRD.md`](PRD.md) (v1.0) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`SCREEN_MAP.md`](SCREEN_MAP.md) · [`UX.md`](UX.md) · [`TECH.md`](TECH.md)  
-- [`QC.md`](QC.md) · [`GROUP_CHAT_WF.md`](GROUP_CHAT_WF.md) · [`ux/theme-bgs/`](ux/theme-bgs/)  
-- App: `OneDrive/Desktop/rafflesia-online` → Pages DiyaanUppal/rafflesia-online  
+<!-- updated: 2026-11-25T01:20:00-08:00 -->
+- [`PRD.md`](PRD.md) (v1.0) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v3.0.md`](PRD%20v3.0.md) · [`SECURITY.md`](SECURITY.md)  
+- [`SCREEN_MAP.md`](SCREEN_MAP.md) · [`UX.md`](UX.md) · [`TECH.md`](TECH.md) · [`QC.md`](QC.md)  
+- App: `OneDrive/Desktop/rafflesia-online` → Pages `puppal1/rafflesia`  

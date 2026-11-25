@@ -5,9 +5,11 @@
 <!-- updated: 2026-11-24T12:25:00-08:00 — reorder: UX → function → cosmetic -->
 <!-- updated: 2026-11-24T12:30:00-08:00 — delete own posts/comments; delete account -->
 <!-- baseline: PRD.md (v1.0 shipped) · tasks: TASKS.md · screens: SCREEN_MAP.md -->
+<!-- updated: 2026-11-25T01:20:00-08:00 — later work → PRD v3.0.md -->
 <!-- audience: Diyaan (~10) + parent helper -->
 
-**This file = new features only.** Shipped v1 stays in [`PRD.md`](PRD.md).  
+**This file = v2 features only.** Shipped v1 stays in [`PRD.md`](PRD.md).  
+**After v2:** [`PRD v3.0.md`](PRD%20v3.0.md) (notifications, mentions, security, Siobhan depth, theme sheet).  
 **Process:** wires before build ([`PRD.md`](PRD.md) §0).  
 **Build order (hard):** **A UX → B Function → C Cosmetic** — do not jump to manga/themes before UX + core post/social function.
 
