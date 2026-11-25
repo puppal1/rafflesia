@@ -3,12 +3,13 @@
 // updated: 2026-11-24T11:50:00-08:00 — theme engine + ThemePicker on login
 // updated: 2026-11-24T12:35:00-08:00 — ToS/Privacy signup consent (PRD v2 B1)
 // updated: 2026-11-24T22:50:00-08:00 — school-site soft gate + lax auth challenge
+// updated: 2026-11-24T23:40:00-08:00 — login always challenged off-site; Turnstile verify on submit
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { HomeApp } from './HomeApp'
 import { TeacherApp } from './TeacherApp'
-import { AuthChallenge } from './components/AuthChallenge'
+import { AuthChallenge, verifyTurnstileToken } from './components/AuthChallenge'
 import { ThemePicker } from './components/ThemePicker'
 import { EmojiBar, insertEmojiAtCursor } from './lib/emojiBar'
 import {
@@ -16,6 +17,7 @@ import {
   classifyAuthEntry,
   clearAuthFails,
   needsAuthChallenge,
+  turnstileSiteKey,
 } from './lib/authEntry'
 import { ensureHourlyTheme } from './lib/themeEngine'
 import { supabase } from './lib/supabase'
@@ -68,7 +70,12 @@ function App() {
     [entry, mode, failTick],
   )
   const [challengeOk, setChallengeOk] = useState(true)
-  const onChallengePassed = useCallback((ok: boolean) => setChallengeOk(ok), [])
+  const challengeTokenRef = useRef<string | undefined>(undefined)
+  const onChallengePassed = useCallback((ok: boolean, token?: string) => {
+    // updated: 2026-11-24T23:40:00-08:00 — keep Turnstile token for Edge verify
+    setChallengeOk(ok)
+    challengeTokenRef.current = token
+  }, [])
   // created: 2026-11-23T23:05:00-08:00 — play intro before login UI
   // updated: 2026-11-24T11:40:00-08:00 — unmuted by default; mute only if browser blocks
   const [showIntro, setShowIntro] = useState(true)
@@ -194,7 +201,14 @@ function App() {
 
       const needChallenge = needsAuthChallenge(entry, mode)
       if (needChallenge && !challengeOk) {
-        throw new Error('Complete the quick check before continuing.')
+        throw new Error('Complete the bot check before continuing.')
+      }
+      // created: 2026-11-24T23:40:00-08:00 — server-verify Turnstile when configured
+      if (needChallenge && turnstileSiteKey()) {
+        const token = challengeTokenRef.current
+        if (!token) throw new Error('Complete the bot check before continuing.')
+        const verified = await verifyTurnstileToken(token)
+        if (!verified) throw new Error('Bot check failed. Refresh and try again.')
       }
 
       // created: 2026-11-24T22:50:00-08:00 — visibility for teachers (console only; soft signal)
@@ -445,8 +459,8 @@ function App() {
                 onPassed={onChallengePassed}
                 hint={
                   entry.source === 'offsite'
-                    ? 'Off-site check — answer to continue.'
-                    : 'Quick check after a few failed tries.'
+                    ? 'Bot check required for login and signup off the school Site.'
+                    : 'Bot check after a failed try.'
                 }
               />
               <div className="action-row">

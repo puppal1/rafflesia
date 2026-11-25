@@ -1,6 +1,6 @@
 # Rafflesia Online — security notes
 <!-- created: 2026-11-24T22:50:00-08:00 -->
-<!-- updated: 2026-11-24T22:50:00-08:00 -->
+<!-- updated: 2026-11-24T23:40:00-08:00 — login always challenged off-site; Turnstile Edge verify -->
 
 ## Public vs private
 
@@ -21,11 +21,18 @@ The anon key in the built bundle is normal for a Supabase SPA. **RLS + Auth** pr
 - After any password was ever in git, **rotate** the DB teacher password in Supabase.
 - Prefer changing it via SQL: update `app_settings` where key = `teacher_password`.
 
-## School-site soft gate
+## School-site soft gate + bot check
 
 - Preferred entry: `https://sites.google.com/opusd.us/…` (referrer / iframe).
 - Classification is **soft** — Referer can be spoofed; we never claim proof.
-- Lax challenge: off-site signup, or after several failed logins (math check; Turnstile later if `VITE_TURNSTILE_SITE_KEY` is set).
+- **Off-site (direct github.io):** challenge on **login and signup** every time.
+- **School referrer:** challenge after **1** failed auth attempt.
+- Math question is a **soft fallback only** (AI can solve it).
+- **Cloudflare Turnstile** (recommended vs AI):
+  1. Create a Turnstile widget for `puppal1.github.io`.
+  2. Set GitHub Actions / `.env.local` `VITE_TURNSTILE_SITE_KEY=<site key>`.
+  3. Deploy Edge Function: `supabase functions deploy verify-turnstile`.
+  4. `supabase secrets set TURNSTILE_SECRET_KEY=<secret key>`.
 - DevTools: filter `[auth-entry]`.
 
 ## Content moderation
@@ -36,6 +43,6 @@ The anon key in the built bundle is normal for a Supabase SPA. **RLS + Auth** pr
 ## Rotate checklist
 
 1. Supabase → rotate anon if leaked as service_role (anon already rotated 2026-11-23).
-2. Update GitHub Actions secrets `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+2. Update GitHub Actions secrets `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (and `VITE_TURNSTILE_SITE_KEY` when ready).
 3. Rotate teacher DB password.
-4. Confirm both remotes are **private**.
+4. Confirm Diyaan source remote is **private**; Pages host may stay public on free GitHub.

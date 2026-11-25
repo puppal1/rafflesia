@@ -36,10 +36,12 @@ jobs:
       - name: Build
         # created: 2026-11-23T19:02:00-08:00
         # updated: 2026-11-23T21:58:00-08:00 — publish to gh-pages branch
+        # updated: 2026-11-24T23:40:00-08:00 — optional Turnstile site key
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
         run: npm run build
       - name: Publish to gh-pages branch
         # created: 2026-11-23T21:58:00-08:00

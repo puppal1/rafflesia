@@ -1,4 +1,5 @@
 // created: 2026-11-24T22:50:00-08:00 — soft school-site entry classification (not spoof-proof)
+// updated: 2026-11-24T23:40:00-08:00 — login always challenged when off-site (was fail-gated only)
 /** OPUSD Google Site that links/embeds Rafflesia */
 export const SCHOOL_SITE_PREFIX = 'https://sites.google.com/opusd.us/'
 
@@ -13,7 +14,8 @@ export type AuthEntryInfo = {
 }
 
 const FAIL_KEY = 'rafflesia_auth_fails'
-const FAIL_CAPTCHA_AFTER = 3
+/** created: 2026-11-24T23:40:00-08:00 — school path: challenge after first failed login */
+const FAIL_CAPTCHA_AFTER = 1
 
 /** created: 2026-11-24T22:50:00-08:00 */
 export function classifyAuthEntry(): AuthEntryInfo {
@@ -25,7 +27,6 @@ export function classifyAuthEntry(): AuthEntryInfo {
   try {
     inIframe = window.top !== window.self
   } catch {
-    // cross-origin frame access denied ⇒ we are framed
     inIframe = true
   }
   const schoolRef = referrer.toLowerCase().startsWith(SCHOOL_SITE_PREFIX.toLowerCase())
@@ -74,13 +75,19 @@ export function clearAuthFails(): void {
 
 /**
  * created: 2026-11-24T22:50:00-08:00
- * Challenge when off-site OR after several failed logins (lax CAPTCHA policy).
+ * updated: 2026-11-24T23:40:00-08:00 — off-site login AND signup always; school after 1 fail
  */
-export function needsAuthChallenge(entry: AuthEntryInfo, mode: 'login' | 'signup'): boolean {
+export function needsAuthChallenge(entry: AuthEntryInfo, _mode: 'login' | 'signup'): boolean {
+  // updated: 2026-11-24T23:40:00-08:00 — mode kept for callers; both modes challenged off-site
   if (getAuthFailCount() >= FAIL_CAPTCHA_AFTER) return true
-  if (mode === 'signup' && entry.source === 'offsite') return true
-  if (mode === 'login' && entry.source === 'offsite' && getAuthFailCount() >= 1) return true
+  // Off-site: always challenge signup and login (AI / direct github.io hits)
+  if (entry.source === 'offsite') return true
   return false
 }
 
 export const AUTH_FAIL_CAPTCHA_AFTER = FAIL_CAPTCHA_AFTER
+
+/** created: 2026-11-24T23:40:00-08:00 */
+export function turnstileSiteKey(): string {
+  return (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined)?.trim() || ''
+}
