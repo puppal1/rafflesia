@@ -3,6 +3,7 @@
 // updated: 2026-11-24T14:22:00-08:00 — live cards use match chips instead of static why-it-fits copy
 // updated: 2026-11-24T14:38:00-08:00 — never show Google query as source; nicer publisher label
 // updated: 2026-11-24T14:40:00-08:00 — top 10 only; local weather/incidents → animals/env → nature/science
+// updated: 2026-11-24T22:10:00-08:00 — balance bands; hard-cap NASA/space so feed isn’t all space
 import { SIOBHAN_FEED, type SiobhanArticle } from './siobhanFeed'
 
 export type LiveNewsItem = {
@@ -40,6 +41,12 @@ type Rss2JsonResponse = {
 
 /** created: 2026-11-24T14:40:00-08:00 — hard cap for the Siobhan feed */
 const FEED_LIMIT = 10
+
+/** created: 2026-11-24T22:10:00-08:00 — space/NASA max in the 10 (was crowding out animals/local) */
+const SPACE_MAX = 2
+
+/** created: 2026-11-24T22:10:00-08:00 — target mix: weather/local · animals/env · science */
+const BAND_QUOTAS = [3, 4, 3] as const
 
 /** created: 2026-11-24T13:15:00-08:00 — block adult / violent / heavy crime topics */
 const BLOCK = [
@@ -285,8 +292,9 @@ const FEEDS: FeedSpec[] = [
     emoji: '🔬',
     place: 'Nature · science',
     band: 2,
+    // updated: 2026-11-24T22:10:00-08:00 — no NASA/space here; nasa feed covers that slot
     rssUrl: googleNewsRss(
-      '(science OR STEM OR nature OR discovery OR museum OR planetarium OR NASA OR space) (kids OR students OR school OR classroom OR California) when:10d',
+      '(science OR STEM OR nature OR discovery OR museum OR planetarium OR dinosaur OR geology OR biology OR robot OR coding) (kids OR students OR school OR classroom OR California) -NASA -space -astronaut when:10d',
     ),
   },
   {
@@ -405,8 +413,22 @@ function niceBlurb(title: string, rawDesc: string): string {
   return blurb
 }
 
+/** created: 2026-11-24T22:10:00-08:00 — NASA / space / astronaut stories */
+function isSpaceHeavy(item: LiveNewsItem): boolean {
+  if (item.tag === 'Space' || item.id.startsWith('nasa-')) return true
+  const t = `${item.title} ${item.blurb} ${item.source}`.toLowerCase()
+  return (
+    t.includes('nasa') ||
+    t.includes('astronaut') ||
+    t.includes('lunar') ||
+    /\bspace\b/.test(t) ||
+    t.includes('rocket') ||
+    t.includes('orbit')
+  )
+}
+
 /** created: 2026-11-24T13:15:00-08:00 */
-/** updated: 2026-11-24T14:40:00-08:00 — band on each item */
+/** updated: 2026-11-24T22:10:00-08:00 — band on each item; NASA feed only keeps a few */
 async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(spec.rssUrl)}`
   const res = await fetch(endpoint)
@@ -414,8 +436,10 @@ async function fetchRss(spec: FeedSpec): Promise<LiveNewsItem[]> {
   const data = (await res.json()) as Rss2JsonResponse
   if (data.status !== 'ok' || !Array.isArray(data.items)) return []
 
+  // updated: 2026-11-24T22:10:00-08:00 — NASA RSS is dense; only pull a few candidates
+  const take = spec.id === 'nasa' ? 3 : 10
   const out: LiveNewsItem[] = []
-  for (const item of data.items.slice(0, 10)) {
+  for (const item of data.items.slice(0, take)) {
     const title = stripHtml(item.title || '')
     const rawDesc = stripHtml(item.description || '')
     const blurb = niceBlurb(title, rawDesc)
@@ -459,7 +483,7 @@ function staticAsLive(): LiveNewsItem[] {
 
 /**
  * created: 2026-11-24T13:15:00-08:00
- * updated: 2026-11-24T14:40:00-08:00 — pick 10: local weather/incidents, then env/animals, then science
+ * updated: 2026-11-24T22:10:00-08:00 — balanced 3/4/3 + SPACE_MAX; top-up prefers non-space
  */
 export async function loadSiobhanLiveNews(): Promise<{
   items: LiveNewsItem[]
@@ -494,36 +518,48 @@ export async function loadSiobhanLiveNews(): Promise<{
     const ba = a.priorityBand ?? 2
     const bb = b.priorityBand ?? 2
     if (ba !== bb) return ba - bb
-    const sa = rankScore(`${a.title} ${a.blurb}`, ba)
-    const sb = rankScore(`${b.title} ${b.blurb}`, bb)
+    // updated: 2026-11-24T22:10:00-08:00 — within a band, prefer non-space first
+    const sa =
+      rankScore(`${a.title} ${a.blurb}`, ba) - (isSpaceHeavy(a) ? 20 : 0)
+    const sb =
+      rankScore(`${b.title} ${b.blurb}`, bb) - (isSpaceHeavy(b) ? 20 : 0)
     if (sb !== sa) return sb - sa
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0
     return tb - ta
   })
 
-  // Fill quota by band so weather/local aren't crowded out: aim ~4 / ~3 / ~3
-  const quotas = [4, 3, 3]
   const picked: LiveNewsItem[] = []
   const used = new Set<string>()
+  let spaceCount = 0
+
+  const tryPick = (item: LiveNewsItem): boolean => {
+    if (picked.length >= FEED_LIMIT || used.has(item.id)) return false
+    if (isSpaceHeavy(item) && spaceCount >= SPACE_MAX) return false
+    used.add(item.id)
+    picked.push(item)
+    if (isSpaceHeavy(item)) spaceCount += 1
+    return true
+  }
+
+  // Fill quotas: weather/local 3 · animals/env 4 · science 3 (science includes ≤ SPACE_MAX space)
   for (let band = 0; band <= 2; band++) {
-    const want = quotas[band]
+    const want = BAND_QUOTAS[band]
     let got = 0
     for (const item of merged) {
       if (got >= want || picked.length >= FEED_LIMIT) break
       if ((item.priorityBand ?? 2) !== band) continue
-      if (used.has(item.id)) continue
-      used.add(item.id)
-      picked.push(item)
-      got += 1
+      if (tryPick(item)) got += 1
     }
   }
-  // Top up to 10 from remaining ranked list
-  for (const item of merged) {
-    if (picked.length >= FEED_LIMIT) break
-    if (used.has(item.id)) continue
-    used.add(item.id)
-    picked.push(item)
+
+  // Top up: non-space first, then allow remaining space slots
+  for (const preferNonSpace of [true, false]) {
+    for (const item of merged) {
+      if (picked.length >= FEED_LIMIT) break
+      if (preferNonSpace && isSpaceHeavy(item)) continue
+      tryPick(item)
+    }
   }
 
   if (picked.length === 0) {
