@@ -6,11 +6,13 @@
 // updated: 2026-11-24T14:20:00-08:00 — emoji likes on news cards
 // updated: 2026-11-24T14:25:00-08:00 — like in action row; Comments shows count
 // updated: 2026-11-24T14:38:00-08:00 — calmer cards; no Google query source
+// updated: 2026-11-24T21:55:00-08:00 — Stories we talked about history modal
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { loadSiobhanLiveNews, type LiveNewsItem } from '../lib/siobhanNews'
 import { SiobhanNewsComments } from './SiobhanNewsComments'
 import { SiobhanArticleReactions } from './SiobhanArticleReactions'
+import { SiobhanTalkedAboutModal } from './SiobhanTalkedAboutModal'
 import type { Profile } from '../types'
 
 const SCHOOL_URL = 'https://sites.google.com/opusd.us/siobhan/siobh%C3%A1n-daily'
@@ -39,7 +41,7 @@ type Props = {
 }
 
 /** created: 2026-11-24T13:10:00-08:00 */
-/** updated: 2026-11-24T14:15:00-08:00 — comments open in sticky dock beside the feed */
+/** updated: 2026-11-24T21:55:00-08:00 — history modal for engaged stories */
 export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }: Props) {
   const [items, setItems] = useState<LiveNewsItem[]>([])
   const [fromLive, setFromLive] = useState(false)
@@ -47,9 +49,14 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
   const [err, setErr] = useState('')
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
   const [activeKey, setActiveKey] = useState<string | null>(null)
+  const [activeStoryOverride, setActiveStoryOverride] = useState<LiveNewsItem | null>(null)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
+  const [historyOpen, setHistoryOpen] = useState(false)
 
-  const activeStory = items.find((a) => a.id.slice(0, 500) === activeKey) || null
+  const activeStory =
+    activeStoryOverride ||
+    items.find((a) => a.id.slice(0, 500) === activeKey) ||
+    null
 
   // created: 2026-11-24T14:25:00-08:00 — batch comment counts for Comments (n)
   // updated: 2026-11-24T14:28:00-08:00 — chunk .in() (long article keys break one big query)
@@ -93,10 +100,10 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       const keys = result.items.map((a) => a.id.slice(0, 500))
       await loadCommentCounts(keys)
       if (!result.fromLive) {
-        setErr('Live news is resting — showing club science cards. Tap Refresh to try again.')
+        setErr('Live news is resting — showing club science cards. Tap Refresh feed to try again.')
       }
     } catch {
-      setErr('Could not load live news. Try Refresh.')
+      setErr('Could not load live news. Try Refresh feed.')
     } finally {
       setBusy(false)
     }
@@ -113,6 +120,18 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
     loadCommentCounts(items.map((a) => a.id.slice(0, 500))).catch(() => undefined)
   }, [activeKey, items, loadCommentCounts])
 
+  function openComments(item: LiveNewsItem) {
+    const key = item.id.slice(0, 500)
+    setActiveStoryOverride(item)
+    setActiveKey(key)
+    setHistoryOpen(false)
+  }
+
+  function closeComments() {
+    setActiveKey(null)
+    setActiveStoryOverride(null)
+  }
+
   return (
     <div className={`siobhan-panel ${activeKey ? 'has-comment-dock' : ''}`}>
       <header className="siobhan-hero">
@@ -124,7 +143,6 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
           <p className="siobhan-tagline">
             Local weather & alerts · animals · nature & science
           </p>
-          {/* updated: 2026-11-24T14:42:00-08:00 — Refresh sits with Live status, not school link */}
           <p className="siobhan-live-meta">
             {busy ? (
               <span className="siobhan-live-pill warming">Loading…</span>
@@ -145,6 +163,14 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
             >
               {busy ? 'Refreshing feed…' : 'Refresh feed'}
             </button>
+            {/* created: 2026-11-24T21:55:00-08:00 */}
+            <button
+              className="ghost btn-compact siobhan-talked-btn"
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+            >
+              Stories we talked about
+            </button>
           </p>
         </div>
         <div className="siobhan-hero-actions">
@@ -160,8 +186,7 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
       </header>
 
       <p className="siobhan-scroll-hint muted">
-        {/* updated: 2026-11-24T14:40:00-08:00 — 10 stories; local weather/incidents first */}
-        10 stories · local weather & alerts first · then animals & environment · then nature & science · tap Refresh anytime
+        10 live stories · liked/commented ones stay in Stories we talked about
       </p>
       {err ? <p className="siobhan-status muted">{err}</p> : null}
 
@@ -191,7 +216,6 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                   </div>
                   <h3 className="siobhan-title">{a.title}</h3>
                   {a.blurb ? <p className="siobhan-blurb">{a.blurb}</p> : null}
-                  {/* updated: 2026-11-24T14:38:00-08:00 — chips only; no query-string source */}
                   {a.live && a.fitChips?.length ? (
                     <div className="siobhan-fit-row" aria-label="Why this story is here">
                       {a.fitChips.map((chip) => (
@@ -217,11 +241,14 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
                         Open
                       </a>
                     ) : null}
-                    <SiobhanArticleReactions articleKey={key} userId={userId} />
+                    <SiobhanArticleReactions articleKey={key} userId={userId} story={a} />
                     <button
                       className={open ? 'primary btn-compact' : 'ghost btn-compact'}
                       type="button"
-                      onClick={() => setActiveKey(open ? null : key)}
+                      onClick={() => {
+                        if (open) closeComments()
+                        else openComments(a)
+                      }}
                     >
                       {`Comments (${commentCounts[key] ?? 0})${open ? ' · open' : ''}`}
                     </button>
@@ -238,16 +265,25 @@ export function SiobhanFeed({ userId, profilesById, onProfiles, uploadPicture }:
             <SiobhanNewsComments
               articleKey={activeKey}
               storyTitle={activeStory.title}
+              story={activeStory}
               userId={userId}
               profilesById={profilesById}
               onProfiles={onProfiles}
               uploadPicture={uploadPicture}
-              onClose={() => setActiveKey(null)}
+              onClose={closeComments}
               onCountChange={bumpCommentCount}
             />
           </aside>
         ) : null}
       </div>
+
+      <SiobhanTalkedAboutModal
+        open={historyOpen}
+        userId={userId}
+        commentCounts={commentCounts}
+        onClose={() => setHistoryOpen(false)}
+        onOpenComments={openComments}
+      />
 
       <footer className="siobhan-footer">
         <p className="muted">Official school paper</p>

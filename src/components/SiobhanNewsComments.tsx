@@ -3,9 +3,12 @@
 // updated: 2026-11-24T13:58:00-08:00 — tap-to-enlarge comment photos
 // updated: 2026-11-24T14:15:00-08:00 — dock UX + timestamps; feed stays readable
 // updated: 2026-11-24T14:28:00-08:00 — report comment count to parent for badge
+// updated: 2026-11-24T21:55:00-08:00 — touch engaged-story history after comment
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { checkKidText, reportBlockedText } from '../lib/textChecker'
+import { touchNewsStoryHistory } from '../lib/siobhanHistory'
+import type { LiveNewsItem } from '../lib/siobhanNews'
 import { NameWithBadge } from './VerifiedBadge'
 import { CommentComposer } from './CommentComposer'
 import { MediaLightbox } from './MediaLightbox'
@@ -33,10 +36,12 @@ type Props = {
   onClose?: () => void
   /** created: 2026-11-24T14:28:00-08:00 */
   onCountChange?: (articleKey: string, count: number) => void
+  /** created: 2026-11-24T21:55:00-08:00 */
+  story?: LiveNewsItem | null
 }
 
 /** created: 2026-11-24T13:25:00-08:00 */
-/** updated: 2026-11-24T14:28:00-08:00 — compact dock + live count badge */
+/** updated: 2026-11-24T21:55:00-08:00 — compact dock + history touch */
 export function SiobhanNewsComments({
   articleKey,
   storyTitle,
@@ -46,6 +51,7 @@ export function SiobhanNewsComments({
   uploadPicture,
   onClose,
   onCountChange,
+  story,
 }: Props) {
   const [comments, setComments] = useState<NewsComment[]>([])
   const [busy, setBusy] = useState(false)
@@ -182,6 +188,13 @@ export function SiobhanNewsComments({
                 throw new Error('Run docs/sql-news-comments.sql in Supabase, then hard refresh.')
               }
               throw new Error(error.message)
+            }
+            if (story) {
+              try {
+                await touchNewsStoryHistory(story)
+              } catch {
+                // optional until sql-news-story-history.sql is applied
+              }
             }
             await loadComments()
           }}
