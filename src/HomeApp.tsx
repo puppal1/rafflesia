@@ -8,6 +8,7 @@
 // updated: 2026-11-25T00:20:00-08:00 — @mention open-profile from chat/comments
 // updated: 2026-11-25T00:30:00-08:00 — bloom notifications inbox
 // updated: 2026-11-25T01:25:00-08:00 — PRD v4: DM unread, help, media grid, polls, report
+// updated: 2026-11-25T20:45:00-08:00 — PRD v5 group voice calls
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './lib/supabase'
@@ -20,6 +21,11 @@ import { encodePostShare } from './lib/postShare'
 import { countMyUnreadDms, listMyDmUnreadCounts, markDmRead } from './lib/dmUnread'
 import { createChatPoll } from './lib/polls'
 import { parseStickerBody } from './lib/stickers'
+import {
+  getActiveChatCall,
+  startChatCall,
+  type CallSession,
+} from './lib/calls'
 import { IconPicker } from './components/IconPicker'
 import { TextBlocked } from './components/TextBlocked'
 import { FaceAvatar } from './components/FaceAvatar'
@@ -34,6 +40,8 @@ import { NameWithBadge, VerifiedBadge } from './components/VerifiedBadge'
 import { HelpClubRules } from './components/HelpClubRules'
 import { ProfileMediaGrid } from './components/ProfileMediaGrid'
 import { ReportButton } from './components/ReportButton'
+import { CallModal } from './components/CallModal'
+import { CallRingBanner } from './components/CallRingBanner'
 
 import {
   WEBSITE_LINKS_MAX,
@@ -67,6 +75,8 @@ export function HomeApp({ userId, onLogout }: Props) {
   const [showHelp, setShowHelp] = useState(false)
   const [dmUnreadTotal, setDmUnreadTotal] = useState(0)
   const [dmUnreadByChat, setDmUnreadByChat] = useState<Record<string, number>>({})
+  // created: 2026-11-25T20:45:00-08:00 — PRD v5 group voice
+  const [activeCall, setActiveCall] = useState<CallSession | null>(null)
   const [me, setMe] = useState<Profile | null>(null)
   const [people, setPeople] = useState<Profile[]>([])
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -1186,6 +1196,44 @@ export function HomeApp({ userId, onLogout }: Props) {
     }
   }
 
+  async function startGroupVoiceCall() {
+    // created: 2026-11-25T20:45:00-08:00
+    if (!activeChat?.is_group) return
+    if (activeChat.lounge_key === 'everyone' || activeChat.lounge_key === 'announcements') {
+      setError('Voice calls are only for invite group chats.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const call = await startChatCall(activeChat.id, 'voice')
+      setActiveCall(call)
+      await loadMessages(activeChat.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start voice call.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function joinGroupVoiceCall(callId: string) {
+    // created: 2026-11-25T20:45:00-08:00
+    if (!activeChat) return
+    setBusy(true)
+    setError('')
+    try {
+      const active = await getActiveChatCall(activeChat.id)
+      if (!active || active.id !== callId) {
+        throw new Error('That call has ended.')
+      }
+      setActiveCall(active)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join call.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function sendChatPayload(payload: { body: string; mediaUrl: string | null }) {
     // created: 2026-11-24T14:10:00-08:00 — used by ChatPanel / ChatThread
     // updated: 2026-11-25T01:25:00-08:00 — stickers skip text check
@@ -1484,6 +1532,35 @@ export function HomeApp({ userId, onLogout }: Props) {
   return (
     <div className="app-with-rail">
       <div className="app-main-col">
+      <CallRingBanner
+        userId={userId}
+        activeCallId={activeCall?.id}
+        chatTitle={(chatId) => {
+          const c = chats.find((x) => x.id === chatId)
+          if (!c) return 'a group'
+          if (c.lounge_key === 'everyone') return 'Rafflesia Lounge'
+          return c.title || 'Group chat'
+        }}
+        onOpenChat={(chatId) => {
+          const c = chats.find((x) => x.id === chatId)
+          if (!c) return
+          setShowHelp(false)
+          setViewProfile(null)
+          setTab('lounge')
+          setActiveChat(c)
+        }}
+        onJoin={(call) => setActiveCall(call)}
+      />
+      {activeCall ? (
+        <CallModal
+          call={activeCall}
+          displayName={(me?.display_name || me?.username || 'Friend').trim()}
+          onClose={() => setActiveCall(null)}
+          onEnded={() => {
+            if (activeChat) loadMessages(activeChat.id).catch(() => undefined)
+          }}
+        />
+      ) : null}
       {/* updated: 2026-11-24T00:00:00-08:00 — corner face opens My profile */}
       {/* updated: 2026-11-24T12:05:00-08:00 — Log out always in header */}
       <div className="header-bar">
@@ -2457,6 +2534,11 @@ export function HomeApp({ userId, onLogout }: Props) {
             authorName={authorName}
             mentionPeople={people}
             onOpenUsername={openUsername}
+            allowCalls={!isEveryoneChat && !isAnnouncementsChat}
+            onStartCall={startGroupVoiceCall}
+            onJoinCallFromMessage={(callId) => {
+              joinGroupVoiceCall(callId).catch(() => undefined)
+            }}
             allowPolls={
               isAnnouncementsChat ? me?.username === 'rafflesiaonline' : true
             }

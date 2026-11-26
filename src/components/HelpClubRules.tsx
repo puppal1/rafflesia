@@ -35,6 +35,14 @@ export function HelpClubRules({ onBack }: Props) {
         </p>
       </section>
       <section className="help-section">
+        {/* created: 2026-11-25T20:45:00-08:00 */}
+        <h3>Group voice calls</h3>
+        <p>
+          Invite group chats can start a <strong>voice</strong> call (no video, no private DMs, not Everyone). Don’t use
+          during class — school Chromebook rules still apply. Others could still record; leave anytime.
+        </p>
+      </section>
+      <section className="help-section">
         <h3>Your media</h3>
         <p>Pictures and videos you post are your responsibility. Only share what you are OK with friends seeing.</p>
       </section>

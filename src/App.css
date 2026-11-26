@@ -4721,3 +4721,112 @@ select {
   font: inherit;
   margin-bottom: 6px;
 }
+
+/* created: 2026-11-25T20:45:00-08:00 — PRD v5 group voice calls */
+.chat2-head-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.call-ring-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #fff3e6, #ffe8d2);
+  border: 1px solid rgba(196, 92, 38, 0.25);
+}
+.call-ring-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.call-ring-glyph {
+  font-size: 1.4rem;
+}
+.call-ring-title {
+  margin: 0;
+  font-weight: 700;
+}
+.call-ring-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #6b4a36;
+}
+.call-ring-actions {
+  display: flex;
+  gap: 6px;
+}
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(30, 18, 10, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.call-sheet {
+  width: min(920px, 100%);
+  height: min(86vh, 720px);
+  background: #1a1520;
+  color: #fff;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.call-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #2a2233;
+}
+.call-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.call-title {
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+}
+.call-head-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.call-stage {
+  flex: 1;
+  min-height: 280px;
+  background: #0d0a12;
+}
+.call-boot,
+.call-err,
+.call-foot {
+  margin: 0;
+  padding: 8px 14px;
+}
+.call-foot {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+.chat2-call-card {
+  text-align: left;
+  padding: 8px 0 4px;
+}
+.chat2-call-label {
+  margin: 0 0 4px;
+  font-weight: 700;
+}

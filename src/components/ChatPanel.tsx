@@ -3,6 +3,7 @@
 // updated: 2026-11-25T00:20:00-08:00 — @mention autocomplete + highlighted message text
 // updated: 2026-11-25T01:25:00-08:00 — PRD v4 stickers, polls, DM unread badges
 // updated: 2026-11-25T01:45:00-08:00 — poll sheet UX (tool button + PollComposer)
+// updated: 2026-11-25T20:40:00-08:00 — PRD v5 voice/video call controls
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { CHAT_EMOJIS, insertEmojiAtCursor } from '../lib/emojiBar'
@@ -15,6 +16,7 @@ import { parsePostShare } from '../lib/postShare'
 import { prepareChatImage } from '../lib/chatImage'
 import { parsePollMessage } from '../lib/polls'
 import { encodeStickerBody, parseStickerBody } from '../lib/stickers'
+import { parseCallMessage, type CallMode } from '../lib/calls'
 import type { IconDef } from '../lib/iconPacks'
 import { FaceAvatar } from './FaceAvatar'
 import { MediaLightbox } from './MediaLightbox'
@@ -68,6 +70,11 @@ type ThreadProps = {
   /** created: 2026-11-25T01:25:00-08:00 — lounge polls */
   allowPolls?: boolean
   onCreatePoll?: (question: string, options: string[]) => Promise<void>
+  /** created: 2026-11-25T20:40:00-08:00 — voice/video */
+  /** updated: 2026-11-25T20:45:00-08:00 — voice-only group calls */
+  allowCalls?: boolean
+  onStartCall?: () => void
+  onJoinCallFromMessage?: (callId: string, mode: CallMode) => void
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — conversation + composer only */
@@ -96,6 +103,9 @@ export function ChatThread({
   onOpenUsername,
   allowPolls,
   onCreatePoll,
+  allowCalls,
+  onStartCall,
+  onJoinCallFromMessage,
 }: ThreadProps) {
   const [draft, setDraft] = useState('')
   const [link, setLink] = useState('')
@@ -225,7 +235,19 @@ export function ChatThread({
           ) : null}
           <strong>{title}</strong>
         </div>
-        {headerExtra}
+        <div className="chat2-head-tools">
+          {allowCalls && onStartCall ? (
+            <button
+              type="button"
+              className="chat2-tool"
+              title="Start voice call"
+              onClick={() => onStartCall()}
+            >
+              📞
+            </button>
+          ) : null}
+          {headerExtra}
+        </div>
       </header>
 
       <div className="chat2-stream" role="log" aria-live="polite" ref={streamRef}>
@@ -237,7 +259,8 @@ export function ChatThread({
             const mine = m.sender_id === userId
             const pollId = parsePollMessage(m.body)
             const sticker = parseStickerBody(m.body)
-            const shared = pollId || sticker ? null : parsePostShare(m.body)
+            const callMsg = parseCallMessage(m.body)
+            const shared = pollId || sticker || callMsg ? null : parsePostShare(m.body)
             const sharedPost = shared ? posts.find((p) => p.id === shared.postId) : null
             const media = m.video_url
             const img = media && isChatImage(media)
@@ -252,6 +275,26 @@ export function ChatThread({
                 </div>
                 {pollId ? (
                   <PollCard pollId={pollId} userId={userId} canClose={mine} />
+                ) : callMsg ? (
+                  <div className="chat2-call-card">
+                    <p className="chat2-call-label">
+                      {callMsg.mode === 'voice' ? '📞 Voice call' : '📹 Video call'}
+                    </p>
+                    <p className="chat2-text">
+                      {(m.body || '')
+                        .replace(/^@@call:[0-9a-f-]+:(?:voice|video)@@\s*/i, '')
+                        .trim() || 'Call started'}
+                    </p>
+                    {onJoinCallFromMessage ? (
+                      <button
+                        className="primary btn-compact"
+                        type="button"
+                        onClick={() => onJoinCallFromMessage(callMsg.callId, callMsg.mode)}
+                      >
+                        Join call
+                      </button>
+                    ) : null}
+                  </div>
                 ) : sticker ? (
                   <div className="chat2-sticker">
                     {sticker.imageUrl ? (
@@ -328,7 +371,7 @@ export function ChatThread({
                     ) : null}
                   </>
                 )}
-                {!pollId ? (
+                {!pollId && !callMsg ? (
                   <button
                     type="button"
                     className={myLiked.has(m.id) ? 'chat2-like on' : 'chat2-like'}
@@ -515,6 +558,11 @@ type PanelProps = {
   onOpenUsername?: (username: string) => void
   /** created: 2026-11-25T01:25:00-08:00 — DM unread only */
   unreadByChatId?: Record<string, number>
+  /** created: 2026-11-25T20:40:00-08:00 */
+  /** updated: 2026-11-25T20:45:00-08:00 — voice-only */
+  allowCalls?: boolean
+  onStartCall?: () => void
+  onJoinCallFromMessage?: (callId: string, mode: CallMode) => void
 }
 
 /** created: 2026-11-24T14:10:00-08:00 — inbox + thread shell */
@@ -538,6 +586,9 @@ export function ChatPanel({
   mentionPeople,
   onOpenUsername,
   unreadByChatId,
+  allowCalls,
+  onStartCall,
+  onJoinCallFromMessage,
 }: PanelProps) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -639,6 +690,9 @@ export function ChatPanel({
             authorName={authorName}
             mentionPeople={mentionPeople}
             onOpenUsername={onOpenUsername}
+            allowCalls={allowCalls}
+            onStartCall={onStartCall}
+            onJoinCallFromMessage={onJoinCallFromMessage}
           />
         ) : (
           <div className="chat2-placeholder">

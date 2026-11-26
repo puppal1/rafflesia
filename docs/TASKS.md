@@ -163,6 +163,21 @@ Source: [`PRD v4.0.md`](PRD%20v4.0.md)
 
 ---
 
+## Phase 9 — PRD v5.0 (group voice calls)
+<!-- created: 2026-11-25T20:45:00-08:00 -->
+
+Source: [`PRD v5.0.md`](PRD%20v5.0.md)
+
+| # | Epic | Status |
+|---|------|--------|
+| 9.K1 | Voice-only | Locked / building |
+| 9.K2 | Invite groups only (not DM / Everyone / Announcements) | Locked / building |
+| 9.K3 | Ring banner + CallModal (Jitsi audio) | Building |
+
+**Out:** video, 1:1 DM calls. **Human:** `sql/prd-v5-calls.sql` + don’t use during class.
+
+---
+
 ## Related
 <!-- updated: 2026-11-25T01:18:00-08:00 -->
 - [`PRD.md`](PRD.md) (v1.0) · [`PRD v2.0.md`](PRD%20v2.0.md) · [`PRD v3.0.md`](PRD%20v3.0.md) · [`PRD v4.0.md`](PRD%20v4.0.md) · [`SECURITY.md`](SECURITY.md)  
