@@ -683,6 +683,16 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
 }
 .bloom-glyph.bell {
   font-size: 1.2rem;
+  color: var(--ink, #3b2a1e);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bloom-bell-svg {
+  display: block;
+}
+.bloom-btn.active .bloom-glyph.bell {
+  color: var(--accent, #c45c26);
 }
 .bloom-glyph.bell.ringing {
   animation: bell-ring 0.85s ease-in-out infinite;
