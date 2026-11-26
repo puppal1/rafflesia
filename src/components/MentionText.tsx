@@ -1,5 +1,6 @@
 // created: 2026-11-25T00:20:00-08:00 — render @username highlights in chat/comments
 // updated: 2026-11-25T00:25:00-08:00 — always highlight @handles; tap tries open even if not in local map
+// updated: 2026-11-25T20:25:00-08:00 — http(s)/www URLs render as clickable links
 import { splitMentionText } from '../lib/mentions'
 import type { Profile } from '../types'
 
@@ -29,7 +30,7 @@ function resolveProfile(
 }
 
 /** created: 2026-11-25T00:20:00-08:00 */
-/** updated: 2026-11-25T00:25:00-08:00 — every @token is a visible, tappable mention */
+/** updated: 2026-11-25T20:25:00-08:00 — mentions + tappable outbound links */
 export function MentionText({
   text,
   profilesById,
@@ -43,6 +44,21 @@ export function MentionText({
       {pieces.map((p, i) => {
         if (p.kind === 'text') {
           return <span key={`t-${i}`}>{p.value}</span>
+        }
+        if (p.kind === 'link') {
+          return (
+            <a
+              key={`l-${i}`}
+              className="text-link"
+              href={p.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={p.href}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {p.value}
+            </a>
+          )
         }
         const known = resolveProfile(p.username, profilesById, people)
         const handle = known?.username || p.username

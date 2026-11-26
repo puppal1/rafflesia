@@ -291,7 +291,16 @@ export function ChatThread({
                     ) : (
                       <p className="chat2-muted">Post preview…</p>
                     )}
-                    {shared.note ? <p className="chat2-text">{shared.note}</p> : null}
+                    {shared.note ? (
+                      <p className="chat2-text">
+                        {/* updated: 2026-11-25T20:25:00-08:00 — note links clickable */}
+                        <MentionText
+                          text={shared.note}
+                          profilesById={profilesById}
+                          onOpenUsername={onOpenUsername}
+                        />
+                      </p>
+                    ) : null}
                   </div>
                 ) : (
                   <>

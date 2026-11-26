@@ -279,7 +279,12 @@ export function PostCard({
         </div>
       ) : postBody ? (
         <p className="post-card-body">
-          {postBody}
+          {/* updated: 2026-11-25T20:25:00-08:00 — body links clickable via MentionText */}
+          <MentionText
+            text={postBody}
+            profilesById={profilesById}
+            onOpenUsername={onOpenUsername}
+          />
           {postEditedAt ? <span className="muted"> · edited</span> : null}
         </p>
       ) : null}
@@ -420,15 +425,6 @@ export function PostCard({
                       <img className="comment-media" src={c.media_url} alt="" />
                       <span className="chat-media-hint">Tap to enlarge</span>
                     </button>
-                  ) : null}
-                  {(c.body.match(/https?:\/\/\S+/gi) || []).length > 0 ? (
-                    <p className="chat-msg-links">
-                      {(c.body.match(/https?:\/\/\S+/gi) || []).map((u) => (
-                        <a key={u} href={u} target="_blank" rel="noopener noreferrer">
-                          Open link
-                        </a>
-                      ))}
-                    </p>
                   ) : null}
                   <ReactionBar
                     targetType="comment"

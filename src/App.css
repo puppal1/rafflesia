@@ -4243,13 +4243,19 @@ select {
 
 /* created: 2026-11-25T00:20:00-08:00 — @mention highlight + typeahead */
 /* updated: 2026-11-25T00:25:00-08:00 — all @handles look linked inside bubbles */
+/* updated: 2026-11-25T20:25:00-08:00 — outbound URLs look like links too */
 .mention-text {
   white-space: pre-wrap;
   word-break: break-word;
 }
 .mention-token,
 .chat2-text .mention-token,
-.profile-bio .mention-token {
+.profile-bio .mention-token,
+.post-card-body .mention-token,
+.text-link,
+.chat2-text .text-link,
+.profile-bio .text-link,
+.post-card-body .text-link {
   display: inline;
   font: inherit;
   font-size: inherit;
@@ -4264,6 +4270,9 @@ select {
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
+}
+.text-link:hover {
+  opacity: 0.85;
 }
 .mention-token.known,
 .mention-token.linkish {

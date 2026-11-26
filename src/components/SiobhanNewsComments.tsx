@@ -131,7 +131,6 @@ export function SiobhanNewsComments({
         ) : (
           comments.map((c) => {
             const who = profilesById[c.author_id]
-            const links = c.body.match(/https?:\/\/\S+/gi) || []
             return (
               <div className="post-comment" key={c.id}>
                 <p className="comment-meta">
@@ -142,6 +141,7 @@ export function SiobhanNewsComments({
                   <span>· {new Date(c.created_at).toLocaleString()}</span>
                 </p>
                 <p className="profile-bio">
+                  {/* updated: 2026-11-25T20:25:00-08:00 — URLs clickable in-line */}
                   <MentionText
                     text={c.body}
                     profilesById={profilesById}
@@ -157,15 +157,6 @@ export function SiobhanNewsComments({
                   >
                     <img className="comment-media" src={c.media_url} alt="" />
                   </button>
-                ) : null}
-                {links.length > 0 ? (
-                  <p className="chat-msg-links">
-                    {links.map((u) => (
-                      <a key={u} href={u} target="_blank" rel="noopener noreferrer">
-                        Open link
-                      </a>
-                    ))}
-                  </p>
                 ) : null}
                 <div className="row-actions" style={{ gap: 6, marginTop: 4 }}>
                   {who?.username ? (
