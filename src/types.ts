@@ -23,6 +23,8 @@ export type Profile = {
   verify_tier?: VerifyTier | string | null
   /** created: 2026-11-24T00:05:00-08:00 */
   website_links?: WebsiteLink[] | null
+  /** created: 2026-11-26T11:55:00-08:00 — signup / join time for People sort */
+  created_at?: string | null
 }
 
 /** created: 2026-11-23T20:28:00-08:00 — which list is open on a profile */

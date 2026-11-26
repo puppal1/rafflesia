@@ -174,11 +174,12 @@ export function HomeApp({ userId, onLogout }: Props) {
   const loadPeople = useCallback(async () => {
     // created: 2026-11-23T12:14:00-08:00
     // updated: 2026-11-23T20:40:00-08:00 — reliable followingIds + counts
+    // updated: 2026-11-26T11:55:00-08:00 — newest members first (join / created_at desc)
     const peopleRes = await supabase
       .from('profiles')
       .select('*')
       .neq('id', userId)
-      .order('username')
+      .order('created_at', { ascending: false })
     if (peopleRes.error) throw peopleRes.error
     // updated: 2026-11-24T14:30:00-08:00 — drop hidden usernames (e.g. pr123)
     const others = visibleProfiles((peopleRes.data || []) as Profile[])
