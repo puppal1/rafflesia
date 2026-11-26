@@ -1,6 +1,7 @@
 // created: 2026-11-25T00:30:00-08:00 — Rafflesia bloom notification control + What’s new modal
 // updated: 2026-11-25T00:40:00-08:00 — mark read on close; faster poll if realtime lags
 // updated: 2026-11-25T01:05:00-08:00 — dino icon; jumps when unread
+// updated: 2026-11-25T20:30:00-08:00 — bell icon instead of dino
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { iconEmoji } from '../lib/iconPacks'
@@ -141,8 +142,8 @@ export function BloomInbox({ userId, onNavigate }: Props) {
         aria-label={active ? `Notifications, ${unread} unread` : 'Notifications'}
         onClick={() => openModal()}
       >
-        <span className={active ? 'bloom-glyph dino jumping' : 'bloom-glyph dino'} aria-hidden>
-          🦕
+        <span className={active ? 'bloom-glyph bell ringing' : 'bloom-glyph bell'} aria-hidden>
+          🔔
         </span>
         {active ? <span className="bloom-badge">{badge}</span> : null}
       </button>

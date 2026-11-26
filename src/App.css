@@ -671,7 +671,8 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   padding: 0;
 }
 .bloom-btn.active {
-  /* updated: 2026-11-25T01:05:00-08:00 — dino jumps, button stays put */
+  /* updated: 2026-11-25T01:05:00-08:00 — unread animates glyph, button stays put */
+  /* updated: 2026-11-25T20:30:00-08:00 — bell rings instead of dino jump */
   border-color: var(--accent, #c45c26);
   background: color-mix(in srgb, var(--accent, #c45c26) 14%, #fff);
 }
@@ -680,12 +681,12 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   line-height: 1;
   display: inline-block;
 }
-.bloom-glyph.dino {
-  font-size: 1.35rem;
+.bloom-glyph.bell {
+  font-size: 1.2rem;
 }
-.bloom-glyph.dino.jumping {
-  animation: dino-jump 0.7s ease-in-out infinite;
-  transform-origin: center bottom;
+.bloom-glyph.bell.ringing {
+  animation: bell-ring 0.85s ease-in-out infinite;
+  transform-origin: top center;
 }
 .bloom-badge {
   position: absolute;
@@ -704,19 +705,26 @@ html[data-manga-bg='on'] .glass-card:has(.app-with-rail) {
   justify-content: center;
 }
 /* created: 2026-11-25T01:05:00-08:00 */
-@keyframes dino-jump {
+/* updated: 2026-11-25T20:30:00-08:00 — bell ring */
+@keyframes bell-ring {
   0%,
   100% {
-    transform: translateY(0) rotate(0deg);
+    transform: rotate(0deg);
   }
-  35% {
-    transform: translateY(-7px) rotate(-8deg);
+  15% {
+    transform: rotate(14deg);
   }
-  55% {
-    transform: translateY(-2px) rotate(4deg);
+  30% {
+    transform: rotate(-12deg);
   }
-  70% {
-    transform: translateY(-5px) rotate(-4deg);
+  45% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(3deg);
   }
 }
 .bloom-overlay {

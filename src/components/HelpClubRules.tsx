@@ -30,7 +30,7 @@ export function HelpClubRules({ onBack }: Props) {
       <section className="help-section">
         <h3>Messages</h3>
         <p>
-          Private Messages are 1:1. Lounge is for Everyone, groups, and Announcements. The dino inbox is for club /
+          Private Messages are 1:1. Lounge is for Everyone, groups, and Announcements. The bell inbox is for club /
           social news — not private DMs (those badge Messages).
         </p>
       </section>
